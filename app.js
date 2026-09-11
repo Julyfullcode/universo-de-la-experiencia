@@ -1,5 +1,5 @@
-const SUPABASE_URL = "https://oixqthwwjvvspsuwfhme.supabase.co";
-const SUPABASE_KEY = "sb_publishable_WaBBzhjih4wZiDGnnfprVw_zcp4Y63_";
+const SUPABASE_URL = "https://vbrezgsxbfxtfzfcmqce.supabase.co";
+const SUPABASE_KEY = "sb_publishable_mwJdpfrhPEZCxzHIrJ-7_w_jze0OPzT";
 const db = window.supabase?.createClient(SUPABASE_URL, SUPABASE_KEY);
 const ID_KEY = "universo-experiencia.identidad.v2";
 const steps = [["lanzamiento", "Centro de lanzamiento", "Lenguaje para iniciar el viaje"], ["estrellas", "Las estrellas", "Clientes y usuarios en el centro"], ["planetas", "Los planetas", "Descubre tus coordenadas de comportamiento"], ["coordenadas", "Coordenadas", "Tu rol en la promesa de experiencia"], ["satelites", "Satélites y constelaciones", "Actores que hacen posible la experiencia"], ["observatorio", "Observatorio de señales", "Medir para aprender y actuar"], ["mision", "Misión en la Tierra", "Convertir aprendizaje en acción"]];
