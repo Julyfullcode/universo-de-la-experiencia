@@ -1,5 +1,5 @@
 /* Real WebGL orbital scene. The CSS/PDF assets remain available as a fallback.
-   Bodies are meshes; the sole approved customer star remains a single sprite. */
+   The client centre is a still cluster of stars; all other bodies are meshes. */
 (function () {
   "use strict";
 
@@ -16,6 +16,30 @@
     gradient.addColorStop(1, "rgba(0,0,0,0)");
     context.fillStyle = gradient;
     context.fillRect(0, 0, 256, 256);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  function makeDustTexture(THREE, palette) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 512;
+    const context = canvas.getContext("2d");
+    const puffs = [
+      [.48, .5, .43], [.32, .42, .27], [.68, .4, .3], [.57, .67, .28], [.4, .64, .24], [.72, .62, .18]
+    ];
+    const rgba = (color, alpha) => `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+    context.globalCompositeOperation = "lighter";
+    puffs.forEach(([x, y, radius], index) => {
+      const color = palette[index % palette.length];
+      const gradient = context.createRadialGradient(x * 512, y * 512, 2, x * 512, y * 512, radius * 512);
+      gradient.addColorStop(0, rgba(color, .72));
+      gradient.addColorStop(.2, rgba(color, .42));
+      gradient.addColorStop(.58, rgba(color, .12));
+      gradient.addColorStop(1, rgba(color, 0));
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 512, 512);
+    });
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
@@ -81,16 +105,44 @@
     const group = new THREE.Group();
     const familiarStarTexture = new THREE.TextureLoader().load("assets/estrella-realista.png");
     familiarStarTexture.colorSpace = THREE.SRGBColorSpace;
+    familiarStarTexture.premultiplyAlpha = false;
+    familiarStarTexture.needsUpdate = true;
     const familiarStar = new THREE.Sprite(new THREE.SpriteMaterial({
       map: familiarStarTexture,
       transparent: true,
       opacity: 1,
+      alphaTest: .025,
+      blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false
     }));
-    familiarStar.scale.set(4.15, 4.15, 1);
+    familiarStar.scale.set(3.75, 3.75, 1);
     familiarStar.renderOrder = 20;
     group.add(familiarStar);
+    [
+      [-1.32, .72, .25, .24, 0xd9f6ff],
+      [1.28, .55, .15, .18, 0xb6edff],
+      [-1.12, -.82, .08, .15, 0xd7a5ff],
+      [1.18, -.67, .3, .28, 0xd9ff84]
+    ].forEach(([x, y, z, radius, color]) => {
+      const star = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 28, 28),
+        makeMaterial(THREE, color, { emissive: color, emissiveIntensity: 2.4, roughness: .15, metalness: .02 })
+      );
+      star.position.set(x, y, z);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: makeGlowTexture(THREE, "rgba(255,255,255,1)", `rgb(${(color >> 16) & 255},${(color >> 8) & 255},${color & 255})`),
+        transparent: true,
+        opacity: .72,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        depthWrite: false
+      }));
+      halo.scale.set(radius * 4.6, radius * 4.6, 1);
+      halo.position.copy(star.position);
+      halo.renderOrder = 19;
+      group.add(halo, star);
+    });
     group.renderOrder = 20;
     return group;
   }
@@ -170,7 +222,69 @@
       new THREE.LineBasicMaterial({ color: 0xc77bff, transparent: false })
     );
     group.add(lines);
-    group.userData.spin = group;
+    return group;
+  }
+
+  function createDustGalaxy(THREE, palette, size) {
+    const group = new THREE.Group();
+    const texture = makeDustTexture(THREE, palette);
+    [
+      [0, 0, 0, 1], [.34, -.14, -.35, .72], [-.27, .18, -.7, .56]
+    ].forEach(([x, y, z, scale]) => {
+      const cloud = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        opacity: .58,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      cloud.position.set(x * size, y * size, z);
+      cloud.scale.set(size * 2.4 * scale, size * 1.3 * scale, 1);
+      group.add(cloud);
+    });
+    [
+      [-.54, .18, .44, .09], [-.3, -.24, -.3, .13], [-.02, .36, .12, .08],
+      [.29, -.12, .55, .11], [.51, .2, -.18, .07], [.18, .44, -.52, .06], [-.46, -.36, .14, .08]
+    ].forEach(([x, y, z, radius], index) => {
+      const color = palette[index % palette.length];
+      const dust = new THREE.Mesh(
+        new THREE.SphereGeometry(size * radius, 16, 16),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255),
+          emissive: new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255),
+          emissiveIntensity: .62,
+          transparent: true,
+          opacity: .46,
+          depthWrite: false,
+          roughness: .38,
+          metalness: .04
+        })
+      );
+      dust.position.set(x * size, y * size, z * size);
+      group.add(dust);
+    });
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(size * .12, 24, 24),
+      makeMaterial(THREE, 0xdcc6ff, { emissive: 0x9b58ff, emissiveIntensity: 1.4, roughness: .2, metalness: .04 })
+    );
+    group.add(core);
+    return group;
+  }
+
+  function createCompanionPlanet(THREE, color, accent, radius) {
+    const group = new THREE.Group();
+    const surface = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 36, 36),
+      makeMaterial(THREE, color, { emissive: accent, emissiveIntensity: .34, roughness: .54, metalness: .07 })
+    );
+    group.add(surface);
+    const latitude = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 1.015, radius * .028, 10, 48),
+      makeMaterial(THREE, accent, { emissive: accent, emissiveIntensity: .45, roughness: .28, metalness: .25 })
+    );
+    latitude.rotation.x = Math.PI / 2.35;
+    group.add(latitude);
+    group.userData.spin = surface;
     return group;
   }
 
@@ -205,6 +319,26 @@
     signal.position.y = .66;
     signal.scale.set(1.45, 1.45, 1);
     group.add(signal);
+    [
+      [.86, -.42, .18, .35, 0xa985ff],
+      [-.78, .28, -.24, .27, 0x6de9ff]
+    ].forEach(([x, y, z, scale, color]) => {
+      const companion = new THREE.Group();
+      const companionMetal = makeMaterial(THREE, 0xe0edf8, { metalness: .78, roughness: .2 });
+      const companionPanel = makeMaterial(THREE, color, { emissive: color, emissiveIntensity: .42, metalness: .62, roughness: .2 });
+      companion.add(new THREE.Mesh(new THREE.BoxGeometry(.48, .32, .36), companionMetal));
+      [-1, 1].forEach((side) => {
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(.52, .035, .24), companionPanel);
+        panel.position.x = side * .46;
+        companion.add(panel);
+      });
+      const lens = new THREE.Mesh(new THREE.SphereGeometry(.1, 14, 14), companionPanel);
+      lens.position.y = .24;
+      companion.add(lens);
+      companion.position.set(x, y, z);
+      companion.scale.setScalar(scale);
+      group.add(companion);
+    });
     group.userData.spin = group;
     return group;
   }
@@ -296,6 +430,14 @@
     return { root, runner, anchor };
   }
 
+  function makeFixedNode(THREE, config) {
+    const root = new THREE.Group();
+    const anchor = new THREE.Group();
+    anchor.position.set(config.position[0], config.position[1], config.position[2]);
+    root.add(anchor);
+    return { root, runner: null, anchor };
+  }
+
   function disposeObject(root) {
     root.traverse((node) => {
       if (node.geometry) node.geometry.dispose();
@@ -334,9 +476,10 @@
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       materials.forEach((material) => {
         if (material.userData.originalOpacity === undefined) material.userData.originalOpacity = material.opacity === undefined ? 1 : material.opacity;
+        if (material.userData.originalTransparent === undefined) material.userData.originalTransparent = material.transparent === true;
         if (material.userData.originalEmissive === undefined && material.emissive) material.userData.originalEmissive = material.emissiveIntensity || 0;
         const originalOpacity = material.userData.originalOpacity;
-        material.transparent = originalOpacity < .99;
+        material.transparent = material.userData.originalTransparent;
         material.opacity = originalOpacity;
         if (material.emissive) material.emissiveIntensity = material.userData.originalEmissive;
       });
@@ -400,8 +543,11 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
+    const sceneRoot = new THREE.Group();
+    const contextGroup = new THREE.Group();
     const system = new THREE.Group();
-    scene.add(system);
+    sceneRoot.add(contextGroup, system);
+    scene.add(sceneRoot);
     scene.add(new THREE.HemisphereLight(0xa7e8ff, 0x11152f, 1.45));
     const customerLight = new THREE.PointLight(0x9cddff, 5.3, 28, 2);
     customerLight.position.set(0, 0, 2);
@@ -416,6 +562,16 @@
     rimLight.position.set(-7, 2, -5);
     scene.add(rimLight);
 
+    [
+      { position: [-10.2, 3.15, -5.8], palette: [[56, 166, 255], [149, 73, 255], [90, 224, 208]], size: 2.25 },
+      { position: [10.8, 2.85, -7.2], palette: [[117, 83, 255], [77, 201, 255], [213, 98, 255]], size: 1.9 },
+      { position: [11.3, -2.55, -7.8], palette: [[60, 153, 255], [139, 80, 245], [88, 211, 174]], size: 1.25 }
+    ].forEach((galaxy) => {
+      const cloud = createDustGalaxy(THREE, galaxy.palette, galaxy.size);
+      cloud.position.set(galaxy.position[0], galaxy.position[1], galaxy.position[2]);
+      contextGroup.add(cloud);
+    });
+
     const records = [];
     const central = { step: "estrellas", title: "Clientes y usuarios", index: 1, central: true, available: 1 <= progress, labelOffset: 42, baseScale: 1 };
     central.anchor = createStar(THREE);
@@ -425,18 +581,18 @@
     records.push(central);
 
     const configurations = [
-      { step: "lanzamiento", title: "Centro de lanzamiento", index: 0, radius: 11.4, depth: .58, tilt: .52, yaw: -.22, roll: -.15, phase: 4.25, period: 320, spin: .026, color: 0x65dfff, create: createRocket, labelOffset: 28, scale: 1.18 },
-      { step: "planetas", title: "Planetas de talento", index: 2, radius: 6.85, depth: .74, tilt: .62, yaw: .12, roll: .14, phase: 2.35, period: 330, spin: .034, color: 0xffba63, create: createSaturn, labelOffset: 32, scale: 1.32 },
-      { step: "coordenadas", title: "Roles y competencias", index: 3, parentStep: "planetas", radius: 2.08, depth: .82, tilt: .78, yaw: -.18, roll: -.28, phase: 5.45, period: 190, spin: .018, color: 0xd280ff, create: createConstellation, labelOffset: 30, scale: 1.26 },
+      { step: "lanzamiento", title: "Centro de lanzamiento", index: 0, radius: 9.9, depth: .58, tilt: .52, yaw: -.22, roll: -.15, phase: 4.25, period: 320, spin: .026, color: 0x65dfff, create: createRocket, labelOffset: 28, scale: 1.18 },
+      { step: "planetas", title: "Planetas de talento", index: 2, radius: 6.15, depth: .74, tilt: .62, yaw: .12, roll: .14, phase: 2.35, period: 330, spin: .034, color: 0xffba63, create: createSaturn, labelOffset: 32, scale: 1.32 },
+      { step: "coordenadas", title: "Constelación guía", index: 3, context: true, position: [-9.1, -1.7, -4.6], spin: 0, color: 0xd280ff, create: createConstellation, labelOffset: 28, scale: 1.55 },
       { step: "satelites", title: "Satélites del ecosistema", index: 4, parentStep: "planetas", radius: 3.08, depth: .77, tilt: .72, yaw: .08, roll: .24, phase: .4, period: 220, spin: .018, color: 0x82e7ff, create: createSatellite, labelOffset: 38, scale: 1.55 },
-      { step: "observatorio", title: "Observatorio de señales", index: 5, radius: 11.1, depth: .61, tilt: .32, yaw: -.2, roll: -.1, phase: 3.35, period: 370, spin: .022, color: 0xc6ef7d, create: createObservatory, labelOffset: 39, scale: 1.58 },
-      { step: "mision", title: "Misión en la Tierra", index: 6, radius: 8.9, depth: .68, tilt: .55, yaw: .15, roll: .08, phase: 1.22, period: 345, spin: .03, color: 0x69ceff, create: createEarth, labelOffset: 33, scale: 1.55 }
+      { step: "observatorio", title: "Observatorio de señales", index: 5, radius: 9.7, depth: .61, tilt: .32, yaw: -.2, roll: -.1, phase: 3.35, period: 370, spin: .022, color: 0xc6ef7d, create: createObservatory, labelOffset: 39, scale: 1.58 },
+      { step: "mision", title: "Misión en la Tierra", index: 6, radius: 8.1, depth: .68, tilt: .55, yaw: .15, roll: .08, phase: 1.22, period: 345, spin: .03, color: 0x69ceff, create: createEarth, labelOffset: 33, scale: 1.55 }
     ];
 
     configurations.forEach((config) => {
       const parentRecord = config.parentStep && records.find((record) => record.step === config.parentStep);
-      const orbit = makeOrbitNode(THREE, config);
-      (parentRecord ? parentRecord.anchor : system).add(orbit.root);
+      const orbit = config.position ? makeFixedNode(THREE, config) : makeOrbitNode(THREE, config);
+      (config.context ? contextGroup : parentRecord ? parentRecord.anchor : system).add(orbit.root);
       const anchor = orbit.anchor;
       const visual = config.create(THREE);
       visual.scale.setScalar(config.scale);
@@ -444,6 +600,19 @@
       const record = Object.assign(config, { plane: orbit.root, runner: orbit.runner, anchor, visual, available: config.index <= progress, baseScale: config.scale });
       setAvailability(anchor, record.available);
       records.push(record);
+    });
+
+    const passiveOrbitNodes = [];
+    [
+      { radius: 4.35, depth: .7, tilt: .44, yaw: -.34, roll: .12, phase: .76, period: 355, spin: .022, color: 0x4cd0d8, scale: .82, create: () => createCompanionPlanet(THREE, 0x177f9f, 0x45f0df, .58) },
+      { radius: 8.65, depth: .62, tilt: .7, yaw: .38, roll: -.18, phase: 4.84, period: 430, spin: .015, color: 0xbe75ff, scale: .94, create: () => createCompanionPlanet(THREE, 0x6940ab, 0xd39aff, .64) }
+    ].forEach((config) => {
+      const orbit = makeOrbitNode(THREE, config);
+      system.add(orbit.root);
+      const visual = config.create();
+      visual.scale.setScalar(config.scale);
+      orbit.anchor.add(visual);
+      passiveOrbitNodes.push({ runner: orbit.runner, visual, spin: config.spin, period: config.period });
     });
 
     records.forEach((entry) => addLabel(labels, entry, progress));
@@ -466,7 +635,7 @@
       pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
       pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(system.children, true);
+      const hits = raycaster.intersectObjects(sceneRoot.children, true);
       return hits.map((hit) => findRecordFromHit(hit, records)).find(Boolean) || null;
     }
 
@@ -486,11 +655,15 @@
       renderer.setSize(bounds.width, bounds.height, false);
       camera.aspect = bounds.width / bounds.height;
       const compact = camera.aspect < .78;
-      camera.fov = compact ? 34 : 35;
-      camera.position.set(0, compact ? 7.2 : 5.3, compact ? 24 : 18.3);
+      camera.fov = compact ? 34 : 34;
+      camera.position.set(0, compact ? 7.2 : 5.5, compact ? 24 : 21);
       camera.lookAt(0, 0, 0);
       camera.updateProjectionMatrix();
-      system.scale.setScalar(compact ? .62 : Math.min(1.08, Math.max(.68, camera.aspect / 2.1)));
+      const scale = compact ? .58 : Math.min(1.02, Math.max(.66, camera.aspect / 2.08));
+      sceneRoot.scale.setScalar(scale);
+      system.position.x = compact ? 0 : 2.65;
+      contextGroup.scale.setScalar(compact ? .58 : 1);
+      contextGroup.position.x = compact ? .6 : 0;
     }
     resize();
     const resizeObserver = new ResizeObserver(resize);
@@ -516,10 +689,15 @@
       const delta = Math.min(clock.getDelta(), .05);
       configurations.forEach((config) => {
         const record = records.find((entry) => entry.step === config.step);
-        record.runner.rotation.y += delta * (Math.PI * 2 / config.period);
+        if (record.runner) record.runner.rotation.y += delta * (Math.PI * 2 / config.period);
         const spinTarget = record.visual.userData.spin || record.visual;
         spinTarget.rotation.y += delta * config.spin;
-        spinTarget.rotation.z += Math.sin(record.runner.rotation.y * 2.1) * delta * .012;
+        if (record.runner) spinTarget.rotation.z += Math.sin(record.runner.rotation.y * 2.1) * delta * .012;
+      });
+      passiveOrbitNodes.forEach((entry) => {
+        entry.runner.rotation.y += delta * (Math.PI * 2 / entry.period);
+        const spinTarget = entry.visual.userData.spin || entry.visual;
+        spinTarget.rotation.y += delta * entry.spin;
       });
       scene.updateMatrixWorld();
       positionLabels(delta);
