@@ -12,6 +12,33 @@ python -m http.server 4173 --bind 127.0.0.1
 
 Luego abra `http://127.0.0.1:4173/`. No requiere Node ni instalación de dependencias.
 
+## Mapa 3D
+
+El mapa usa Three.js r160, incluido en `vendor/` con su licencia MIT. Una sola
+escena representa la jerarquía galaxia → estrellas cliente → planetas empleados
+→ satélites de otros actores. La vista ampliada sigue la posición de la misma
+estrella señalada en la galaxia; no es otro sistema independiente. Las superficies
+son mallas 3D con materiales procedurales y rotación propia. Las constelaciones son
+líneas en pantalla que unen proyecciones de estrellas a distintas profundidades.
+
+Las órbitas y las posiciones comparten la misma ecuación. Las traslaciones duran
+entre 48 segundos (satélite interior) y 25 minutos (estrella seleccionada).
+La pausa y la preferencia de movimiento reducido detienen la animación. En móvil,
+las pestañas alternan las dos escalas y seleccionar un planeta permite acercarse.
+
+La exploración del mapa no escribe datos; «Abrir actividad» conserva el recorrido
+y el guardado existentes en Supabase. Si WebGL no está disponible, se muestran
+accesos de texto a las actividades desbloqueadas.
+
+Prueba visual y de ejecución, con Python y Microsoft Edge existentes:
+
+```bash
+python scripts/check_scene.py --width 1440 --height 900 --advance 120
+```
+
+El comprobador usa un servidor local, captura WebGL, registra errores y posiciones
+3D, y no escribe en Supabase. Los artefactos de prueba no se publican.
+
 ## Configurar Supabase
 
 1. Ejecute [supabase/schema.sql](supabase/schema.sql) en el SQL Editor del proyecto de Supabase.
