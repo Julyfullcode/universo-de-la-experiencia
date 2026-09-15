@@ -32,7 +32,7 @@ HARNESS = """<!doctype html><html lang="es"><meta charset="utf-8">
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden}
 .orbital-realm-view{width:100vw;height:100vh;display:flex;flex-direction:column}
 .orbital-realm{flex:1;width:100%;min-height:0}</style>
-<main class="universo orbital-realm-view"><nav><button class="nav-button nav-brand"><span>✦</span> Universo de la Experiencia</button><span class="nav-name">Guía de la experiencia</span><div class="nav-actions"><button class="nav-button">Continuar mi viaje</button><button class="nav-button">Mi pasaporte</button><img class="epm-logo" src="assets/logo-grupo-epm.png" alt="Grupo EPM"></div></nav><header class="realm-heading"><h1>Explora tu universo</h1></header>
+<main class="universo orbital-realm-view"><nav class="site-nav"><button class="nav-epm"><img class="epm-logo" src="assets/logo-grupo-epm.png" alt="Grupo EPM"></button><button class="nav-button nav-product"><span>Universo de la Experiencia</span><i>—</i><strong>Guía de la Experiencia</strong></button><div class="nav-actions"><button class="nav-button nav-passport">Mi pasaporte</button><button class="nav-button nav-feedback">Evaluar experiencia</button></div></nav>
 <div class="orbital-realm"></div></main>
 <script>window.__errors=[];window.__clicked=[];
 window.addEventListener('error',e=>window.__errors.push(e.message));
@@ -90,12 +90,17 @@ window.__sceneSnapshot=()=>{
 <script>window.initClientOrbitalScene?.(7);</script></html>"""
 INTEGRATION_STUB = """<script>
 window.__fixtureWrites=[];window.__networkAttempts=[];
+localStorage.setItem('universo-experiencia.sesion.v3','fixture-session');
 window.fetch=url=>{window.__networkAttempts.push(String(url));throw Error('Network disabled in isolated integration test');};
-window.supabase={createClient:()=>({from:()=>({select(){return this},eq(){return this},
- maybeSingle:async()=>({data:{nombre:'Prueba local',paso:'mision',duelos:{},
- planeta_principal:'empaticos',planeta_explorar:'conectores',rol:'generador',satelites:[],mision:{}},error:null}),
- upsert:async data=>{window.__fixtureWrites.push(data);return {error:null};}
-})})};
+const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
+ planeta_explorar:'conectores',rol:'generador',satelites:[],observatorio:'CES',mision:{},avance_maximo:7};
+window.supabase={createClient:()=>({rpc:async(name,args)=>{
+ window.__fixtureWrites.push({name,args});
+ if(name==='universo_mi_viaje')return {data:{correo:'prueba@local.test',viaje:fixtureJourney,feedback:null},error:null};
+ if(name==='universo_guardar_viaje'){Object.assign(fixtureJourney,args.p_viaje);return {data:{correo:'prueba@local.test',viaje:fixtureJourney,feedback:null},error:null};}
+ if(name==='universo_guardar_feedback')return {data:{calificacion:args.p_calificacion,recomendacion:args.p_recomendacion},error:null};
+ return {data:true,error:null};
+}})};
 </script><script src="/app.js"></script>"""
 
 
@@ -247,7 +252,7 @@ def layout_metrics(cdp):
         const stage=document.querySelector('.cosmos-stage').getBoundingClientRect();
         const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x-stage.x,y:r.y-stage.y,w:r.width,h:r.height};};
         const fonts={};
-        for(const [key,selector] of Object.entries({title:'.realm-heading h1',
+        for(const [key,selector] of Object.entries({title:'.nav-product strong',
           object:'.cosmos-object-label.planet',heading:'.cosmos-heading h2',
           inspector:'.cosmos-inspector p',route:'.cosmos-route button'})) {
           const element=document.querySelector(selector);
@@ -271,7 +276,8 @@ def visual_copy_checks(cdp):
       const annotations=[...stage.querySelectorAll('.cosmos-heading,.cosmos-object-label,.cosmos-overview-link')]
         .filter(shown).map(e=>e.innerText.toLocaleLowerCase('es'));
       const forbidden=['modelo de experiencia + arquitectura empresarial','otros actores',
-        'seguir a la estrella seleccionada','cliente seleccionado'];
+        'seguir a la estrella seleccionada','cliente seleccionado','explora tu universo',
+        'continuar mi viaje','créditos de las superficies'];
       const forbiddenVisible=forbidden.filter(text=>annotations.some(annotation=>annotation.includes(text)));
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
@@ -650,7 +656,21 @@ def main():
                   stage:document.querySelectorAll('.cosmos-stage').length,debug:!!window.__universeDebug,
                   fallback:!!document.querySelector('.cosmos-fallback:not([hidden])')});
               }
-              return {results,writes:window.__fixtureWrites.length,network:window.__networkAttempts,errors:window.__errors};
+              const nav=document.querySelector('.site-nav'),bodyCopy=document.body.innerText.toLocaleLowerCase('es');
+              const header={epmFirst:nav?.firstElementChild?.classList.contains('nav-epm'),
+                product:nav?.querySelector('.nav-product')?.innerText,
+                feedbackButton:!!nav?.querySelector('.nav-feedback'),
+                forbidden:['explora tu universo','continuar mi viaje','créditos de las superficies'].filter(x=>bodyCopy.includes(x))};
+              openFeedback();const dialog=document.querySelector('#feedback-dialog'),form=dialog.querySelector('form');
+              form.querySelector('input[value="5"]').checked=true;
+              form.querySelector('#feedback-recommendation').value='Prueba de evaluación local';
+              await saveFeedback({preventDefault(){},currentTarget:form});
+              const evaluation={opened:dialog.open,saved:window.__fixtureWrites.some(x=>x.name==='universo_guardar_feedback')};
+              await logoutParticipant();
+              const access={name:!!document.querySelector('#name'),email:!!document.querySelector('#email'),
+                adminLink:document.querySelector('.admin-entry')?.getAttribute('href')};
+              return {results,header,evaluation,access,writes:window.__fixtureWrites.length,
+                network:window.__networkAttempts,errors:window.__errors};
             })()""")
         report = {"before": before, "after": after, "hierarchyBefore": hierarchy_before,
                   "hierarchyAfter": hierarchy_after, "hierarchyChecks":hierarchy_checks,
@@ -693,7 +713,12 @@ def main():
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
         integration_failed = integration and (integration["errors"] or integration["network"] or
             any(r.get("debug") or r.get("canvas") != 0 or not r.get("h1") for r in integration["results"] if r["phase"] == "activity") or
-            any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map"))
+            any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map") or
+            not integration["header"].get("epmFirst") or "—" not in (integration["header"].get("product") or "") or
+            not integration["header"].get("feedbackButton") or integration["header"].get("forbidden") or
+            not integration["evaluation"].get("opened") or not integration["evaluation"].get("saved") or
+            not integration["access"].get("name") or not integration["access"].get("email") or
+            integration["access"].get("adminLink") != "admin.html")
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
         if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
             raise SystemExit(1)

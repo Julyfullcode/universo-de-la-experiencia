@@ -2,7 +2,7 @@
 
 Actividad independiente basada en la narrativa de la Guía de la Experiencia. Incluye el recorrido guiado, duelos orbitales, coordenadas de rol, ecosistema, observatorio de señales, misión 70/20/10 y pasaporte final.
 
-Los resultados se almacenan en Supabase. El navegador conserva solo un identificador anónimo para reconocer las respuestas del mismo participante.
+Los resultados se almacenan en Supabase. Cada persona entra con su nombre completo y correo; si el correo ya existe, recupera su viaje y continúa desde el avance guardado. El navegador conserva un token de sesión revocable, no permisos directos sobre las tablas.
 
 ## Probar localmente
 
@@ -55,8 +55,17 @@ errores de materiales, carga de texturas y los ciclos de entrada/salida del mapa
 ## Configurar Supabase
 
 1. Ejecute [supabase/schema.sql](supabase/schema.sql) en el SQL Editor del proyecto de Supabase.
-2. La aplicación usa la misma conexión pública de Supabase del proyecto Retox; si se utiliza otro proyecto, actualice `SUPABASE_URL` y `SUPABASE_KEY` en [app.js](app.js).
-3. Cada avance y el pasaporte quedarán persistidos en Supabase.
+2. La aplicación usa la conexión pública de Supabase configurada en [app.js](app.js) y [admin.js](admin.js). Si se utiliza otro proyecto, actualice la URL y la clave publicable en ambos archivos.
+3. La migración desactiva el acceso anónimo directo a las tablas. La entrada, el progreso, la evaluación y la administración funcionan exclusivamente mediante RPC protegidas.
+4. Cada avance, el pasaporte y la evaluación quedarán persistidos en Supabase.
+
+## Acceso y administración
+
+- La portada registra un correo nuevo o recupera el recorrido asociado a un correo existente.
+- La opción **Evaluar experiencia** permite guardar o actualizar una calificación de 1 a 5 y una recomendación.
+- El panel está disponible en `/admin.html`. Presenta indicadores, participantes activos, avance por momento, progreso individual y recomendaciones; se actualiza cada ocho segundos mientras la pestaña está visible.
+- Los reportes de participantes y evaluaciones se descargan en CSV. Las celdas se neutralizan para impedir la ejecución de fórmulas al abrirlas en una hoja de cálculo.
+- La contraseña administrativa nunca se incluye en el JavaScript ni se guarda en texto claro: Supabase conserva únicamente su hash bcrypt.
 
 ## Publicar en Vercel
 

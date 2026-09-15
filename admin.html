@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050b20" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Administración · Universo de la Experiencia</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="admin.css" />
+    <script defer src="admin.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" id="skip-link" href="#login-main">Saltar al contenido</a>
+
+    <div class="admin-shell">
+      <section class="login-view" id="login-view" aria-labelledby="login-title">
+        <div class="cosmic-orb cosmic-orb-one" aria-hidden="true"></div>
+        <div class="cosmic-orb cosmic-orb-two" aria-hidden="true"></div>
+
+        <main class="login-card" id="login-main" tabindex="-1">
+          <a class="login-brand" href="index.html" aria-label="Volver al Universo de la Experiencia">
+            <img src="assets/logo-grupo-epm.png" alt="Grupo EPM" />
+            <span></span>
+            <strong>Universo de la Experiencia</strong>
+          </a>
+
+          <div class="login-heading">
+            <p class="eyebrow">Centro de control</p>
+            <h1 id="login-title">Panel administrativo</h1>
+            <p>Consulta el avance de la experiencia y escucha las señales de sus participantes.</p>
+          </div>
+
+          <form id="login-form" method="post" action="admin.html" novalidate>
+            <label for="admin-user">Usuario</label>
+            <input
+              id="admin-user"
+              name="username"
+              type="text"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+            />
+
+            <label for="admin-password">Contraseña</label>
+            <div class="password-field">
+              <input
+                id="admin-password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="password-toggle" id="password-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+                Mostrar
+              </button>
+            </div>
+
+            <button class="primary-button login-button" id="login-button" type="submit" disabled>
+              <span>Ingresar al centro de control</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <p class="form-message" id="login-message" role="alert" aria-live="assertive"></p>
+          <a class="back-link" href="index.html">← Volver a la experiencia</a>
+        </main>
+      </section>
+
+      <section class="dashboard-view" id="dashboard-view" hidden>
+        <header class="admin-header">
+          <a class="admin-brand" href="index.html" aria-label="Ir al Universo de la Experiencia">
+            <img src="assets/logo-grupo-epm.png" alt="Grupo EPM" />
+            <span class="brand-divider" aria-hidden="true"></span>
+            <span><strong>Guía de la Experiencia</strong><small>Centro de control</small></span>
+          </a>
+          <div class="admin-header-actions">
+            <a class="header-link" href="index.html">Ver experiencia</a>
+            <button class="ghost-button" id="logout-button" type="button">Cerrar sesión</button>
+          </div>
+        </header>
+
+        <main id="admin-main" tabindex="-1">
+          <section class="dashboard-intro" aria-labelledby="dashboard-title">
+            <div>
+              <p class="eyebrow">Señales en tiempo real</p>
+              <h1 id="dashboard-title">Pulso del universo</h1>
+              <p>Una mirada al ingreso, avance y percepción de quienes viven la experiencia.</p>
+            </div>
+            <div class="update-panel">
+              <div class="live-status" id="live-status">
+                <span aria-hidden="true"></span>
+                <div><strong>Conectando</strong><small id="last-updated">Esperando la primera actualización</small></div>
+              </div>
+              <button class="icon-button" id="refresh-button" type="button" aria-label="Actualizar datos" title="Actualizar datos">↻</button>
+            </div>
+          </section>
+
+          <p class="dashboard-message" id="dashboard-message" role="alert" aria-live="assertive"></p>
+
+          <section class="kpi-grid" aria-label="Resumen de la experiencia">
+            <article class="kpi-card kpi-cyan">
+              <span class="kpi-icon" aria-hidden="true">✦</span>
+              <div><small>Personas registradas</small><strong data-kpi="registrados">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-lime">
+              <span class="kpi-icon" aria-hidden="true">◉</span>
+              <div><small>Activas ahora</small><strong data-kpi="activos">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-purple">
+              <span class="kpi-icon" aria-hidden="true">↗</span>
+              <div><small>Viajes iniciados</small><strong data-kpi="iniciados">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-gold">
+              <span class="kpi-icon" aria-hidden="true">✓</span>
+              <div><small>Viajes completados</small><strong data-kpi="completados">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-blue">
+              <span class="kpi-icon" aria-hidden="true">⌁</span>
+              <div><small>Avance promedio</small><strong data-kpi="avance_promedio" data-suffix="%">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-pink">
+              <span class="kpi-icon" aria-hidden="true">★</span>
+              <div><small>Calificación promedio</small><strong data-kpi="calificacion_promedio" data-decimals="1">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-violet">
+              <span class="kpi-icon" aria-hidden="true">✎</span>
+              <div><small>Evaluaciones recibidas</small><strong data-kpi="evaluaciones">—</strong></div>
+            </article>
+            <article class="kpi-card kpi-green">
+              <span class="kpi-icon" aria-hidden="true">＋</span>
+              <div><small>Ingresos de hoy</small><strong data-kpi="ingresos_hoy">—</strong></div>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel funnel-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Ruta de navegación</p><h2>Avance por momento</h2></div>
+              </div>
+              <div class="funnel" id="funnel"></div>
+            </article>
+
+            <article class="panel feedback-summary-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Voz de las personas</p><h2>Evaluación general</h2></div>
+              </div>
+              <div class="rating-spotlight" id="rating-spotlight" role="img" aria-label="Sin calificación">
+                <strong id="rating-average">—</strong>
+                <div><span class="rating-stars" id="rating-stars" aria-hidden="true">☆☆☆☆☆</span><small id="rating-count">Sin evaluaciones</small></div>
+              </div>
+              <p class="rating-copy">Las recomendaciones son señales para seguir mejorando la experiencia.</p>
+              <button class="secondary-button" id="export-feedback-button" type="button" disabled>Descargar evaluaciones CSV</button>
+            </article>
+          </section>
+
+          <section class="panel participants-panel" aria-labelledby="participants-title">
+            <div class="panel-heading participants-heading">
+              <div><p class="eyebrow">Tripulación</p><h2 id="participants-title">Progreso de participantes</h2></div>
+              <div class="table-actions">
+                <label class="search-field" for="participant-search">
+                  <span aria-hidden="true">⌕</span>
+                  <span class="sr-only">Buscar participante</span>
+                  <input id="participant-search" type="search" placeholder="Buscar nombre, correo o etapa" autocomplete="off" />
+                </label>
+                <button class="secondary-button" id="export-participants-button" type="button" disabled>Descargar CSV</button>
+              </div>
+            </div>
+            <p class="table-count" id="participant-count"></p>
+            <p class="sr-only" id="search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="table-scroll" tabindex="0" aria-label="Tabla desplazable de participantes">
+              <table>
+                <caption class="sr-only">Participantes y progreso en el Universo de la Experiencia</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Participante</th>
+                    <th scope="col">Momento actual</th>
+                    <th scope="col">Avance</th>
+                    <th scope="col">Planeta</th>
+                    <th scope="col">Rol</th>
+                    <th scope="col">Último ingreso</th>
+                    <th scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="participants-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel recommendations-panel" aria-labelledby="recommendations-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Observatorio</p><h2 id="recommendations-title">Recomendaciones recientes</h2></div>
+              <span class="result-count" id="feedback-count">0 señales</span>
+            </div>
+            <div class="recommendations" id="recommendations"></div>
+          </section>
+        </main>
+      </section>
+    </div>
+
+    <noscript>Necesitas activar JavaScript para ingresar al panel administrativo.</noscript>
+  </body>
+</html>

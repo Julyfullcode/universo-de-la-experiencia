@@ -36,7 +36,6 @@
       <div class="cosmos-heading constellations"><small>Una guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button><button class="cosmos-pause" aria-pressed="false">Ⅱ Pausar</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
-      <a class="cosmos-credit" href="texture-credits.html" target="_blank" rel="noopener">Créditos de las superficies</a>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#91def4" stop-opacity=".15"/><stop offset=".5" stop-color="#c5b7ff" stop-opacity=".6"/><stop offset="1" stop-color="#dfc5ed" stop-opacity=".2"/></linearGradient></defs><path clip-path="url(#constellation-viewport)" fill="none" stroke="url(#constellation-light)" stroke-width="1"/></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector';inspector.setAttribute('aria-label','Elemento seleccionado');
