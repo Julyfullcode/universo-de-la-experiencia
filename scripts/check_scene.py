@@ -41,7 +41,11 @@ window.goStep=step=>window.__clicked.push(step);
 const nativeRAF=window.requestAnimationFrame.bind(window),deferredFrames=[];
 let framesFrozen=false;
 window.requestAnimationFrame=callback=>nativeRAF(time=>{
- if(framesFrozen)deferredFrames.push(callback);else callback(time);
+ if(framesFrozen){deferredFrames.push(callback);return;}
+ // Software WebGL gets idle time for CDP snapshots; production RAF is untouched.
+ setTimeout(()=>{
+  if(framesFrozen)deferredFrames.push(callback);else callback(performance.now());
+ },90);
 });
 window.__sceneFrameControl={pause(){framesFrozen=true;},resume(){
  framesFrozen=false;deferredFrames.splice(0).forEach(callback=>nativeRAF(callback));
