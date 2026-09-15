@@ -1,39 +1,51 @@
-/* Two scales of one universe. These styles only affect the navigation map. */
-.orbital-realm-view .realm-heading { padding: 12px 3.2vw 4px; }
-.orbital-realm-view .realm-heading h1 { font-size: clamp(1.5rem, 3.1vw, 3rem); line-height: 1.08; }
-.orbital-realm-view .orbital-realm { display: flex; flex-direction: column; perspective: none; padding: 0 2vw 10px; }
+/* One responsive composition: typography and controls scale with the scene,
+   rather than stopping at a small fixed-pixel desktop size. */
+.orbital-realm-view { --cosmos-unit: clamp(.8px, min(calc(100vw / 1440), calc(100dvh / 900)), 3px); }
+.orbital-realm-view .realm-heading { padding: calc(12 * var(--cosmos-unit)) 3.2vw calc(4 * var(--cosmos-unit)); }
+.orbital-realm-view .realm-heading h1 { font-size: calc(44 * var(--cosmos-unit)); line-height: 1.08; }
+.orbital-realm-view .orbital-realm { display: flex; flex-direction: column; perspective: none; padding: 0 2vw calc(10 * var(--cosmos-unit)); }
+.orbital-realm-view nav { flex-basis: calc(58 * var(--cosmos-unit)); min-height: calc(58 * var(--cosmos-unit)); }
+body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); padding-bottom: calc(9 * var(--cosmos-unit)); }
+.orbital-realm-view .nav-brand { font-size: calc(15 * var(--cosmos-unit)) !important; gap: calc(9 * var(--cosmos-unit)); }
+.orbital-realm-view .nav-brand span { width: calc(28 * var(--cosmos-unit)); height: calc(28 * var(--cosmos-unit)); }
+.orbital-realm-view .nav-name, .orbital-realm-view .nav-actions button { font-size: calc(14 * var(--cosmos-unit)); }
+.orbital-realm-view .epm-logo { width: calc(125 * var(--cosmos-unit)); height: calc(32 * var(--cosmos-unit)); }
 .orbital-realm-view .orbital-realm::before, .orbital-realm-view .orbital-realm::after { content: none !important; }
 .cosmos-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
 .cosmos-stage canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; }
 .cosmos-labels, .cosmos-constellation-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.cosmos-heading { position: absolute; z-index: 2; pointer-events: none; left: 1.4%; top: 10px; }
-.cosmos-heading small, .cosmos-inspector small { display: block; color: #b7a9e6; letter-spacing: .16em; font-weight: 700; font-size: .62rem; text-transform: uppercase; }
-.cosmos-heading h2 { color: #f3f2ff; margin: 4px 0; font-size: clamp(.9rem, 1.2vw, 1.2rem); line-height: 1.2; }
-.cosmos-heading p { color: #b7bfda; font-size: clamp(.62rem, .8vw, .78rem); margin: 0; max-width: 28ch; line-height: 1.4; }
-.cosmos-heading.system { left: 34%; }
-.cosmos-heading.constellations { top: 60%; }
-.cosmos-heading.constellations p { max-width: 33ch; }
+.cosmos-heading { position: absolute; z-index: 2; pointer-events: none; left: 1.4%; top: calc(10 * var(--cosmos-unit)); }
+.cosmos-heading small, .cosmos-inspector small { display: block; color: #b7a9e6; letter-spacing: .16em; font-weight: 700; font-size: calc(10 * var(--cosmos-unit)); text-transform: uppercase; }
+.cosmos-heading h2 { color: #f3f2ff; margin: calc(4 * var(--cosmos-unit)) 0; font-size: calc(18 * var(--cosmos-unit)); line-height: 1.2; }
+.cosmos-heading p { color: #b7bfda; font-size: calc(12 * var(--cosmos-unit)); margin: 0; max-width: 28ch; line-height: 1.4; }
+.cosmos-heading.system { left: 76%; top: calc(55 * var(--cosmos-unit)); }
+.cosmos-heading.system small { max-width: 26ch; line-height: 1.5; }
+.cosmos-heading.constellations { top: calc(2 * var(--cosmos-unit)); left: 52.5%; transform: translateX(-50%); text-align: center; }
+.cosmos-heading.constellations small { display: none; }
+.cosmos-heading.constellations p { max-width: none; white-space: nowrap; font-size: calc(10 * var(--cosmos-unit)); }
 .cosmos-tools { position: absolute; top: 8px; right: 6px; z-index: 4; display: flex; gap: 6px; }
-.cosmos-tools button, .cosmos-tabs button { border: 1px solid #b4c9f345; background: #070e25a6; color: #e2eaff; border-radius: 30px; padding: 7px 12px; font: inherit; font-size: .72rem; cursor: pointer; }
+.cosmos-tools button, .cosmos-tabs button { border: 1px solid #b4c9f345; background: #070e25a6; color: #e2eaff; border-radius: 30px; padding: calc(7 * var(--cosmos-unit)) calc(12 * var(--cosmos-unit)); font: inherit; font-size: calc(12 * var(--cosmos-unit)); cursor: pointer; }
 .cosmos-tools button:hover, .cosmos-tabs button[aria-selected=true] { border-color: #c1e960; color: #d8ff81; }
 .cosmos-tabs { display: none; }
 .cosmos-actors { display: none; }
-.cosmos-credit { position: absolute; right: 5px; bottom: 3px; z-index: 3; color: #b1bed7; font-size: .6rem; text-decoration: none; }
+.cosmos-credit { position: absolute; right: 5px; bottom: 3px; z-index: 3; color: #b1bed7; font-size: calc(10 * var(--cosmos-unit)); text-decoration: none; }
 .cosmos-credit:hover { color: #fff; text-decoration: underline; }
-.cosmos-object-label { position: absolute; left: 0; top: 0; padding: 2px 5px; margin: 0; border: 0; background: transparent; color: #e3eeff; font: inherit; font-size: clamp(.57rem, .77vw, .8rem); line-height: 1.3; white-space: nowrap; text-align: center; cursor: pointer; pointer-events: auto; text-shadow: 0 2px 4px #020612, 0 0 10px #020612, 0 0 18px #020612; transform: translate(-50%, -50%); }
+.cosmos-object-label { position: absolute; left: 0; top: 0; padding: 2px 5px; margin: 0; border: 0; background: transparent; color: #e3eeff; font: inherit; font-size: calc(13 * var(--cosmos-unit)); line-height: 1.3; white-space: nowrap; text-align: center; cursor: pointer; pointer-events: auto; text-shadow: 0 2px 4px #020612, 0 0 10px #020612, 0 0 18px #020612; transform: translate(-50%, -50%); }
 .cosmos-object-label small { display: block; font-size: .7em; letter-spacing: .1em; text-transform: uppercase; color: #c5d4e8; }
 .cosmos-object-label b { font-weight: 650; }
 .cosmos-object-label[aria-pressed=true] b, .cosmos-object-label:hover b { color: #dcff91; }
 .cosmos-object-label.client { color: #f1fdff; }
+.cosmos-object-label.launch { font-size: calc(16 * var(--cosmos-unit)); }
+.cosmos-object-label.launch small { color: #d2f669; margin-bottom: .3em; letter-spacing: .18em; }
 .cosmos-object-label:focus-visible, .cosmos-route button:focus-visible, .cosmos-tools button:focus-visible, .cosmos-tabs button:focus-visible { outline: 2px solid #d3ff72; outline-offset: 4px; border-radius: 8px; }
-.cosmos-overview-link { position: absolute; top: 51%; left: 3%; border: 0; padding: 3px 0; background: transparent; color: #aeeaff; font: inherit; font-size: .7rem; z-index: 3; cursor: pointer; }
+.cosmos-overview-link { position: absolute; top: 53%; left: 1.4%; border: 0; padding: 3px 0; background: transparent; color: #aeeaff; font: inherit; font-size: calc(11 * var(--cosmos-unit)); z-index: 3; cursor: pointer; }
 .cosmos-inspector { flex: 0 0 auto; position: relative; display: grid; grid-template-columns: minmax(150px, .8fr) minmax(220px, 1.7fr) auto; align-items: center; gap: 22px; padding: 13px 1.3vw; border-top: 1px solid #a9b5ef26; background: linear-gradient(90deg, #0d12394f, transparent); }
-.cosmos-inspector h2 { margin: 3px 0 0; font-size: clamp(.96rem, 1.45vw, 1.35rem); line-height: 1.15; color: #f0f6ff; }
-.cosmos-inspector p { margin: 0; font-size: clamp(.72rem, .92vw, .9rem); line-height: 1.5; color: #c4cee4; max-width: 78ch; }
-.cosmos-inspector .cosmos-action { padding: 10px 19px; white-space: nowrap; border: 0; border-radius: 30px; background: #d2f669; color: #09142a; font: inherit; font-weight: 750; font-size: .8rem; cursor: pointer; }
+.cosmos-inspector h2 { margin: 3px 0 0; font-size: calc(20 * var(--cosmos-unit)); line-height: 1.15; color: #f0f6ff; }
+.cosmos-inspector p { margin: 0; font-size: calc(14 * var(--cosmos-unit)); line-height: 1.5; color: #c4cee4; max-width: 78ch; }
+.cosmos-inspector .cosmos-action { padding: calc(10 * var(--cosmos-unit)) calc(19 * var(--cosmos-unit)); white-space: nowrap; border: 0; border-radius: 30px; background: #d2f669; color: #09142a; font: inherit; font-weight: 750; font-size: calc(13 * var(--cosmos-unit)); cursor: pointer; }
 .cosmos-inspector .cosmos-action:disabled { opacity: .65; cursor: default; }
 .cosmos-route { flex: 0 0 auto; display: flex; justify-content: space-between; gap: 6px; padding: 4px 1.3vw 0; }
-.cosmos-route button { border: 0; background: none; color: #bbc7e4; font: inherit; font-size: clamp(.56rem, .78vw, .8rem); padding: 7px 4px; text-align: left; cursor: pointer; white-space: nowrap; }
+.cosmos-route button { border: 0; background: none; color: #bbc7e4; font: inherit; font-size: calc(12 * var(--cosmos-unit)); padding: calc(7 * var(--cosmos-unit)) 4px; text-align: left; cursor: pointer; white-space: nowrap; }
 .cosmos-route button span { color: #9f8fde; margin-right: 5px; font-size: .8em; }
 .cosmos-route button[aria-pressed=true] { color: #d8ff81; }
 .cosmos-route button:hover { color: #fff; }
@@ -41,9 +53,11 @@
 .cosmos-fallback div { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .cosmos-fallback button { border: 1px solid #aaa4ef; padding: 10px; border-radius: 24px; background: #10152e; color: white; }
 @media (max-width: 800px) {
+  .orbital-realm-view { --cosmos-unit: 1px; }
+  .orbital-realm-view .realm-heading h1 { font-size: clamp(1.4rem, 6.8vw, 2.8rem); }
   .orbital-realm-view nav { flex-basis: 50px; padding: 8px 3vw; }
   .orbital-realm-view nav .nav-name, .orbital-realm-view nav .nav-actions > button:first-child { display: none; }
-  .orbital-realm-view .nav-brand { font-size: .78rem; gap: 5px; }
+  .orbital-realm-view .nav-brand { font-size: .78rem !important; gap: 5px; }
   .orbital-realm-view .nav-brand span { width: 25px; height: 25px; }
   .orbital-realm-view .nav-actions { gap: 12px; }
   .orbital-realm-view .nav-actions button { font-size: .73rem; }
@@ -51,8 +65,10 @@
   .cosmos-tabs { display: flex; gap: 7px; padding: 8px 1vw 2px; }
   .cosmos-tabs button { padding: 5px 12px; font-size: .68rem; }
   .cosmos-heading { top: 8px; left: 2%; }
-  .cosmos-heading.system { left: 2%; }
-  .cosmos-heading.constellations { top: 56%; }
+  .cosmos-heading.system { left: 2%; top: 8px; }
+  .cosmos-heading.system small { max-width: none; }
+  .cosmos-heading.constellations { top: 56%; left: 50%; }
+  .cosmos-heading.constellations p { white-space: normal; min-width: 30ch; }
   .cosmos-heading h2 { font-size: .9rem; }
   .cosmos-heading p { font-size: .65rem; }
   .cosmos-tools { top: 42px; }
@@ -62,6 +78,7 @@
   .cosmos-actors button { border: 0; border-bottom: 1px solid #abc7ff50; padding: 6px 0; background: #050b20a0; color: #d2e0f4; font: inherit; font-size: .62rem; cursor: pointer; }
   .cosmos-actors button[aria-pressed=true] { color: #d3ff72; border-bottom-color: #d3ff72; }
   .cosmos-object-label { font-size: .61rem; }
+  .cosmos-object-label.launch { font-size: .62rem; }
   .cosmos-overview-link { top: 46%; }
   .cosmos-inspector { grid-template-columns: 1fr auto; gap: 6px 12px; padding: 9px 2vw; }
   .cosmos-inspector > p { grid-row: 2; grid-column: 1 / -1; font-size: .72rem; line-height: 1.3; }

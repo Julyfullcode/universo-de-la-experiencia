@@ -1,6 +1,7 @@
 """Run the isolated orbital map in Edge with real WebGL; no Node or Supabase.
 
 Usage: python scripts/check_scene.py --width 1440 --height 900 --sweep --resize-sweep
+The resize sweep includes normal, 4K-class, ultrawide, and mobile layouts.
 Artifacts are kept in a temporary folder. Three r160 is cached outside the repo.
 """
 import argparse
@@ -207,6 +208,12 @@ def visibility_sweep(cdp, seconds, samples):
           const invalid=objects.filter(o=>!o.inside||!o.selectable||!o.bounds||
             !['left','right','top','bottom'].every(k=>Number.isFinite(o.bounds[k])));
           invalid.forEach(o=>failures.push({time:t,type:'object',object:o,safeRect:audit.safeRect}));
+          objects.filter(o=>o.safeRect&&o.bounds).forEach(o=>{
+            const s=o.safeRect,b=o.bounds;
+            const bounded=['left','right','top','bottom'].every(k=>Number.isFinite(s[k]))&&
+              b.left>=s.left-.01&&b.right<=s.right+.01&&b.top>=s.top-.01&&b.bottom<=s.bottom+.01;
+            if(o.inside&&!bounded)failures.push({time:t,type:'invalid-inside-claim',object:o});
+          });
           guides.filter(g=>g.visible&&(!g.occupied||g.soft!==true)).forEach(g=>
             failures.push({time:t,type:'orbit-guide',guide:g}));
           frames.push({time:t,view:audit.view,objects:objects.length,
@@ -219,6 +226,81 @@ def visibility_sweep(cdp, seconds, samples):
       return {viewport:[innerWidth,innerHeight],duration:options.seconds,
         samples:options.samples,expectedIds,frames,failures,pass:failures.length===0};
     })()""".replace("OPTIONS", options))
+
+
+def layout_metrics(cdp):
+    """Record proportional framing separately from time-dependent orbital positions."""
+    return cdp.evaluate("""(() => {
+      const debug=window.__universeDebug,original=debug.snapshot();
+      debug.select('client');
+      debug.setTime(0,false);
+      try {
+        const audit=debug.auditVisibility(),snapshot=debug.snapshot();
+        const stage=document.querySelector('.cosmos-stage').getBoundingClientRect();
+        const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x-stage.x,y:r.y-stage.y,w:r.width,h:r.height};};
+        const fonts={};
+        for(const [key,selector] of Object.entries({title:'.realm-heading h1',
+          object:'.cosmos-object-label.planet',heading:'.cosmos-heading h2',
+          inspector:'.cosmos-inspector p',route:'.cosmos-route button'})) {
+          const element=document.querySelector(selector);
+          if(element)fonts[key]=parseFloat(getComputedStyle(element).fontSize);
+        }
+        return {viewport:[innerWidth,innerHeight],stage:{x:stage.x,y:stage.y,w:stage.width,h:stage.height},
+          views:snapshot.views,fonts,objects:(audit.objects||[]).map(o=>({id:o.id,kind:o.kind,
+            view:o.view,bounds:o.bounds,safeRect:o.safeRect,
+            pixelRadius:o.pixelRadius??o.pxRadius??((o.bounds.right-o.bounds.left)/2)})),
+          constellationHeading:rect(document.querySelector('.cosmos-heading.constellations'))};
+      } finally {debug.setTime(original.elapsed,false);debug.select(original.selected);}
+    })()""")
+
+
+def layout_checks(metrics):
+    """Check desktop placement and prevent fixed-pixel UI on large displays."""
+    checks = []
+    for item in metrics:
+        width, height = item["viewport"]
+        if width <= 800:
+            continue
+        stage = item["stage"]
+        launch = next((o for o in item["objects"] if o.get("view") == "launch" or
+                       o["id"] in ("launch", "launchpad", "lanzamiento")), None)
+        if launch:
+            bounds = launch["bounds"]
+            center_x = (bounds["left"] + bounds["right"]) / (2 * stage["w"])
+            diameter = bounds["bottom"] - bounds["top"]
+            checks.append({"viewport": [width, height], "check": "launch-far-left",
+                           "centerXFraction": center_x, "pass": center_x <= .22})
+            checks.append({"viewport": [width, height], "check": "launch-readable-size",
+                           "projectedDiameter": diameter, "pass": diameter >= 90})
+        else:
+            checks.append({"viewport": [width, height], "check": "launch-present", "pass": False})
+        constellation = item["views"].get("constellation")
+        if constellation:
+            center_x = (constellation["x"] + constellation["w"] / 2) / stage["w"]
+            top = constellation["y"] / stage["h"]
+            checks.append({"viewport": [width, height], "check": "constellation-top-center",
+                           "centerXFraction": center_x, "topFraction": top,
+                           "pass": .35 <= center_x <= .75 and 0 <= top <= .30})
+        else:
+            checks.append({"viewport": [width, height], "check": "constellation-present", "pass": False})
+    normal = next((m for m in metrics if m["viewport"] == [1440, 900]), None)
+    large = next((m for m in metrics if m["viewport"] == [2560, 1440]), None)
+    if normal and large:
+        normal_objects = {o["id"]: o for o in normal["objects"]}
+        for body in large["objects"]:
+            base = normal_objects.get(body["id"])
+            if not base or not base["pixelRadius"]:
+                continue
+            ratio = body["pixelRadius"] / base["pixelRadius"]
+            checks.append({"check": "large-screen-body-scale", "id": body["id"],
+                           "ratio": ratio, "pass": ratio >= 1.60 - 1e-6})
+        for name, size in large["fonts"].items():
+            base = normal["fonts"].get(name)
+            if base:
+                ratio = size / base
+                checks.append({"check": "large-screen-font-scale", "element": name,
+                               "ratio": ratio, "pass": ratio >= 1.60 - 1e-6})
+    return checks
 
 
 def set_viewport(cdp, width, height):
@@ -251,7 +333,7 @@ def main():
     parser.add_argument("--sweep", action="store_true", help="Audit all selectable 3D bodies across a complete galactic orbit")
     parser.add_argument("--sweep-samples", type=int, default=61, help="Time samples including both orbital-cycle endpoints")
     parser.add_argument("--sweep-seconds", type=float, default=1500, help="Total simulated time for the visibility sweep")
-    parser.add_argument("--resize-sweep", action="store_true", help="Also audit 1440x900, 1440x650 and 390x844 without relaunching Edge")
+    parser.add_argument("--resize-sweep", action="store_true", help="Audit 1440x900, 1920x1080, 2560x1440, 2560x1080 and 390x844; compare proportional sizing without relaunching Edge")
     parser.add_argument("--no-screenshot", action="store_true", help="Only validate runtime and integration")
     parser.add_argument("--url", help="Optional local page path instead of the isolated scene")
     args = parser.parse_args()
@@ -321,6 +403,7 @@ def main():
         cdp.call("Runtime.enable")
         cdp.call("Page.enable")
         cdp.call("Log.enable")
+        cdp.call("Network.enable")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": args.width, "height": args.height,
                                                         "deviceScaleFactor": 1, "mobile": False})
         path = args.url or "/__scene_check__"
@@ -332,10 +415,20 @@ def main():
                 (artifacts / "failure.json").write_text(json.dumps({"diagnostics": diagnostics, "events": cdp.events}, ensure_ascii=False, indent=2), encoding="utf-8")
                 raise RuntimeError(f"Scene did not render; see {artifacts / 'failure.json'}")
             time.sleep(.2)
-        deadline = time.monotonic() + 25
-        while not cdp.evaluate("window.__universeDebug?.snapshot?.().assetsReady !== false"):
+        deadline = time.monotonic() + 60
+        while not cdp.evaluate("""(()=>{
+            const ready=window.__universeDebug?.snapshot?.().assetsReady!==false;
+            if(ready)window.__sceneFrameControl?.pause();
+            return ready;
+        })()"""):
             if time.monotonic() > deadline:
-                diagnostics = cdp.evaluate("window.__universeDebug?.snapshot?.()")
+                diagnostics = cdp.evaluate("""({scene:window.__universeDebug?.snapshot?.(),
+                    assets:document.querySelector('.orbital-realm')?.__planetMaterialSession?.getState(),
+                    resources:performance.getEntriesByType('resource').map(r=>({name:r.name,
+                        duration:r.duration,transferSize:r.transferSize,decodedBodySize:r.decodedBodySize})),
+                    errors:window.__errors})""")
+                diagnostics["networkEvents"] = [e for e in cdp.events
+                    if e.get("method", "").startswith("Network.")]
                 (artifacts / "asset-failure.json").write_text(json.dumps(diagnostics,
                     ensure_ascii=False, indent=2), encoding="utf-8")
                 raise RuntimeError(f"Scene textures did not finish loading; see {artifacts / 'asset-failure.json'}")
@@ -343,6 +436,7 @@ def main():
         time.sleep(1)
         before = cdp.evaluate("window.__sceneSnapshot()")
         hierarchy_before = cdp.evaluate("window.__universeDebug?.snapshot?.() ?? null")
+        cdp.evaluate("window.__sceneFrameControl?.resume()")
         if args.advance:
             cdp.evaluate(f"window.__universeDebug?.advance?.({args.advance})")
         if args.click:
@@ -350,8 +444,9 @@ def main():
         if args.select:
             cdp.evaluate("window.__universeDebug?.select?.(" + json.dumps(args.select) + ")")
         time.sleep(args.seconds)
-        after = cdp.evaluate("window.__sceneSnapshot()")
+        after = cdp.evaluate("window.__sceneFrameControl?.pause();window.__sceneSnapshot()")
         hierarchy_after = cdp.evaluate("window.__universeDebug?.snapshot?.() ?? null")
+        cdp.evaluate("window.__sceneFrameControl?.resume()")
         hierarchy_checks = []
         if hierarchy_before and hierarchy_after:
             first_objects = {o["id"]: o for o in hierarchy_before["objects"]}
@@ -381,14 +476,16 @@ def main():
         if not args.no_screenshot:
             capture_scene(cdp, artifacts / "scene.png")
         sweeps = []
+        layout_measurements = []
         if args.sweep or args.resize_sweep:
             layouts = [(args.width, args.height)]
             if args.resize_sweep:
-                layouts += [(1440, 900), (1440, 650), (390, 844)]
+                layouts += [(1440, 900), (1920, 1080), (2560, 1440), (2560, 1080), (390, 844)]
             for width, height in dict.fromkeys(layouts):
                 if (width, height) != (args.width, args.height):
                     set_viewport(cdp, width, height)
                 sweep = visibility_sweep(cdp, args.sweep_seconds, args.sweep_samples)
+                layout_measurements.append(layout_metrics(cdp))
                 layout_snapshot = cdp.evaluate("window.__sceneSnapshot()")
                 sweep["clippedLabels"] = [label for label in layout_snapshot.get("labels", [])
                     if label["visible"] and not label["fullyInside"]]
@@ -399,6 +496,7 @@ def main():
                 if not args.no_screenshot and (width, height) != (args.width, args.height):
                     capture_scene(cdp, artifacts / f"scene-{width}x{height}.png")
             set_viewport(cdp, args.width, args.height)
+        proportional_checks = layout_checks(layout_measurements)
         integration = None
         if args.integration:
             integration = cdp.evaluate("""(async()=>{
@@ -417,6 +515,7 @@ def main():
         report = {"before": before, "after": after, "hierarchyBefore": hierarchy_before,
                   "hierarchyAfter": hierarchy_after, "hierarchyChecks":hierarchy_checks,
                   "pauseCheck":pause_check, "visibilitySweeps":sweeps,
+                  "layoutMetrics":layout_measurements, "layoutChecks":proportional_checks,
                   "integration": integration, "browserEvents": cdp.events}
         (artifacts / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         output_dir = ROOT / "node_modules"
@@ -444,6 +543,7 @@ def main():
                           "resourceErrors": failed_resources, "labels": after.get("labels"),
                           "scroll": after.get("scroll"), "integration": integration,
                           "hierarchyChecks":hierarchy_checks, "pauseCheck":pause_check,
+                          "layoutChecks":proportional_checks,
                           "visibilitySweeps":[{k:v for k,v in sweep.items() if k != "frames"} for sweep in sweeps],
                           "assetErrors": hierarchy_after.get("assetErrors",[]) if hierarchy_after else [],
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
@@ -451,7 +551,7 @@ def main():
             any(r.get("debug") or r.get("canvas") != 0 or not r.get("h1") for r in integration["results"] if r["phase"] == "activity") or
             any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
-        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps):
+        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks):
             raise SystemExit(1)
     finally:
         if cdp is not None and process.poll() is None:
