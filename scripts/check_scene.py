@@ -73,7 +73,7 @@ window.__sceneSnapshot=()=>{
   viewport:[innerWidth,innerHeight],scroll:[document.body.scrollWidth,document.body.scrollHeight],
   inspector:document.querySelector('.cosmos-inspector')?.innerText,
   labels:Array.from(document.querySelectorAll('.three-space-label,.cosmos-object-label')).map(e=>{
-   const r=e.getBoundingClientRect();return {text:e.innerText,disabled:e.disabled,
+   const r=e.getBoundingClientRect();return {text:e.innerText,className:e.className,disabled:e.disabled,
     rect:[r.x,r.y,r.width,r.height],visible:!e.hidden&&getComputedStyle(e).visibility!=='hidden'&&r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,
     fullyInside:r.left>=0&&r.top>=0&&r.right<=innerWidth+.5&&r.bottom<=innerHeight+.5};
   })};
@@ -254,6 +254,115 @@ def layout_metrics(cdp):
     })()""")
 
 
+def visual_copy_checks(cdp):
+    """Only map annotations are checked; contextual lesson/inspector prose is allowed."""
+    return cdp.evaluate("""(()=>{
+      const stage=document.querySelector('.cosmos-stage'),box=stage.getBoundingClientRect();
+      const shown=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+        return !e.hidden&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+      const annotations=[...stage.querySelectorAll('.cosmos-heading,.cosmos-object-label,.cosmos-overview-link')]
+        .filter(shown).map(e=>e.innerText.toLocaleLowerCase('es'));
+      const forbidden=['modelo de experiencia + arquitectura empresarial','otros actores',
+        'seguir a la estrella seleccionada','cliente seleccionado'];
+      const forbiddenVisible=forbidden.filter(text=>annotations.some(annotation=>annotation.includes(text)));
+      const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
+        label=stage.querySelector('.cosmos-object-label.launch');
+      let launchLabel=null;
+      if(launch?.visible&&label&&shown(label)){
+        const r=label.getBoundingClientRect(),bounds=launch.visualBounds;
+        launchLabel={rect:{left:r.left-box.left,right:r.right-box.left,top:r.top-box.top,bottom:r.bottom-box.top},
+          visualBounds:bounds||null,pass:!!bounds&&r.top-box.top>=bounds.bottom-.5};
+      }else if(launch?.visible){
+        launchLabel={pass:false,reason:'Visible launch object has no visible label'};
+      }
+      return {viewport:[innerWidth,innerHeight],forbiddenVisible,launchLabel,
+        pass:forbiddenVisible.length===0&&(!launchLabel||launchLabel.pass)};
+    })()""")
+
+
+def hover_checks(cdp):
+    """Dispatch real pointer movement, keeping orbital motion paused but hover RAF active."""
+    setup = cdp.evaluate("""(()=>{
+      const debug=window.__universeDebug,original=debug.snapshot();
+      if(!original.paused)document.querySelector('.cosmos-pause').click();
+      window.__sceneFrameControl?.resume();debug.select('client');debug.setTime(0);
+      return {original,ids:debug.snapshot().objects.filter(o=>
+        ['client','planet','satellite','waypoint'].includes(o.kind)).map(o=>o.id)};
+    })()""")
+    results = []
+    try:
+        for object_id in setup["ids"]:
+            selection = "satellite-0" if object_id.startswith("satellite-") else "client"
+            point = cdp.evaluate("""(()=>{
+              const debug=window.__universeDebug;debug.select(SELECTION);debug.setTime(0);
+              const p=debug.project(ID),r=document.querySelector('.cosmos-stage').getBoundingClientRect();
+              return p?{x:p.x+r.x,y:p.y+r.y}:null;
+            })()""".replace("SELECTION", json.dumps(selection)).replace("ID", json.dumps(object_id)))
+            if not point:
+                results.append({"id": object_id, "pass": False, "reason": "Missing projected pointer target"})
+                continue
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
+            baseline = cdp.evaluate("""(async()=>{
+              await new Promise(r=>setTimeout(r,350));
+              return window.__universeDebug.snapshot().objects.find(o=>o.id===ID);
+            })()""".replace("ID", json.dumps(object_id)))
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", **point})
+            hovered = cdp.evaluate("""(async()=>{
+              await new Promise(r=>setTimeout(r,350));const s=window.__universeDebug.snapshot();
+              return {hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
+            })()""".replace("ID", json.dumps(object_id)))
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
+            restored = cdp.evaluate("""(async()=>{
+              await new Promise(r=>setTimeout(r,350));const s=window.__universeDebug.snapshot();
+              return {hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
+            })()""".replace("ID", json.dumps(object_id)))
+
+            def scale(body):
+                value = (body or {}).get("visualScale")
+                return max(value) if isinstance(value, list) else value
+
+            base_scale, hover_scale, reset_scale = scale(baseline), scale(hovered["object"]), scale(restored["object"])
+            growth = hover_scale / base_scale if base_scale and hover_scale else None
+            reset_ratio = reset_scale / base_scale if base_scale and reset_scale else None
+            amount = (hovered["object"] or {}).get("hoverAmount")
+            reset_amount = (restored["object"] or {}).get("hoverAmount")
+            passed = hovered.get("hovered") == object_id and growth is not None and growth >= 1.02 and \
+                amount is not None and amount > .05 and reset_ratio is not None and abs(reset_ratio-1) <= .02 and \
+                reset_amount is not None and reset_amount <= .03
+            results.append({"id": object_id, "point": point, "hovered": hovered.get("hovered"),
+                "growth": growth, "hoverAmount": amount, "restoredScaleRatio": reset_ratio,
+                "restoredHoverAmount": reset_amount, "waitMilliseconds": 350, "pass": passed})
+    finally:
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
+        original = setup["original"]
+        cdp.evaluate("window.__universeDebug.select(" + json.dumps(original["selected"]) + ");" +
+                     "window.__universeDebug.setTime(" + json.dumps(original["elapsed"]) + ");")
+        if not original["paused"]:
+            cdp.evaluate("document.querySelector('.cosmos-pause').click()")
+    return {"results": results, "pass": all(item["pass"] for item in results)}
+
+
+def compare_body_metrics(metrics, baseline_report):
+    """Report measured increases; visual design requests do not imply made-up thresholds."""
+    if not baseline_report:
+        return []
+    baseline = json.loads(Path(baseline_report).read_text(encoding="utf-8"))
+    comparisons = []
+    targets = {"client", "launch", "forjadores", "satellite-0", "satellite-1", "satellite-2", "observatory"}
+    previous = {tuple(item["viewport"]): {o["id"]: o for o in item["objects"]}
+                for item in baseline.get("layoutMetrics", [])}
+    for item in metrics:
+        old = previous.get(tuple(item["viewport"]), {})
+        for body in item["objects"]:
+            prior = old.get(body["id"])
+            if body["id"] not in targets or not prior or not prior.get("pixelRadius"):
+                continue
+            comparisons.append({"viewport": item["viewport"], "id": body["id"],
+                "previousPixelRadius": prior["pixelRadius"], "pixelRadius": body["pixelRadius"],
+                "radiusRatio": body["pixelRadius"] / prior["pixelRadius"]})
+    return comparisons
+
+
 def layout_checks(metrics):
     """Check desktop placement and prevent fixed-pixel UI on large displays."""
     checks = []
@@ -330,6 +439,8 @@ def main():
     parser.add_argument("--click", help="Click a local CSS selector before the second snapshot")
     parser.add_argument("--select", help="Select a scene debug record before the second snapshot")
     parser.add_argument("--integration", action="store_true", help="Load the real app with a local fake Supabase")
+    parser.add_argument("--hover", action="store_true", help="Check real pointer hover growth, glow amount and restoration within350ms on all12bodies")
+    parser.add_argument("--baseline-report", help="Optional prior report.json for measured body-size comparisons")
     parser.add_argument("--sweep", action="store_true", help="Audit all selectable 3D bodies across a complete galactic orbit")
     parser.add_argument("--sweep-samples", type=int, default=61, help="Time samples including both orbital-cycle endpoints")
     parser.add_argument("--sweep-seconds", type=float, default=1500, help="Total simulated time for the visibility sweep")
@@ -386,7 +497,8 @@ def main():
     cdp = None
     try:
         port_file = profile / "DevToolsActivePort"
-        deadline = time.monotonic() + 30
+        # Managed Windows hosts may start the browser slowly before any page runs.
+        deadline = time.monotonic() + 90
         port = None
         while port is None:
             if process.poll() is not None:
@@ -477,6 +589,7 @@ def main():
             capture_scene(cdp, artifacts / "scene.png")
         sweeps = []
         layout_measurements = []
+        copy_checks = []
         if args.sweep or args.resize_sweep:
             layouts = [(args.width, args.height)]
             if args.resize_sweep:
@@ -486,6 +599,7 @@ def main():
                     set_viewport(cdp, width, height)
                 sweep = visibility_sweep(cdp, args.sweep_seconds, args.sweep_samples)
                 layout_measurements.append(layout_metrics(cdp))
+                copy_checks.append(visual_copy_checks(cdp))
                 layout_snapshot = cdp.evaluate("window.__sceneSnapshot()")
                 sweep["clippedLabels"] = [label for label in layout_snapshot.get("labels", [])
                     if label["visible"] and not label["fullyInside"]]
@@ -497,6 +611,10 @@ def main():
                     capture_scene(cdp, artifacts / f"scene-{width}x{height}.png")
             set_viewport(cdp, args.width, args.height)
         proportional_checks = layout_checks(layout_measurements)
+        if not copy_checks:
+            copy_checks.append(visual_copy_checks(cdp))
+        body_comparisons = compare_body_metrics(layout_measurements, args.baseline_report)
+        hover_report = hover_checks(cdp) if args.hover else None
         integration = None
         if args.integration:
             integration = cdp.evaluate("""(async()=>{
@@ -516,6 +634,8 @@ def main():
                   "hierarchyAfter": hierarchy_after, "hierarchyChecks":hierarchy_checks,
                   "pauseCheck":pause_check, "visibilitySweeps":sweeps,
                   "layoutMetrics":layout_measurements, "layoutChecks":proportional_checks,
+                  "visualCopyChecks":copy_checks, "bodySizeComparisons":body_comparisons,
+                  "hoverChecks":hover_report,
                   "integration": integration, "browserEvents": cdp.events}
         (artifacts / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         output_dir = ROOT / "node_modules"
@@ -544,6 +664,8 @@ def main():
                           "scroll": after.get("scroll"), "integration": integration,
                           "hierarchyChecks":hierarchy_checks, "pauseCheck":pause_check,
                           "layoutChecks":proportional_checks,
+                          "visualCopyChecks":copy_checks, "bodySizeComparisons":body_comparisons,
+                          "hoverChecks":hover_report,
                           "visibilitySweeps":[{k:v for k,v in sweep.items() if k != "frames"} for sweep in sweeps],
                           "assetErrors": hierarchy_after.get("assetErrors",[]) if hierarchy_after else [],
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
@@ -551,7 +673,7 @@ def main():
             any(r.get("debug") or r.get("canvas") != 0 or not r.get("h1") for r in integration["results"] if r["phase"] == "activity") or
             any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
-        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks):
+        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
             raise SystemExit(1)
     finally:
         if cdp is not None and process.poll() is None:

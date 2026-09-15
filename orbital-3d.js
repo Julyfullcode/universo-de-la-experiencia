@@ -33,8 +33,7 @@
     const stage=document.createElement('div');stage.className='cosmos-stage';
     stage.innerHTML=`<div class="cosmos-heading galaxy"><small>Escala galáctica</small><h2>Galaxia · Empresa</h2><p>Sus estrellas son nuestros clientes.</p></div>
       <div class="cosmos-heading system"><small>Acercamiento a la estrella seleccionada</small><h2>Sistema del cliente</h2></div>
-      <div class="cosmos-heading constellations"><small>Una guía en el cielo</small><h2>Constelaciones</h2><p>Modelo de experiencia + arquitectura empresarial</p></div>
-      <button class="cosmos-overview-link">Seguir a la estrella seleccionada ↗</button>
+      <div class="cosmos-heading constellations"><small>Una guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button><button class="cosmos-pause" aria-pressed="false">Ⅱ Pausar</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
       <a class="cosmos-credit" href="texture-credits.html" target="_blank" rel="noopener">Créditos de las superficies</a>
@@ -48,7 +47,8 @@
     const scene=new T.Scene(),clock=new T.Clock(),glow=glowTexture(T),rng=seededRandom(8249);
     const materials=[],records=[],moving=[],spinning=[],labels=[],stars=[];
     const lightPosition=new T.Vector3(),mainWorld=new T.Vector3(),temp=new T.Vector3();
-    let animation,elapsed=0,disposed=false,width=1,height=1,displayScale=1,compact=false,mobileView='system',selected,focusPlanet=null;
+    let animation,elapsed=0,disposed=false,width=1,height=1,displayScale=1,compact=false,mobileView='system',selected,focusPlanet=null,hovered=null,mousePoint=null;
+    const MAX_HOVER_SCALE=1.14;
     const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');let paused=reduced.matches;
     const views={},shaderErrors=[];
     renderer.debug.onShaderError=(gl,program,vertex,fragment)=>{shaderErrors.push([gl.getProgramInfoLog(program),gl.getShaderInfoLog(vertex),gl.getShaderInfoLog(fragment)].join('\n'));};
@@ -65,14 +65,43 @@
     function star(radius,color){
       const g=new T.Group(),m=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)}},vertexShader:surfaceVertex,fragmentShader:`
         uniform float uTime;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
-        void main(){vec3 p=normalize(vLocal);float turbulence=fbm(p*3.8+vec3(0.,uTime*.012,0.));
-          float filaments=pow(1.-abs(noise3(p*12.+turbulence*3.)*2.-1.),3.);
+        void main(){vec3 p=normalize(vLocal);vec3 drift=vec3(uTime*.008,-uTime*.006,uTime*.004);
+          float convection=fbm(p*5.8+drift);
+          vec3 flow=p*14.+vec3(convection*5.,convection*3.,-convection*4.);
+          float granules=noise3(flow+drift*.6);
+          float filaments=pow(1.-abs(noise3(flow*.56+convection*3.)*2.-1.),5.);
+          float hot=.24+smoothstep(.28,.80,granules)*.30+filaments*.10+convection*.24;
           float face=max(dot(normalize(cameraPosition-vWorld),normalize(vNormal)),0.);
-          vec3 c=mix(uColor*.36,uColor*1.5,turbulence)+vec3(.35,.66,1.)*filaments*.32;
-          c=mix(c,vec3(.55,.83,1.),pow(1.-face,3.)*.7);gl_FragColor=vec4(c,1.);
+          vec3 c=mix(uColor*.46+vec3(.035,.055,.09),mix(uColor,vec3(.88,.96,1.),.78)*1.35,clamp(hot,0.,1.));
+          c*=.36+.64*pow(face,.52);
+          c+=vec3(.2,.5,1.)*pow(1.-face,5.)*.58;
+          gl_FragColor=vec4(c,1.);
           #include <colorspace_fragment>
         }`});
-      materials.push(m);const surface=mesh(new T.SphereGeometry(radius,48,32),m,g);spinning.push({object:surface,speed:.018});halo(g,color,radius*5.5,.57);return g;
+      materials.push(m);const surface=mesh(new T.SphereGeometry(radius,64,48),m,g);spinning.push({object:surface,speed:.014});
+      // A real spherical atmosphere preserves the silhouette at every angle.
+      // Only light is translucent; the photosphere above remains fully opaque.
+      const corona=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)}},vertexShader:surfaceVertex,
+        fragmentShader:`uniform float uTime;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
+          void main(){vec3 p=normalize(vLocal);float facing=abs(dot(normalize(cameraPosition-vWorld),normalize(vNormal)));
+            float rim=pow(1.-facing,3.5);float plasma=fbm(p*9.+vec3(0.,uTime*.009,0.));
+            float streamers=pow(1.-abs(noise3(p*23.+plasma*3.)*2.-1.),3.);
+            float alpha=rim*(.07+plasma*.21+streamers*.12);
+            gl_FragColor=vec4(mix(uColor,vec3(.62,.87,1.),.48),alpha);
+            #include <colorspace_fragment>
+          }`,transparent:true,blending:T.AdditiveBlending,depthWrite:false});
+      materials.push(corona);mesh(new T.SphereGeometry(radius*1.16,48,32),corona,g);
+      const arcMaterial=new T.MeshBasicMaterial({color:new T.Color(color).lerp(new T.Color(0xd8f5ff),.68),transparent:true,opacity:.55,blending:T.AdditiveBlending,depthWrite:false});materials.push(arcMaterial);
+      const arcs=new T.Group();g.add(arcs);
+      for(let i=0;i<5;i++){
+        const longitude=i*2.399+.45,latitude=.18+Math.sin(i*1.73)*.67;
+        const radial=new T.Vector3(Math.cos(longitude)*Math.cos(latitude),Math.sin(latitude),Math.sin(longitude)*Math.cos(latitude));
+        const tangent=new T.Vector3(-Math.sin(longitude),0,Math.cos(longitude));
+        const point=(height,side)=>radial.clone().multiplyScalar(radius*height).addScaledVector(tangent,radius*side);
+        const curve=new T.CubicBezierCurve3(point(.98,-.13),point(1.27,-.24),point(1.27,.22),point(.98,.13));
+        mesh(new T.TubeGeometry(curve,22,radius*.0055,5,false),arcMaterial,arcs);
+      }
+      spinning.push({object:arcs,speed:.008});halo(g,color,radius*5.6,.64);halo(g,0xd9f4ff,radius*2.6,.23);return g;
     }
     function planet(radius,primary,secondary,mode,seed){
       const session=realm.__planetMaterialSession||(realm.__planetMaterialSession=window.UniversePlanetMaterials.createSession(T,{lightPosition,materials,spinning}));
@@ -132,14 +161,54 @@
       const dish=mesh(new T.SphereGeometry(.22,16,12,0,TAU,0,Math.PI*.4),metal,g);dish.rotation.x=Math.PI;dish.position.y=.15;return g;
     }
     function rocket(){
-      const g=new T.Group(),white=standard(0xe1eff5,.6),purple=standard(0xa767ed,.6);mesh(new T.CylinderGeometry(.19,.22,1.05,20),white,g);
-      const nose=mesh(new T.ConeGeometry(.2,.5,20),white,g);nose.position.y=.75;
-      for(let i=0;i<3;i++){const fin=mesh(new T.BoxGeometry(.07,.42,.5),purple,g);fin.rotation.y=i*TAU/3;fin.position.set(Math.sin(i*TAU/3)*.18,-.44,Math.cos(i*TAU/3)*.18);}
-      const engine=mesh(new T.ConeGeometry(.13,.4,16),new T.MeshBasicMaterial({color:0x91e7ff}),g);engine.rotation.z=Math.PI;engine.position.y=-.76;g.rotation.z=-.52;return g;
+      const g=new T.Group(),white=standard(0xe6f2ff,.46),purple=standard(0x8752db,.48),metal=standard(0x8aacc6,.78),dark=standard(0x112841,.55);
+      mesh(new T.CylinderGeometry(.18,.21,1.02,32),white,g);
+      const nose=mesh(new T.ConeGeometry(.185,.45,32),white,g);nose.position.y=.73;
+      [-.43,.37].forEach(y=>{const band=mesh(new T.CylinderGeometry(.213,.213,.055,32),purple,g);band.position.y=y;});
+      const collar=mesh(new T.CylinderGeometry(.215,.18,.16,32),metal,g);collar.position.y=-.55;
+      const port=mesh(new T.TorusGeometry(.078,.018,8,28),metal,g);port.position.set(0,.15,.185);
+      const windowMaterial=new T.MeshStandardMaterial({color:0x0a527c,metalness:.6,roughness:.13,emissive:0x157aa6,emissiveIntensity:.3});materials.push(windowMaterial);
+      const portGlass=mesh(new T.SphereGeometry(.071,20,14),windowMaterial,g);portGlass.scale.z=.22;portGlass.position.set(0,.15,.198);
+      const finShape=new T.Shape();finShape.moveTo(0,.16);finShape.lineTo(.27,-.21);finShape.lineTo(.27,-.35);finShape.lineTo(0,-.29);finShape.closePath();
+      const finGeometry=new T.ExtrudeGeometry(finShape,{depth:.035,bevelEnabled:true,bevelSize:.006,bevelThickness:.004,bevelSegments:1,steps:1});
+      for(let i=0;i<4;i++){const fin=mesh(finGeometry,purple,g);fin.rotation.y=i*TAU/4;fin.position.set(Math.cos(i*TAU/4)*.17,-.23,-Math.sin(i*TAU/4)*.17);}
+      const nozzle=mesh(new T.CylinderGeometry(.115,.165,.20,24,1,true),dark,g);nozzle.position.y=-.69;
+      const rim=mesh(new T.TorusGeometry(.16,.022,8,24),metal,g);rim.rotation.x=Math.PI/2;rim.position.y=-.79;
+      const flameMaterial=new T.ShaderMaterial({uniforms:{uTime:{value:0}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+        fragmentShader:`uniform float uTime;varying vec2 vUv;void main(){float pulse=.9+.1*sin(uTime*3.2);
+          vec3 c=mix(vec3(.18,.48,1.),vec3(.88,.97,1.),smoothstep(.1,.83,vUv.y));
+          gl_FragColor=vec4(c,(.3+.55*(1.-vUv.y))*pulse);
+          #include <colorspace_fragment>
+        }`,transparent:true,blending:T.AdditiveBlending,depthWrite:false});materials.push(flameMaterial);
+      const engine=mesh(new T.ConeGeometry(.14,.44,24),flameMaterial,g);engine.rotation.z=Math.PI;engine.position.y=-1.;
+      const coreMaterial=new T.MeshBasicMaterial({color:0xe1faff});materials.push(coreMaterial);
+      const core=mesh(new T.ConeGeometry(.064,.28,20),coreMaterial,g);core.rotation.z=Math.PI;core.position.y=-.91;
+      const engineGlow=new T.Group();engineGlow.position.y=-.84;g.add(engineGlow);halo(engineGlow,0x43bfff,.7,.4);
+      g.rotation.z=-.42;return g;
     }
-    function telescope(){const g=satellite(),gold=standard(0xeec991,.8),dark=standard(0x223b64,.6);
-      const tube=mesh(new T.CylinderGeometry(.3,.31,.85,24),gold,g);tube.rotation.x=Math.PI/2;
-      const lens=mesh(new T.CircleGeometry(.26,24),dark,g);lens.position.z=.435;g.rotation.set(.3,-.6,.3);g.scale.setScalar(1.25);return g;}
+    function telescope(){
+      const g=new T.Group(),silver=standard(0xd8e3eb,.72),gold=standard(0xf0ba62,.67),dark=standard(0x101c30,.55),frame=standard(0x90aac6,.7);
+      const panelMaterial=new T.MeshStandardMaterial({color:0x12479b,metalness:.4,roughness:.32,emissive:0x092147,emissiveIntensity:.25});materials.push(panelMaterial);
+      const rear=mesh(new T.CylinderGeometry(.285,.32,.53,20),gold,g);rear.rotation.x=Math.PI/2;rear.position.z=-.27;
+      const tube=mesh(new T.CylinderGeometry(.3,.3,.7,40,1,true),silver,g);tube.rotation.x=Math.PI/2;tube.position.z=.32;
+      // The recessed mirror and open baffle give the aperture actual depth.
+      const baffle=mesh(new T.CylinderGeometry(.281,.264,.59,36,1,true),dark,g);baffle.rotation.x=Math.PI/2;baffle.position.z=.37;baffle.material.side=T.DoubleSide;
+      const mirrorMaterial=new T.MeshStandardMaterial({color:0x153964,metalness:.84,roughness:.12,emissive:0x071c38,emissiveIntensity:.25,side:T.DoubleSide});materials.push(mirrorMaterial);
+      const mirror=mesh(new T.CircleGeometry(.264,36),mirrorMaterial,g);mirror.position.z=.09;
+      [-.49,-.04,.67].forEach(z=>{const ring=mesh(new T.TorusGeometry(.302,.024,8,36),frame,g);ring.position.z=z;});
+      const secondary=mesh(new T.CylinderGeometry(.05,.065,.08,16),silver,g);secondary.rotation.x=Math.PI/2;secondary.position.z=.59;
+      for(let i=0;i<3;i++){const support=mesh(new T.BoxGeometry(.26,.012,.018),frame,g);const angle=i*TAU/3;support.rotation.z=angle;support.position.set(Math.cos(angle)*.14,Math.sin(angle)*.14,.6);}
+      const boom=mesh(new T.BoxGeometry(1.04,.045,.07),frame,g);boom.position.z=-.22;
+      [-1,1].forEach(side=>{
+        const panel=mesh(new T.BoxGeometry(.69,.028,.57),panelMaterial,g);panel.position.set(side*.795,0,-.22);
+        for(let i=0;i<6;i++){const wire=mesh(new T.BoxGeometry(.009,.035,.58),gold,g);wire.position.set(side*(.455+i*.137),0,-.22);}
+        for(let j=0;j<4;j++){const wire=mesh(new T.BoxGeometry(.70,.035,.009),frame,g);wire.position.set(side*.795,0,-.505+j*.19);}
+      });
+      const electronics=mesh(new T.BoxGeometry(.25,.16,.26),gold,g);electronics.position.set(0,-.28,-.23);
+      const mast=mesh(new T.CylinderGeometry(.018,.018,.32,10),frame,g);mast.position.set(0,.39,-.35);
+      const dish=mesh(new T.SphereGeometry(.13,20,14,0,TAU,0,Math.PI*.4),silver,g);dish.rotation.x=.6;dish.position.set(0,.55,-.35);
+      g.rotation.set(-.14,-.42,.18);return g;
+    }
     const galaxyRoot=new T.Group();scene.add(galaxyRoot);
     // Seeded dust volumes: stable, irregular, never a grid of refreshed dots.
     const positions=[],colors=[];for(let i=0;i<7000;i++){
@@ -152,7 +221,7 @@
     const dust=new T.Points(dustGeometry,dustMaterial);dust.layers.set(1);galaxyRoot.add(dust);
     const nucleus=new T.Group();halo(nucleus,0xc79eff,35,.75);halo(nucleus,0xffded0,13,.75);layer(nucleus,1);galaxyRoot.add(nucleus);
     const primaryOrbit=orbit(galaxyRoot,57,1500,.18,.025,0x95ccff,.18,true,{pitch:.035,yaw:.28});primaryOrbit.line.layers.set(1);
-    const primary=star(1.23,0x4ca9ff);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
+    const primary=star(2.05,0x4ca9ff);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
     primaryOrbit.body=primary;
     const beacon=halo(primaryOrbit.anchor,0xaeeaff,11,.9);beacon.layers.set(0);
     const clientRecord={id:'client',step:'estrellas',title:'Estrellas · Clientes',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella es un cliente. Orbita el centro de su galaxia, la empresa. Este acercamiento sigue a la estrella seleccionada: sus empleados orbitan a su alrededor.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
@@ -162,18 +231,34 @@
     }
     // An observer's sky, separate from the orbital model. These stars lie at
     // different depths; only their apparent positions are joined by the guide.
-    const guideStars=[[-6,.45,1],[-4.5,1.35,-3],[-2.9,.45,4],[-3.4,-.9,-1],[-1.4,-.3,2],[.6,.9,-4],[2.3,.3,3],[3.5,1.25,-2],[5.5,.6,1],[4.5,-1.15,-5]].map((position,i)=>{
-      const g=new T.Group();g.position.set(...position);const color=[0xdbf3ff,0xffe6ca,0xced1ff][i%3];
-      mesh(new T.SphereGeometry(.045+(i%3)*.024,16,12),new T.MeshBasicMaterial({color}),g);
-      halo(g,color,.72+(i%3)*.22,.8);layer(g,3);scene.add(g);return g;
+    const guideStars=[
+      // The main asterism keeps its silhouette; two smaller, disconnected
+      // drawings frame it. Their unequal depths are not physical connections.
+      [-6,.45,1],[-4.5,1.35,-3],[-2.9,.45,4],[-3.4,-.9,-1],[-1.4,-.3,2],
+      [.6,.9,-4],[2.3,.3,3],[3.5,1.25,-2],[5.5,.6,1],[4.5,-1.15,-5],
+      [-10.7,.15,6],[-9.95,.9,-5],[-8.95,.55,8],[-9.3,-.3,-2],[-8.35,-.95,3],[-7.65,-.25,-8],
+      [7.45,.6,-9],[8.35,.95,2],[9.3,.35,-4],[10.65,-.05,8],[9.75,-.95,0],[8.4,-.65,5]
+    ].map((position,i)=>{
+      const g=new T.Group();g.position.set(...position);const secondary=i>=10;
+      const palette=i>=16?[0xc5edff,0xcac1ff,0xeef8ff]:i>=10?[0xffdfb5,0xe5d1ff,0xd5ecff]:[0xdbf3ff,0xffe6ca,0xced1ff];
+      const color=palette[i%3],brightness=[.58,.84,.7,1,.66][i%5];
+      const radius=secondary ? .033+(i%3)*.013 : .055+(i%3)*.029;
+      const material=new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(.72+brightness*.35)});
+      mesh(new T.SphereGeometry(radius,16,12),material,g);
+      halo(g,color,secondary ? .48+brightness*.36 : .92+brightness*.52,secondary ? .5+brightness*.23 : .66+brightness*.2);
+      layer(g,3);scene.add(g);return g;
     });
-    const guideEdges=[[0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,8],[6,9]];
+    const guideEdges=[
+      [0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,8],[6,9],
+      [10,11],[11,12],[12,13],[13,10],[13,14],[14,15],
+      [16,17],[17,18],[18,19],[19,20],[20,21],[21,18]
+    ];
     const talent=[
       ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,4.8,.48,.6,210],
       ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,7.1,.65,2.5,300],
       ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,9.6,.75,4.5,400],
       ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,12.3,.62,5.6,520],
-      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,15,.68,2.5,650]
+      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,15,1.32,2.5,650]
     ];
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
@@ -188,21 +273,65 @@
     });
     const parentPlanet=talentRecords[4];
     ['Proveedores y contratistas','Dueño','Comunidad'].forEach((name,i)=>{
-      const o=orbit(parentPlanet.object,1.35+i*.62,48+i*23,.8+i*2.1,[-.18,.16,.27][i],0xbeadf4,[.13,.17,.12][i],true,{pitch:[.16,-.12,.09][i],yaw:[.4,1.45,2.3][i]});
-      const s=satellite();s.scale.setScalar(.62);o.anchor.add(s);o.body=s;spinning.push({object:s,speed:.025});
+      const o=orbit(parentPlanet.object,2.9+i*.85,48+i*23,.8+i*2.1,[-.18,.16,.27][i],0xbeadf4,[.13,.17,.12][i],true,{pitch:[.16,-.12,.09][i],yaw:[.4,1.45,2.3][i]});
+      const s=satellite();s.scale.setScalar(1.06);o.anchor.add(s);o.body=s;spinning.push({object:s,speed:.025});
       records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
-    const waypoints=[['launch','lanzamiento','Centro de lanzamiento',rocket(),[0,0,0]],['observatory','observatorio','Observatorio de señales',telescope(),[12,0,14]],['earth','mision','Misión en la Tierra',planet(.84,0x126fa9,0x499555,1,12.7),[16,0,-7]]];
+    const observatory=telescope();observatory.scale.setScalar(1.85);
+    const waypoints=[['launch','lanzamiento','Centro de lanzamiento',rocket(),[0,0,0]],['observatory','observatorio','Observatorio de señales',observatory,[18,0,13]],['earth','mision','Misión en la Tierra',planet(.84,0x126fa9,0x499555,1,12.7),[16,0,-7]]];
     waypoints.forEach(([id,step,title,visual,pos])=>{const anchor=new T.Group();anchor.position.set(...pos);(id==='launch'?scene:primaryOrbit.anchor).add(anchor);anchor.add(visual);if(id==='launch')layer(visual,5);records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
     const launchRecord=records.find(r=>r.id==='launch');
     const constellation={id:'guide',step:'coordenadas',title:'Constelaciones · Nuestra guía',eyebrow:'Agrupación aparente, no estructura física',description:'Los trazos unen estrellas vistas desde aquí, aunque se encuentran a distintas distancias. Representan el modelo de experiencia y la arquitectura empresarial: nos orientan, no son órbitas.',kind:'guide'};records.push(constellation);
     const galaxyRecord={id:'galaxy',step:'lanzamiento',title:'Galaxias · Empresas',eyebrow:'Una red de sistemas de experiencia',description:'La galaxia reúne sus estrellas cliente. Cada estrella tiene planetas empleados y cada planeta puede contar con satélites de otros actores. La vista ampliada sigue el mismo cliente que ves señalado aquí.',kind:'galaxy'};records.push(galaxyRecord);
+    // Enlarge only the artwork, never the translation anchors: hovering a
+    // planet must not drag its satellites out of their orbits or move the camera.
+    records.forEach(record=>{
+      const targets=record.visual?[record.visual]:record===galaxyRecord?[dust,nucleus]:record===constellation?guideStars:[];
+      record.hoverAmount=0;record.hoverTargets=targets.map(object=>({object,scale:object.scale.clone()}));
+      const unique=new Set();record.hoverMaterials=[];
+      targets.forEach(target=>target.traverse(object=>{
+        const list=Array.isArray(object.material)?object.material:[object.material];
+        list.filter(Boolean).forEach(material=>{
+          if(unique.has(material))return;unique.add(material);
+          const entry={material,color:material.color?.clone(),emissive:material.emissive?.clone(),opacity:material.opacity,size:material.size};
+          if(material.isShaderMaterial){
+            material.uniforms.uHover={value:0};
+            material.fragmentShader='uniform float uHover;\n'+material.fragmentShader.replace('#include <colorspace_fragment>','gl_FragColor.rgb *= 1.0 + uHover * .38;\n#include <colorspace_fragment>');
+            material.needsUpdate=true;
+          }
+          record.hoverMaterials.push(entry);
+        });
+      }));
+    });
+    function setHover(record){
+      if(hovered===record)return;hovered=record;
+      stage.style.cursor=record?'pointer':'';
+      labels.forEach(label=>label.button.classList.toggle('is-hovered',label.record===record));
+    }
+    function updateHover(dt){
+      const blend=reduced.matches?1:1-Math.exp(-18*Math.max(0,dt));
+      records.forEach(record=>{
+        record.hoverAmount+=((hovered===record?1:0)-record.hoverAmount)*blend;
+        if(record.hoverAmount<.0001)record.hoverAmount=0;
+        const amount=record.hoverAmount,scale=1+(MAX_HOVER_SCALE-1)*amount;
+        record.hoverTargets.forEach(target=>target.object.scale.copy(target.scale).multiplyScalar(scale));
+        record.hoverMaterials.forEach(({material,color,emissive,opacity,size})=>{
+          if(material.uniforms?.uHover)material.uniforms.uHover.value=amount;
+          if(color)material.color.copy(color).multiplyScalar(1+amount*.30);
+          if(emissive)material.emissive.copy(emissive).lerp(color||emissive,amount*.16);
+          if(material.isSpriteMaterial)material.opacity=Math.min(1,opacity*(1+amount*.30));
+          if(material.isPointsMaterial)material.size=size*(1+amount*.06);
+        });
+      });
+    }
     const recordForStep=id=>records.find(r=>r.step===id&&r.kind!=='satellite')||records.find(r=>r.step===id);
     const motionByAnchor=new Map(moving.map(o=>[o.anchor,o]));
     const cameraOffset=new T.Vector3(0,23,37),screenRight=new T.Vector3(1,0,0),screenUp=new T.Vector3(0,37,-23).normalize(),framingCache=new Map();
     const systemRecords=()=>records.filter(r=>r.visual&&r!==launchRecord&&(!focusPlanet||r===focusPlanet||(r.kind==='satellite'&&focusPlanet===parentPlanet)));
     function select(record,zoom=false){
+      setHover(null);mousePoint=null;
+      labels.forEach(label=>label.placement=null);
       selected=record;if(zoom&&record.kind==='satellite')focusPlanet=parentPlanet;
       else if(compact&&record.kind==='planet')focusPlanet=record;
       else if(record.kind!=='satellite')focusPlanet=null;
@@ -223,21 +352,23 @@
       moving.forEach(o=>{if(o.line){o.line.layers.disable(4);o.line.visible=!!o.body&&(!focusPlanet||o.parent===galaxyRoot||o.parent===focusPlanet.object);if(focusPlanet&&o.parent===focusPlanet.object)o.line.layers.enable(4);}});
     }
     function addLabel(record,text,view='system',offset=22){
-      const button=document.createElement('button');button.className=`cosmos-object-label ${record.kind}`;button.innerHTML=text;button.setAttribute('aria-pressed','false');button.onclick=()=>select(record,record.kind==='satellite');
+      const button=document.createElement('button');button.className=`cosmos-object-label ${record.kind}`;button.innerHTML=text;button.setAttribute('aria-pressed','false');button.onclick=event=>{
+        const box=stage.getBoundingClientRect(),target=event.detail?hitTest(event.clientX-box.left,event.clientY-box.top,true)||record:record;select(target,target.kind==='satellite');
+      };
+      button.dataset.cosmosId=record.id;button.onfocus=()=>setHover(record);button.onblur=()=>setHover(null);
       stage.querySelector('.cosmos-labels').append(button);labels.push({record,button,view,offset});
     }
     addLabel(clientRecord,'<small>Estrella</small><b>Cliente</b>','system',38);
     talentRecords.forEach(r=>addLabel(r,`<b>${r.name}</b>`,'system',23));
     records.filter(r=>r.kind==='waypoint').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
     labels.find(l=>l.record===launchRecord).button.classList.add('launch');
-    addLabel(records.find(r=>r.id==='satellite-0'),'<small>Otros actores</small><b>Satélites ↗</b>','system',48);
+    addLabel(records.find(r=>r.id==='satellite-0'),'<b>Satélites ↗</b>','system',48);
     [1,2].forEach(i=>{const r=records.find(r=>r.id===`satellite-${i}`);addLabel(r,`<b>${r.title}</b>`,'system',25);labels[labels.length-1].focusOnly=true;});
-    addLabel(clientRecord,'<b>Cliente seleccionado ↗</b>','galaxy',17);
-    const guideButton=document.createElement('button');guideButton.className='cosmos-object-label';guideButton.innerHTML='<b>Explorar nuestra guía ↗</b>';guideButton.onclick=()=>select(constellation);stage.querySelector('.cosmos-labels').append(guideButton);
-    route.querySelectorAll('button').forEach(b=>b.onclick=()=>select(recordForStep(b.dataset.step),b.dataset.step==='satelites'));
+    const guideButton=document.createElement('button');guideButton.className='cosmos-object-label';guideButton.innerHTML='<b>Explorar nuestra guía ↗</b>';guideButton.dataset.cosmosId='guide';guideButton.onclick=()=>select(constellation);guideButton.onfocus=()=>setHover(constellation);guideButton.onblur=()=>setHover(null);stage.querySelector('.cosmos-labels').append(guideButton);
+    route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>select(record,b.dataset.step==='satelites');b.onpointerenter=b.onfocus=()=>setHover(record);b.onpointerleave=b.onblur=()=>setHover(null);});
     tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{mobileView=b.dataset.view;resize();});
     stage.querySelectorAll('[data-actor]').forEach(b=>b.onclick=()=>select(records.find(r=>r.id===`satellite-${b.dataset.actor}`),true));
-    stage.querySelector('.cosmos-overview-link').onclick=()=>{mobileView='system';select(clientRecord);resize();};stage.querySelector('.cosmos-reset').onclick=()=>select(clientRecord);
+    stage.querySelector('.cosmos-reset').onclick=()=>select(clientRecord);
     function updatePause(){const b=stage.querySelector('.cosmos-pause');b.textContent=paused?'▷ Reanudar':'Ⅱ Pausar';b.setAttribute('aria-pressed',String(paused));}
     stage.querySelector('.cosmos-pause').onclick=()=>{paused=!paused;updatePause();};updatePause();
     const motionChange=e=>{paused=e.matches;updatePause();};reduced.addEventListener('change',motionChange);
@@ -254,6 +385,20 @@
         radius=Math.max(radius,center.distanceTo(origin)+b.radius*Math.max(scale.x,scale.y,scale.z));});
       record.extent=Math.max(.2,radius);return record.extent;
     }
+    function visualBounds(record,viewName=record.view||'system'){
+      const view=views[viewName],camera=cameras[viewName],bounds={left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity};
+      const point=new T.Vector3();
+      record.visual.traverse(object=>{
+        if(!object.isMesh||!object.geometry)return;
+        if(!object.geometry.boundingBox)object.geometry.computeBoundingBox();
+        const box=object.geometry.boundingBox;
+        for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){
+          point.set(x,y,z).applyMatrix4(object.matrixWorld).project(camera);
+          const px=view.x+(point.x+1)*view.w/2,py=view.y+(1-point.y)*view.h/2;
+          bounds.left=Math.min(bounds.left,px);bounds.right=Math.max(bounds.right,px);bounds.top=Math.min(bounds.top,py);bounds.bottom=Math.max(bounds.bottom,py);
+        }
+      });return bounds;
+    }
     function orbitalEnvelope(){
       const center=focusPlanet?.object||primaryOrbit.anchor;if(framingCache.has(center))return framingCache.get(center);
       const envelope={left:Infinity,right:-Infinity,bottom:Infinity,top:-Infinity};
@@ -268,7 +413,7 @@
           }else{const offset=node.position.clone().applyMatrix3(new T.Matrix3().setFromMatrix4(parent.matrixWorld));h+=screenRight.dot(offset);v+=screenUp.dot(offset);}
           node=parent;
         }
-        const extent=bodyExtent(record);envelope.left=Math.min(envelope.left,h-rangeH-extent);envelope.right=Math.max(envelope.right,h+rangeH+extent);envelope.bottom=Math.min(envelope.bottom,v-rangeV-extent);envelope.top=Math.max(envelope.top,v+rangeV+extent);
+        const extent=bodyExtent(record)*MAX_HOVER_SCALE;envelope.left=Math.min(envelope.left,h-rangeH-extent);envelope.right=Math.max(envelope.right,h+rangeH+extent);envelope.bottom=Math.min(envelope.bottom,v-rangeV-extent);envelope.top=Math.max(envelope.top,v+rangeV+extent);
       });
       const minimum=focusPlanet?7.1:37;envelope.left=Math.min(envelope.left,-minimum/2);envelope.right=Math.max(envelope.right,minimum/2);
       framingCache.set(center,envelope);return envelope;
@@ -285,26 +430,29 @@
       r.safeRect={left:r.x+sidePad,right:r.x+r.w-sidePad,top:r.y+topPad,bottom:r.y+r.h-bottomPad};
     }
     function fitLaunch(){
-      const r=views.launch,camera=cameras.launch,pad=12*displayScale;
+      const r=views.launch,camera=cameras.launch,pad=(compact?6:12)*displayScale,labelSpace=(compact?40:62)*displayScale;
       // A dedicated, left-hand launch station stays readable without forcing
       // the solar-system camera to zoom out or pretending the rocket is a planet.
-      const usableW=Math.max(1,r.w-2*pad),usableH=Math.max(1,r.h-pad-42*displayScale),extent=bodyExtent(launchRecord);
-      const units=Math.max(extent*2.55/usableW,extent*2.55/usableH);
+      const usableW=Math.max(1,r.w-2*pad),usableH=Math.max(1,r.h-pad-labelSpace),extent=bodyExtent(launchRecord)*MAX_HOVER_SCALE;
+      const units=Math.max(extent*2/usableW,extent*2/usableH);
       camera.left=-r.w*units/2;camera.right=r.w*units/2;camera.top=r.h*units/2;camera.bottom=-r.h*units/2;
-      const target=launchRecord.object.getWorldPosition(new T.Vector3());target.y-=15*displayScale*units;
+      const target=launchRecord.object.getWorldPosition(new T.Vector3());target.y+=(pad-labelSpace)*units/2;
       camera.position.copy(target).add(new T.Vector3(0,0,12));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();
-      r.safeRect={left:r.x+pad,right:r.x+r.w-pad,top:r.y+pad,bottom:r.y+r.h-30*displayScale};
+      r.safeRect={left:r.x+pad,right:r.x+r.w-pad,top:r.y+pad,bottom:r.y+r.h-labelSpace};
+      r.labelTop=r.y+r.h-labelSpace+(compact?9:10)*displayScale;
     }
     function resize(){
-      const box=stage.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;renderer.setSize(width,height,false);
+      const box=stage.getBoundingClientRect();if(width!==box.width||height!==box.height)labels.forEach(label=>label.placement=null);
+      width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;renderer.setSize(width,height,false);
       displayScale=compact?1:Math.max(.8,Math.min(3,window.innerWidth/1440,window.innerHeight/900));
       views.galaxy=compact?{x:0,y:35,w:width,h:height*.46-35}:{x:0,y:64*displayScale,w:width*.23,h:height*.43};
       views.constellation=compact?{x:0,y:height*.65,w:width,h:height*.3}:{x:width*.32,y:42*displayScale,w:width*.41,h:height*.16};
-      views.system=compact?{x:0,y:focusPlanet?78:140,w:width,h:height-(focusPlanet?78:140)}:{x:width*.235,y:35*displayScale,w:width*.765,h:height-35*displayScale};
-      views.launch=compact?{x:0,y:42,w:width*.42,h:110}:{x:0,y:height*.57,w:width*.21,h:height*.41};
+      views.system=compact?{x:0,y:focusPlanet?78:184,w:width,h:height-(focusPlanet?78:184)}:{x:width*.235,y:35*displayScale,w:width*.765,h:height-35*displayScale};
+      views.launch=compact?{x:0,y:42,w:width*.46,h:148}:{x:0,y:height*.49,w:width*.23,h:height*.49};
+      if(compact&&height<340&&!focusPlanet){views.launch={x:0,y:45,w:width*.29,h:height-55};views.system={x:width*.30,y:70,w:width*.70,h:height-70};}
       views.galaxy.visible=views.constellation.visible=!compact||mobileView==='galaxy';views.system.visible=!compact||mobileView==='system';
       views.launch.visible=views.system.visible&&!focusPlanet;
-      stage.querySelector('.cosmos-heading.galaxy').hidden=!views.galaxy.visible;stage.querySelector('.cosmos-heading.constellations').hidden=!views.constellation.visible;stage.querySelector('.cosmos-heading.system').hidden=!views.system.visible;stage.querySelector('.cosmos-overview-link').hidden=!views.galaxy.visible;
+      stage.querySelector('.cosmos-heading.galaxy').hidden=!views.galaxy.visible;stage.querySelector('.cosmos-heading.constellations').hidden=!views.constellation.visible;stage.querySelector('.cosmos-heading.system').hidden=!views.system.visible;
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet||!views.system.visible;
       tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===mobileView)));stage.querySelector('svg').setAttribute('viewBox',`0 0 ${width} ${height}`);
       const clip=stage.querySelector('clipPath rect'),cv=views.constellation;['x','y'].forEach(k=>clip.setAttribute(k,cv[k]));clip.setAttribute('width',cv.w);clip.setAttribute('height',cv.h);
@@ -320,14 +468,21 @@
       spinning.forEach(s=>{s.object.rotation.y=(s.phase||0)+elapsed*s.speed;});materials.forEach(m=>{if(m.uniforms?.uTime)m.uniforms.uTime.value=elapsed;});
       scene.updateMatrixWorld(true);primaryOrbit.anchor.getWorldPosition(mainWorld);lightPosition.copy(mainWorld);sunlight.position.copy(mainWorld);
       fit(cameras.galaxy,views.galaxy,214,new T.Vector3(),new T.Vector3(0,100,170));
-      const cv=views.constellation,cc=cameras.constellation,skyWidth=Math.max(14,3.8*cv.w/Math.max(1,cv.h));
-      cc.left=-skyWidth/2;cc.right=skyWidth/2;cc.top=skyWidth*cv.h/cv.w/2;cc.bottom=-cc.top;cc.position.set(0,0,50);cc.lookAt(0,0,0);cc.updateProjectionMatrix();cc.updateMatrixWorld();
+      const cv=views.constellation,cc=cameras.constellation,skyAspect=cv.w/Math.max(1,cv.h),skyWidth=Math.max(24,4.4*skyAspect);
+      cc.left=-skyWidth/2;cc.right=skyWidth/2;cc.top=skyWidth/Math.max(.1,skyAspect)/2;cc.bottom=-cc.top;cc.position.set(0,.05,50);cc.lookAt(0,.05,0);cc.updateProjectionMatrix();cc.updateMatrixWorld();
       fitSystem();fitLaunch();
     }
-    function draw(){
-      updatePositions();renderer.setScissorTest(false);renderer.clear();renderer.setScissorTest(true);
+    function draw(dt=0){
+      updateHover(dt);updatePositions();
+      if(mousePoint)setHover(hitTest(mousePoint.x,mousePoint.y));
+      cameras.constellation.zoom=1+constellation.hoverAmount*.045;cameras.constellation.updateProjectionMatrix();
+      renderer.setScissorTest(false);renderer.clear();renderer.setScissorTest(true);
       Object.keys(views).forEach(name=>{const r=views[name];if(!r.visible||r.h<=0)return;moving.forEach(o=>{if(o.line)o.line.material.uniforms.uViewport.value.set(r.w,r.h);});renderer.setViewport(r.x,height-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,height-r.y-r.h,r.w,r.h);renderer.clearDepth();renderer.render(scene,cameras[name]);});renderer.setScissorTest(false);
-      const placed=[];const priority=l=>l.record===selected?0:l.record.kind==='client'?1:l.record.kind==='planet'?2:3;
+      const bodyDisks=[...systemRecords(),...(!focusPlanet?[launchRecord]:[])].map(record=>{
+        const view=record.view||'system',p=project(record.object,view),camera=cameras[view];
+        return{record,view,x:p.x,y:p.y,radius:bodyExtent(record)*MAX_HOVER_SCALE*views[view].w/(camera.right-camera.left)};
+      });
+      const placed=[];const priority=l=>l.record===hovered?-1:l.record===selected?0:l.record.kind==='client'?1:l.record.kind==='planet'?2:3;
       [...labels].sort((a,b)=>priority(a)-priority(b)).forEach(l=>{
         const satelliteGroup=l.record.id==='satellite-0'&&!focusPlanet;
         const v=views[l.view],p=project(satelliteGroup?parentPlanet.object:l.record.object,l.view),inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
@@ -335,50 +490,93 @@
         l.button.hidden=!show;if(show){
           if(l.record.id==='satellite-0')l.button.querySelector('b').textContent=focusPlanet===parentPlanet?'Proveedores y contratistas':'Satélites ↗';
           const half=l.button.offsetWidth/2+4,halfHeight=l.button.offsetHeight/2+5;
-          const offset=l.view==='launch'?Math.min(v.h*.36,70*displayScale):(satelliteGroup?67:l.offset)*displayScale;
-          l.button.style.left=`${Math.max(v.x+half,Math.min(v.x+v.w-half,p.x))}px`;l.button.style.top=`${Math.max(v.y+halfHeight,Math.min(v.y+v.h-halfHeight,p.y+offset))}px`;
-          const rect=l.button.getBoundingClientRect(),collision=placed.some(r=>rect.left<r.right+3&&rect.right>r.left-3&&rect.top<r.bottom+3&&rect.bottom>r.top-3);
-          l.button.style.visibility=collision?'hidden':'';l.button.setAttribute('aria-hidden',String(collision));if(!collision)placed.push(rect);
+          const anchor=satelliteGroup?parentPlanet:l.record,pixelsPerUnit=v.w/(cameras[l.view].right-cameras[l.view].left);
+          // Label positions reserve the largest hover size, so they do not
+          // jump when artwork grows. The launch has its own caption strip.
+          const offset=Math.max((satelliteGroup?77:l.offset)*displayScale,bodyExtent(anchor)*MAX_HOVER_SCALE*pixelsPerUnit+halfHeight+7*displayScale);
+          const radius=bodyExtent(anchor)*MAX_HOVER_SCALE*pixelsPerUnit;
+          const positions={below:{x:p.x,y:p.y+offset},above:{x:p.x,y:p.y-offset},right:{x:p.x+radius+half+9*displayScale,y:p.y},left:{x:p.x-radius-half-9*displayScale,y:p.y}};
+          const preferred=['client','earth'].includes(l.record.id)?['above','below','right','left']:['below','above','right','left'];
+          const options=l.view==='launch'?['launch']:l.placement?[l.placement]:preferred;
+          let chosen=null,rect;
+          for(const side of options){
+            const point=side==='launch'?{x:p.x,y:v.labelTop+l.button.offsetHeight/2}:positions[side];
+            const x=Math.max(v.x+half,Math.min(v.x+v.w-half,point.x)),y=Math.max(v.y+halfHeight,Math.min(v.y+v.h-halfHeight,point.y));
+            rect={left:x-half,right:x+half,top:y-halfHeight,bottom:y+halfHeight};
+            const overlapsBody=bodyDisks.some(body=>body.view===l.view&&Math.hypot(body.x-Math.max(rect.left,Math.min(rect.right,body.x)),body.y-Math.max(rect.top,Math.min(rect.bottom,body.y)))<body.radius+2*displayScale);
+            const overlapsLabel=placed.some(r=>rect.left<r.right+3&&rect.right>r.left-3&&rect.top<r.bottom+3&&rect.bottom>r.top-3);
+            if(!overlapsBody&&!overlapsLabel){chosen={side,x,y};break;}
+          }
+          // Keep each caption on its chosen side during an orbit. A caption
+          // briefly yields to a passing body instead of jumping across the sky.
+          const collision=!chosen;l.button.style.visibility=collision?'hidden':'';l.button.setAttribute('aria-hidden',String(collision));
+          if(chosen){l.placement=chosen.side;l.button.style.left=`${chosen.x}px`;l.button.style.top=`${chosen.y}px`;placed.push(rect);}
         }
       });
       const cv=views.constellation;guideButton.hidden=!cv.visible;guideButton.style.left=`${cv.x+cv.w/2}px`;guideButton.style.top=`${cv.y+cv.h+9*displayScale}px`;
       const path=stage.querySelector('svg path');path.parentNode.style.display=cv.visible?'':'none';const pts=guideStars.map(s=>project(s,'constellation'));
-      path.setAttribute('stroke-width',String(.8*displayScale));
+      path.setAttribute('stroke-width',String((.8+constellation.hoverAmount*.45)*displayScale));path.style.filter=constellation.hoverAmount>.01?`drop-shadow(0 0 ${3*constellation.hoverAmount}px #bcc5ff)`:'';
       path.setAttribute('d',cv.visible?guideEdges.map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' '):'');
     }
     const raycaster=new T.Raycaster(),pointer=new T.Vector2();
-    function pick(event){
-      const box=stage.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
-      const view=['launch','constellation','galaxy','system'].find(k=>{const r=views[k];return r.visible&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;});if(!view)return;
-      if(view==='launch'){select(launchRecord);return;}
-      if(view==='constellation'){select(constellation);return;}if(view==='galaxy'){select(galaxyRecord);return;}
-      const v=views[view];pointer.set((x-v.x)/v.w*2-1,-(y-v.y)/v.h*2+1);raycaster.layers.set(focusPlanet?4:2);raycaster.setFromCamera(pointer,cameras[view]);
-      const hits=raycaster.intersectObjects(systemRecords().map(r=>r.visual),true);const hit=hits.find(h=>!h.object.isSprite&&h.object.isMesh&&!h.object.material.transparent);
-      if(!hit){const nearest=systemRecords().map(r=>({record:r,p:project(r.object,'system')})).map(r=>({...r,distance:Math.hypot(r.p.x-x,r.p.y-y)})).sort((a,b)=>a.distance-b.distance)[0];if(nearest&&nearest.distance<=Math.max(18,bodyExtent(nearest.record)*v.w/(cameras.system.right-cameras.system.left)))select(nearest.record,nearest.record.kind==='satellite');return;}
-      let object=hit.object,record;while(object&&!record){record=records.find(r=>r.visual===object);object=object.parent;}if(record)select(record,record.kind==='satellite');
+    function hitTest(x,y,exact=false){
+      const view=['launch','constellation','galaxy','system'].find(k=>{const r=views[k];return r.visible&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;});if(!view)return null;
+      const v=views[view];
+      if(view==='constellation'){
+        const points=guideStars.map(star=>project(star,'constellation'));
+        if(points.some(p=>Math.hypot(p.x-x,p.y-y)<16*displayScale))return constellation;
+        for(const [a,b] of guideEdges){const p=points[a],q=points[b],dx=q.x-p.x,dy=q.y-p.y,t=Math.max(0,Math.min(1,((x-p.x)*dx+(y-p.y)*dy)/Math.max(1,dx*dx+dy*dy)));
+          if(Math.hypot(x-p.x-t*dx,y-p.y-t*dy)<8*displayScale)return constellation;}
+        return null;
+      }
+      if(view==='galaxy'){
+        const client=project(clientRecord.object,'galaxy');if(Math.hypot(x-client.x,y-client.y)<14*displayScale)return clientRecord;
+        const p=project(galaxyRoot,'galaxy');return Math.hypot((x-p.x)/(v.w*.47),(y-p.y)/(v.h*.35))<=1?galaxyRecord:null;
+      }
+      const candidates=view==='launch'?[launchRecord]:systemRecords(),camera=cameras[view];
+      pointer.set((x-v.x)/v.w*2-1,-(y-v.y)/v.h*2+1);raycaster.layers.set(view==='launch'?5:focusPlanet?4:2);raycaster.setFromCamera(pointer,camera);
+      const hits=raycaster.intersectObjects(candidates.map(r=>r.visual),true),hit=hits.find(h=>h.object.isMesh&&!h.object.material.transparent);
+      if(hit){let object=hit.object,record;while(object&&!record){record=candidates.find(r=>r.visual===object);object=object.parent;}if(record)return record;}
+      if(exact)return null;
+      const nearest=candidates.map(record=>{const p=project(record.object,view);return{record,distance:Math.hypot(p.x-x,p.y-y)};}).sort((a,b)=>a.distance-b.distance)[0];
+      return nearest&&nearest.distance<=Math.max(14*displayScale,bodyExtent(nearest.record)*v.w/(camera.right-camera.left))?nearest.record:null;
     }
+    function pick(event){
+      const box=stage.getBoundingClientRect(),record=hitTest(event.clientX-box.left,event.clientY-box.top);
+      if(record)select(record,record.kind==='satellite');
+    }
+    function pointerMove(event){
+      if(event.pointerType==='touch')return;
+      const label=event.target.closest?.('[data-cosmos-id]');
+      if(label){const box=stage.getBoundingClientRect();mousePoint=null;setHover(hitTest(event.clientX-box.left,event.clientY-box.top,true)||records.find(r=>r.id===label.dataset.cosmosId)||null);return;}
+      if(event.target!==renderer.domElement){mousePoint=null;setHover(null);return;}
+      const box=stage.getBoundingClientRect();mousePoint={x:event.clientX-box.left,y:event.clientY-box.top};setHover(hitTest(mousePoint.x,mousePoint.y));
+    }
+    const pointerLeave=()=>{mousePoint=null;setHover(null);};
+    stage.addEventListener('pointermove',pointerMove);stage.addEventListener('pointerleave',pointerLeave);
     renderer.domElement.addEventListener('click',pick);
     const contextLost=event=>{if(disposed)return;event.preventDefault();window.destroyClientOrbitalScene();if(fallback){fallback.hidden=false;fallback.querySelector('p').textContent='La vista 3D se interrumpió. Puedes continuar con las actividades aquí.';}};
     renderer.domElement.addEventListener('webglcontextlost',contextLost);
     // Orbital speed is time-based, not frame-rate based. Reset the clock when
     // returning from a hidden tab instead of fast-forwarding the universe.
     const visibilityChange=()=>{clock.getDelta();};document.addEventListener('visibilitychange',visibilityChange);
-    function frame(){if(disposed)return;const dt=clock.getDelta();if(!paused&&!document.hidden)elapsed+=dt;draw();animation=requestAnimationFrame(frame);}
+    function frame(){if(disposed)return;const dt=clock.getDelta();if(!paused&&!document.hidden)elapsed+=dt;draw(dt);animation=requestAnimationFrame(frame);}
     function auditVisibility(){
       const visibleRecords=[...systemRecords(),...(!focusPlanet?[launchRecord]:[])];
       return {view:focusPlanet?'detail':'system',safeRect:{...views.system.safeRect},objects:visibleRecords.map(r=>{
         const name=r.view||'system',view=views[name],camera=cameras[name],safe=view.safeRect,pixelsPerUnit=view.w/(camera.right-camera.left);
-        const p=project(r.object,name),radius=bodyExtent(r)*pixelsPerUnit,bounds={left:p.x-radius,right:p.x+radius,top:p.y-radius,bottom:p.y+radius};
+        const p=project(r.object,name),radius=bodyExtent(r)*(1+(MAX_HOVER_SCALE-1)*r.hoverAmount)*pixelsPerUnit,bounds={left:p.x-radius,right:p.x+radius,top:p.y-radius,bottom:p.y+radius};
         const inside=bounds.left>=safe.left-.01&&bounds.right<=safe.right+.01&&bounds.top>=safe.top-.01&&bounds.bottom<=safe.bottom+.01;
         let rendered=false;r.visual.traverse(o=>{if(o.isMesh&&!o.material.transparent&&o.layers.test(camera.layers))rendered=true;});
-        return{id:r.id,kind:r.kind,view:name,visible:view.visible,safeRect:{...safe},pixelRadius:radius,bounds,inside,selectable:view.visible&&inside&&rendered&&p.z>=-1&&p.z<=1};
+        return{id:r.id,kind:r.kind,view:name,visible:view.visible,safeRect:{...safe},pixelRadius:radius,maxHoverRadius:bodyExtent(r)*MAX_HOVER_SCALE*pixelsPerUnit,bounds,visualBounds:visualBounds(r,name),inside,selectable:view.visible&&inside&&rendered&&p.z>=-1&&p.z<=1};
       }),orbitGuides:moving.filter(o=>o.line).map(o=>({ownerId:records.find(r=>r.visual===o.body)?.id||'galaxy-star',visible:o.line.visible,occupied:!!o.body&&o.anchor.children.includes(o.body),soft:!!o.line.material.uniforms?.uFeather,opacity:o.line.material.uniforms?.uAlpha.value}))};
     }
-    const debug={snapshot:()=>({elapsed,paused,selected:selected.id,focus:focusPlanet?.id||null,assetsReady:realm.__planetMaterialSession?.getState().ready??true,assetErrors:realm.__planetMaterialSession?.getState().errors||[],shaderErrors:[...shaderErrors],views:JSON.parse(JSON.stringify(views)),triangles:renderer.info.render.triangles,
-      objects:records.filter(r=>r.object).map(r=>{let node=r.object.parent,parent;while(node&&!parent){parent=records.find(p=>p.object===node);node=node.parent;}return{id:r.id,kind:r.kind,position:r.object.getWorldPosition(new T.Vector3()).toArray(),local:r.object.position.toArray(),parent:parent?.id||'galaxy',rotation:r.visual?.children[0]?.rotation.toArray().slice(0,3),sphere:r.visual?.children.some(n=>n.geometry?.type==='SphereGeometry')||false};}),orbitPeriods:moving.map(o=>o.period),bodyCount:records.filter(r=>r.visual).length}),
+    const debug={snapshot:()=>({elapsed,paused,selected:selected.id,hovered:hovered?.id||null,focus:focusPlanet?.id||null,assetsReady:realm.__planetMaterialSession?.getState().ready??true,assetErrors:realm.__planetMaterialSession?.getState().errors||[],shaderErrors:[...shaderErrors],views:JSON.parse(JSON.stringify(views)),triangles:renderer.info.render.triangles,
+      objects:records.filter(r=>r.object).map(r=>{let node=r.object.parent,parent;while(node&&!parent){parent=records.find(p=>p.object===node);node=node.parent;}return{id:r.id,kind:r.kind,position:r.object.getWorldPosition(new T.Vector3()).toArray(),local:r.object.position.toArray(),parent:parent?.id||'galaxy',visualScale:r.visual.scale.toArray(),hoverAmount:r.hoverAmount,brightness:1+.38*r.hoverAmount,rotation:r.visual?.children[0]?.rotation.toArray().slice(0,3),sphere:r.visual?.children.some(n=>n.geometry?.type==='SphereGeometry')||false};}),orbitPeriods:moving.map(o=>o.period),bodyCount:records.filter(r=>r.visual).length}),
       advance:seconds=>{elapsed+=seconds;draw();return debug.snapshot();},setTime:(seconds,render=true)=>{elapsed=Math.max(0,Number(seconds)||0);if(render)draw();else updatePositions();},auditVisibility,
-      select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,r.view||'system'):null;}};
+      select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,r.view||'system'):r===constellation?project(guideStars[5],'constellation'):r===galaxyRecord?project(galaxyRoot,'galaxy'):null;}};
     const cleanup=()=>{disposed=true;cancelAnimationFrame(animation);observer.disconnect();reduced.removeEventListener('change',motionChange);document.removeEventListener('visibilitychange',visibilityChange);renderer.domElement.removeEventListener('click',pick);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
+      stage.removeEventListener('pointermove',pointerMove);stage.removeEventListener('pointerleave',pointerLeave);
       const geometries=new Set(),allMaterials=new Set(materials);scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)allMaterials.add(o.material);});geometries.forEach(g=>g.dispose());allMaterials.forEach(m=>m.dispose());realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;glow.dispose();renderer.dispose();renderer.forceContextLoss();tabs.remove();stage.remove();inspector.remove();route.remove();if(window.__universeDebug===debug)delete window.__universeDebug;};
     active=cleanup;resize();select(clientRecord);frame();
     if(shaderErrors.length)throw new Error('No fue posible compilar el material 3D.');
