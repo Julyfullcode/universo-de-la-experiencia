@@ -50,13 +50,21 @@ window.requestAnimationFrame=callback=>nativeRAF(time=>{
 });
 window.__sceneFrameControl={pause(){framesFrozen=true;},resume(){
  framesFrozen=false;deferredFrames.splice(0).forEach(callback=>nativeRAF(callback));
-}};</script>
+}};
+// RAF is intentionally throttled in this software-WebGL harness. A 350ms timer
+// can read an older frame (one failure reflected only 160ms of hover decay).
+// Sample after the next frame; record actual elapsed time, not a 350ms deadline.
+window.__sceneWaitAndFrame=async(delay=350)=>{
+ const started=performance.now();await new Promise(resolve=>setTimeout(resolve,delay));
+ const timerWakeAt=performance.now();await new Promise(resolve=>requestAnimationFrame(resolve));
+ return {elapsedMs:performance.now()-started,timerWakeAt,sceneFrameAt:window.__sceneProbe?.renderedAt};
+};</script>
 <script src="/__three_local__.js"></script>
 <script>
 const OriginalRenderer=THREE.WebGLRenderer;
 THREE.WebGLRenderer=class extends OriginalRenderer {
  constructor(...args){super(...args);const draw=this.render.bind(this);
-  this.render=(scene,camera)=>{window.__sceneProbe={scene,camera,renderer:this};return draw(scene,camera);};}
+  this.render=(scene,camera)=>{const result=draw(scene,camera);window.__sceneProbe={scene,camera,renderer:this,renderedAt:performance.now()};return result;};}
 };
 window.__sceneSnapshot=()=>{
  const p=window.__sceneProbe;
@@ -281,7 +289,12 @@ def visual_copy_checks(cdp):
 
 
 def hover_checks(cdp):
-    """Dispatch real pointer movement, keeping orbital motion paused but hover RAF active."""
+    """Dispatch real pointer movement and inspect the next frame after 350ms of settling.
+
+    The harness throttles RAF by 90ms: an independent 350ms timer alone may inspect
+    an older visual state. Thresholds below are unchanged; actual wait times are
+    recorded instead of claiming a fixed 350ms animation deadline.
+    """
     setup = cdp.evaluate("""(()=>{
       const debug=window.__universeDebug,original=debug.snapshot();
       if(!original.paused)document.querySelector('.cosmos-pause').click();
@@ -290,6 +303,7 @@ def hover_checks(cdp):
         ['client','planet','satellite','waypoint'].includes(o.kind)).map(o=>o.id)};
     })()""")
     results = []
+    final_snapshot = None
     try:
         for object_id in setup["ids"]:
             selection = "satellite-0" if object_id.startswith("satellite-") else "client"
@@ -303,25 +317,25 @@ def hover_checks(cdp):
                 continue
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
             baseline = cdp.evaluate("""(async()=>{
-              await new Promise(r=>setTimeout(r,350));
-              return window.__universeDebug.snapshot().objects.find(o=>o.id===ID);
+              const timing=await window.__sceneWaitAndFrame(350);
+              return {timing,object:window.__universeDebug.snapshot().objects.find(o=>o.id===ID)};
             })()""".replace("ID", json.dumps(object_id)))
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", **point})
             hovered = cdp.evaluate("""(async()=>{
-              await new Promise(r=>setTimeout(r,350));const s=window.__universeDebug.snapshot();
-              return {hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
+              const timing=await window.__sceneWaitAndFrame(350),s=window.__universeDebug.snapshot();
+              return {timing,hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
             })()""".replace("ID", json.dumps(object_id)))
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
             restored = cdp.evaluate("""(async()=>{
-              await new Promise(r=>setTimeout(r,350));const s=window.__universeDebug.snapshot();
-              return {hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
+              const timing=await window.__sceneWaitAndFrame(350),s=window.__universeDebug.snapshot();
+              return {timing,hovered:s.hovered,object:s.objects.find(o=>o.id===ID)};
             })()""".replace("ID", json.dumps(object_id)))
 
             def scale(body):
                 value = (body or {}).get("visualScale")
                 return max(value) if isinstance(value, list) else value
 
-            base_scale, hover_scale, reset_scale = scale(baseline), scale(hovered["object"]), scale(restored["object"])
+            base_scale, hover_scale, reset_scale = scale(baseline["object"]), scale(hovered["object"]), scale(restored["object"])
             growth = hover_scale / base_scale if base_scale and hover_scale else None
             reset_ratio = reset_scale / base_scale if base_scale and reset_scale else None
             amount = (hovered["object"] or {}).get("hoverAmount")
@@ -331,7 +345,14 @@ def hover_checks(cdp):
                 reset_amount is not None and reset_amount <= .03
             results.append({"id": object_id, "point": point, "hovered": hovered.get("hovered"),
                 "growth": growth, "hoverAmount": amount, "restoredScaleRatio": reset_ratio,
-                "restoredHoverAmount": reset_amount, "waitMilliseconds": 350, "pass": passed})
+                "restoredHoverAmount": reset_amount, "restoredHovered": restored.get("hovered"),
+                "settleMilliseconds": 350, "sampleAfterNextFrame": True,
+                "timing": {"baseline": baseline["timing"], "hover": hovered["timing"],
+                           "restore": restored["timing"]}, "pass": passed})
+        final_snapshot = cdp.evaluate("""(async()=>{
+          const timing=await window.__sceneWaitAndFrame(350);
+          return {timing,...window.__universeDebug.snapshot()};
+        })()""")
     finally:
         cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 8, "y": 8})
         original = setup["original"]
@@ -339,7 +360,8 @@ def hover_checks(cdp):
                      "window.__universeDebug.setTime(" + json.dumps(original["elapsed"]) + ");")
         if not original["paused"]:
             cdp.evaluate("document.querySelector('.cosmos-pause').click()")
-    return {"results": results, "pass": all(item["pass"] for item in results)}
+    return {"results": results, "finalSnapshot": final_snapshot,
+            "pass": all(item["pass"] for item in results)}
 
 
 def compare_body_metrics(metrics, baseline_report):
@@ -439,7 +461,7 @@ def main():
     parser.add_argument("--click", help="Click a local CSS selector before the second snapshot")
     parser.add_argument("--select", help="Select a scene debug record before the second snapshot")
     parser.add_argument("--integration", action="store_true", help="Load the real app with a local fake Supabase")
-    parser.add_argument("--hover", action="store_true", help="Check real pointer hover growth, glow amount and restoration within350ms on all12bodies")
+    parser.add_argument("--hover", action="store_true", help="Check pointer hover growth, glow and restoration on all 12 bodies after 350ms settling plus the next rendered frame; record actual elapsed times")
     parser.add_argument("--baseline-report", help="Optional prior report.json for measured body-size comparisons")
     parser.add_argument("--sweep", action="store_true", help="Audit all selectable 3D bodies across a complete galactic orbit")
     parser.add_argument("--sweep-samples", type=int, default=61, help="Time samples including both orbital-cycle endpoints")
