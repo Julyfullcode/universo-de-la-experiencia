@@ -126,3 +126,99 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 @media(max-width:800px){.site-nav{grid-template-columns:auto minmax(0,1fr) auto;gap:.4rem;padding:.45rem .72rem;min-height:56px}.nav-epm{min-width:0}.nav-epm .epm-logo{width:82px;height:24px}.nav-product{align-items:flex-start;flex-direction:column;gap:0;padding:.2rem!important;line-height:1.05}.nav-product>span{font-size:.55rem}.nav-product>i{display:none}.nav-product>strong{font-size:.7rem}.site-nav .nav-actions{gap:.25rem}.site-nav .nav-actions .nav-button{width:32px;height:32px;justify-content:center;padding:0}.site-nav .nav-actions .nav-button>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.site-nav .nav-actions b{display:inline;font-size:.8rem}.site-nav .nav-logout{display:none!important}.access-hero{padding-left:1rem!important;padding-right:1rem!important}.access-hero h1{font-size:clamp(2.15rem,10vw,3.6rem)}.access-form{grid-template-columns:1fr;gap:.45rem}.access-form .field{padding:.55rem .7rem!important}.access-form .primary{width:100%;margin:0}.feedback-card{gap:.6rem}.rating-stars label{min-height:46px}.rating-stars span{font-size:1.35rem}}
 @media(max-width:430px){.nav-epm .epm-logo{width:69px}.nav-product>span{font-size:.47rem}.nav-product>strong{font-size:.58rem}.site-nav .nav-actions .nav-button{width:28px;height:28px}.access-hero .intro{font-size:.92rem}.feedback-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px)}.feedback-card{padding:.9rem}.feedback-copy textarea{height:70px}}
 @media(prefers-reduced-motion:reduce){.rating-stars span{transition:none}}
+
+/* Acceso amplio: composición desplazada a la izquierda, sin el aro decorativo. */
+.start-view .access-hero{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding-left:clamp(2rem,5.5vw,7.5rem)!important;
+  padding-right:clamp(2rem,5.5vw,7.5rem)!important;
+  justify-content:center;
+  align-content:center;
+}
+.start-view .access-hero::before{content:none!important;display:none!important}
+.start-view .access-hero>*{max-width:min(1180px,100%)}
+.start-view .access-hero h1{max-width:13ch;font-size:clamp(3.2rem,6.25vw,7rem)}
+.start-view .access-hero .intro{max-width:740px;font-size:clamp(1rem,1.35vw,1.3rem)}
+.start-view .access-form{
+  width:min(1180px,100%);
+  grid-template-columns:minmax(260px,1fr) minmax(290px,1.08fr) minmax(190px,.58fr);
+  gap:clamp(.75rem,1.2vw,1.25rem);
+  margin-top:clamp(.25rem,1vh,.8rem);
+}
+.start-view .access-form .field{
+  min-height:92px;
+  padding:.82rem 1rem!important;
+  border-color:rgba(175,220,255,.27);
+  background:linear-gradient(145deg,rgba(5,24,57,.82),rgba(22,15,65,.74));
+}
+.start-view .access-form .field input{min-height:46px;font-size:1rem}
+.start-view .access-form .primary{min-height:52px;font-size:1rem;padding-inline:1.5rem}
+.start-view .access-hero>small{max-width:900px;font-size:clamp(.72rem,.86vw,.88rem);line-height:1.45}
+
+/* Evaluación: área de lectura y escritura cómoda en escritorio sin exceder la pantalla. */
+.feedback-dialog{
+  width:min(860px,calc(100vw - 32px));
+  max-width:none;
+  max-height:calc(100dvh - 32px);
+  border-radius:2rem;
+}
+.feedback-card{
+  gap:clamp(.8rem,1.6vh,1.2rem);
+  padding:clamp(1.5rem,3vw,2.75rem);
+}
+.feedback-card>.tag{font-size:clamp(.68rem,.85vw,.82rem)}
+.feedback-card h2{font-size:clamp(2.25rem,4vw,3.5rem);line-height:1.02;padding-right:2.5rem}
+.feedback-card>p{font-size:clamp(.95rem,1.2vw,1.15rem);max-width:65ch}
+.feedback-card fieldset{padding:clamp(.85rem,1.4vw,1.2rem);border-radius:1.25rem}
+.feedback-card legend,.feedback-copy{font-size:clamp(.9rem,1.05vw,1.05rem)}
+.rating-stars{gap:clamp(.45rem,.8vw,.8rem);margin-top:.55rem}
+.rating-stars label{min-height:clamp(62px,8.5vh,82px);border-radius:1rem}
+.rating-stars span{font-size:clamp(1.9rem,2.6vw,2.65rem);line-height:1}
+.rating-stars small{font-size:clamp(.65rem,.75vw,.78rem)}
+.feedback-copy textarea{
+  height:clamp(130px,19vh,190px);
+  min-height:110px;
+  padding:1rem;
+  font-size:clamp(.92rem,1.05vw,1.05rem);
+  line-height:1.45;
+}
+.feedback-status{font-size:.9rem;min-height:1.35em}
+.dialog-actions button{min-height:48px;padding:.75rem 1.35rem;font-size:1rem}
+.dialog-close{width:42px;height:42px;font-size:1.65rem}
+
+@media(max-width:800px){
+  .start-view .access-hero{padding-left:clamp(1rem,5vw,2rem)!important;padding-right:clamp(1rem,5vw,2rem)!important}
+  .start-view .access-hero h1{font-size:clamp(2.35rem,10vw,4rem)}
+  .start-view .access-form{grid-template-columns:1fr;gap:.42rem;margin-top:.15rem}
+  .start-view .access-form .field{min-height:0;padding:.55rem .72rem!important}
+  .start-view .access-form .field input{min-height:40px;font-size:.88rem}
+  .start-view .access-form .primary{min-height:44px;font-size:.88rem}
+  .feedback-dialog{width:calc(100vw - 18px);max-height:calc(100dvh - 18px);border-radius:1.35rem}
+  .feedback-card{gap:.55rem;padding:clamp(.9rem,4vw,1.35rem)}
+  .feedback-card h2{font-size:clamp(1.75rem,7vw,2.35rem)}
+  .feedback-card>p{font-size:.86rem;line-height:1.32}
+  .feedback-card fieldset{padding:.58rem .7rem}
+  .feedback-card legend,.feedback-copy{font-size:.78rem}
+  .rating-stars label{min-height:50px}
+  .rating-stars span{font-size:1.55rem}
+  .feedback-copy textarea{height:clamp(78px,14vh,118px);min-height:70px;padding:.7rem;font-size:.82rem}
+  .dialog-actions button{min-height:40px;padding:.58rem .85rem;font-size:.8rem}
+  .dialog-close{width:34px;height:34px;font-size:1.35rem}
+}
+
+@media(max-height:680px){
+  .start-view .access-hero h1{font-size:clamp(2.35rem,7vh,4rem);margin:.25rem 0}
+  .start-view .access-hero .intro{font-size:.88rem;line-height:1.35;margin:.2rem 0 .4rem}
+  .start-view .access-form .field{min-height:0;padding:.45rem .65rem!important}
+  .start-view .access-form .field input{min-height:38px;padding:.52rem .65rem}
+  .start-view .access-hero>small,.start-view .admin-entry{margin-top:.35rem}
+  .feedback-card{gap:.45rem;padding:1rem 1.35rem}
+  .feedback-card h2{font-size:1.8rem}
+  .feedback-card>p{font-size:.78rem;line-height:1.25}
+  .feedback-card fieldset{padding:.45rem .65rem}
+  .rating-stars label{min-height:42px}.rating-stars span{font-size:1.4rem}
+  .feedback-copy textarea{height:68px;min-height:60px;padding:.55rem}
+  .dialog-actions button{min-height:36px;padding:.45rem .75rem}
+}

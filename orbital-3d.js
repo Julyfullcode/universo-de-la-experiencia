@@ -25,24 +25,24 @@
   function build(realm,progress){
     const T=window.THREE,renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
     // A rollback exists even if initialization stops before the full lifecycle.
-    active=()=>{realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-inspector,.cosmos-route').forEach(e=>e.remove());};
+    active=()=>{realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-navigation,.cosmos-inspector,.cosmos-route').forEach(e=>e.remove());};
     renderer.setClearColor(0x000000,0);renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.outputColorSpace=T.SRGBColorSpace;renderer.autoClear=false;
     const fallback=realm.querySelector('.cosmos-fallback');
     const tabs=document.createElement('div');tabs.className='cosmos-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Escala del universo');
-    tabs.innerHTML='<button role="tab" data-view="system" aria-selected="true">Sistema del cliente</button><button role="tab" data-view="galaxy" aria-selected="false">Galaxia y guía</button>';
+    tabs.innerHTML='<button role="tab" data-view="system" aria-selected="true">Sistema estelar</button><button role="tab" data-view="galaxy" aria-selected="false">Galaxia y guía</button>';
     const stage=document.createElement('div');stage.className='cosmos-stage';
-    stage.innerHTML=`<div class="cosmos-heading galaxy"><small>Escala galáctica</small><h2>Galaxia · Empresa</h2><p>Sus estrellas son nuestros clientes.</p></div>
-      <div class="cosmos-heading system"><small>Acercamiento a la estrella seleccionada</small><h2>Sistema del cliente</h2></div>
+    stage.innerHTML=`<div class="cosmos-galaxy-caption" aria-hidden="true">Galaxia empresa</div>
       <div class="cosmos-heading constellations"><small>Una guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button><button class="cosmos-pause" aria-pressed="false">Ⅱ Pausar</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#91def4" stop-opacity=".15"/><stop offset=".5" stop-color="#c5b7ff" stop-opacity=".6"/><stop offset="1" stop-color="#dfc5ed" stop-opacity=".2"/></linearGradient></defs><path clip-path="url(#constellation-viewport)" fill="none" stroke="url(#constellation-light)" stroke-width="1"/></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
-    const inspector=document.createElement('section');inspector.className='cosmos-inspector';inspector.setAttribute('aria-label','Elemento seleccionado');
-    inspector.innerHTML='<div><small></small><h2></h2></div><p></p><button class="cosmos-action"></button>';
+    const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
+    inspector.innerHTML='<button class="cosmos-action"></button>';
     const route=document.createElement('div');route.className='cosmos-route';route.setAttribute('role','group');route.setAttribute('aria-label','Explorar el recorrido');
     route.innerHTML=chapters.map(([id,name],i)=>`<button data-step="${id}" aria-pressed="false"><span>0${i+1}</span>${name}</button>`).join('');
-    realm.append(tabs,stage,inspector,route);if(fallback)fallback.hidden=true;
+    const navigation=document.createElement('div');navigation.className='cosmos-navigation';navigation.setAttribute('aria-label','Navegación por los siete momentos');navigation.append(route,inspector);
+    realm.append(tabs,stage,navigation);if(fallback)fallback.hidden=true;
     const scene=new T.Scene(),clock=new T.Clock(),glow=glowTexture(T),rng=seededRandom(8249);
     const materials=[],records=[],moving=[],spinning=[],labels=[],stars=[];
     const lightPosition=new T.Vector3(),mainWorld=new T.Vector3(),temp=new T.Vector3();
@@ -61,38 +61,49 @@
     function standard(color,metalness=.25){const m=new T.MeshStandardMaterial({color,metalness,roughness:.42});materials.push(m);return m;}
     function mesh(geometry,material,parent){const m=new T.Mesh(geometry,material);m.layers.set(2);if(parent)parent.add(m);return m;}
     function halo(parent,color,size,opacity=.45){const m=new T.SpriteMaterial({map:glow,color,transparent:true,opacity,blending:T.AdditiveBlending,depthWrite:false});materials.push(m);const s=new T.Sprite(m);s.scale.set(size,size,1);parent.add(s);return s;}
-    function star(radius,color){
-      const g=new T.Group(),m=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)}},vertexShader:surfaceVertex,fragmentShader:`
-        uniform float uTime;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
-        void main(){vec3 p=normalize(vLocal);vec3 drift=vec3(uTime*.008,-uTime*.006,uTime*.004);
-          float convection=fbm(p*5.8+drift);
-          vec3 flow=p*14.+vec3(convection*5.,convection*3.,-convection*4.);
-          float granules=noise3(flow+drift*.6);
-          float filaments=pow(1.-abs(noise3(flow*.56+convection*3.)*2.-1.),5.);
-          float hot=.24+smoothstep(.28,.80,granules)*.30+filaments*.10+convection*.24;
+    function star(radius,color,hero=false){
+      const g=new T.Group(),m=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)},uHero:{value:hero?1:0}},vertexShader:surfaceVertex,fragmentShader:`
+        uniform float uTime,uHero;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
+        void main(){
+          vec3 p=normalize(vLocal);
+          vec3 drift=vec3(uTime*.007,-uTime*.0045,uTime*.0055);
+          float broad=fbm(p*3.15+drift*.55);
+          vec3 flow=p*(8.4+uHero*1.6)+vec3(broad*3.7,-broad*2.5,broad*3.1)+drift;
+          float convection=fbm(flow);
+          float granules=noise3(flow*2.85+vec3(convection*2.7));
+          float veins=pow(1.-abs(noise3(flow*1.28+convection*4.2)*2.-1.),4.5);
+          float stormField=fbm(p*2.45+vec3(-uTime*.0025,uTime*.0015,broad*.38));
+          float sunspot=smoothstep(.675,.835,stormField)*smoothstep(.30,.72,convection);
+          float stormRim=(smoothstep(.60,.70,stormField)-smoothstep(.79,.88,stormField))*(.55+.45*veins);
+          float heat=.18+convection*.38+granules*.22+veins*.18;
+          vec3 ember=mix(uColor*.34,vec3(.37,.035,.008),.34+.22*uHero);
+          vec3 gold=mix(uColor,vec3(1.,.60,.10),.46+.28*uHero);
+          vec3 whiteHot=mix(gold,vec3(1.,.94,.68),.62);
+          vec3 c=mix(ember,whiteHot*1.42,clamp(heat,0.,1.));
+          c=mix(c,c*.18,sunspot*(.46+.34*uHero));
+          c+=vec3(1.,.34,.035)*stormRim*(.22+.64*uHero);
           float face=max(dot(normalize(cameraPosition-vWorld),normalize(vNormal)),0.);
-          vec3 c=mix(uColor*.46+vec3(.035,.055,.09),mix(uColor,vec3(.88,.96,1.),.78)*1.35,clamp(hot,0.,1.));
-          c*=.36+.64*pow(face,.52);
-          c+=vec3(.2,.5,1.)*pow(1.-face,5.)*.58;
+          c*=.43+.57*pow(face,.42);
+          c+=mix(uColor,vec3(1.,.33,.045),.72)*pow(1.-face,4.2)*(.30+.30*uHero);
           gl_FragColor=vec4(c,1.);
           #include <colorspace_fragment>
         }`});
       materials.push(m);const surface=mesh(new T.SphereGeometry(radius,64,48),m,g);spinning.push({object:surface,speed:.014});
       // A real spherical atmosphere preserves the silhouette at every angle.
       // Only light is translucent; the photosphere above remains fully opaque.
-      const corona=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)}},vertexShader:surfaceVertex,
-        fragmentShader:`uniform float uTime;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
+      const corona=new T.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new T.Color(color)},uHero:{value:hero?1:0}},vertexShader:surfaceVertex,
+        fragmentShader:`uniform float uTime,uHero;uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
           void main(){vec3 p=normalize(vLocal);float facing=abs(dot(normalize(cameraPosition-vWorld),normalize(vNormal)));
-            float rim=pow(1.-facing,3.5);float plasma=fbm(p*9.+vec3(0.,uTime*.009,0.));
+            float rim=pow(1.-facing,3.15);float plasma=fbm(p*9.+vec3(0.,uTime*.007,0.));
             float streamers=pow(1.-abs(noise3(p*23.+plasma*3.)*2.-1.),3.);
-            float alpha=rim*(.07+plasma*.21+streamers*.12);
-            gl_FragColor=vec4(mix(uColor,vec3(.62,.87,1.),.48),alpha);
+            float alpha=rim*(.065+plasma*(.20+.08*uHero)+streamers*(.10+.08*uHero));
+            gl_FragColor=vec4(mix(uColor,vec3(1.,.66,.18),.22+.52*uHero),alpha);
             #include <colorspace_fragment>
           }`,transparent:true,blending:T.AdditiveBlending,depthWrite:false});
       materials.push(corona);mesh(new T.SphereGeometry(radius*1.16,48,32),corona,g);
-      const arcMaterial=new T.MeshBasicMaterial({color:new T.Color(color).lerp(new T.Color(0xd8f5ff),.68),transparent:true,opacity:.55,blending:T.AdditiveBlending,depthWrite:false});materials.push(arcMaterial);
+      const arcMaterial=new T.MeshBasicMaterial({color:new T.Color(color).lerp(new T.Color(hero?0xffe2a1:0xd8f5ff),hero?.78:.68),transparent:true,opacity:hero?.72:.55,blending:T.AdditiveBlending,depthWrite:false});materials.push(arcMaterial);
       const arcs=new T.Group();g.add(arcs);
-      for(let i=0;i<5;i++){
+      for(let i=0;i<(hero?9:5);i++){
         const longitude=i*2.399+.45,latitude=.18+Math.sin(i*1.73)*.67;
         const radial=new T.Vector3(Math.cos(longitude)*Math.cos(latitude),Math.sin(latitude),Math.sin(longitude)*Math.cos(latitude));
         const tangent=new T.Vector3(-Math.sin(longitude),0,Math.cos(longitude));
@@ -100,7 +111,7 @@
         const curve=new T.CubicBezierCurve3(point(.98,-.13),point(1.27,-.24),point(1.27,.22),point(.98,.13));
         mesh(new T.TubeGeometry(curve,22,radius*.0055,5,false),arcMaterial,arcs);
       }
-      spinning.push({object:arcs,speed:.008});halo(g,color,radius*5.6,.64);halo(g,0xd9f4ff,radius*2.6,.23);return g;
+      spinning.push({object:arcs,speed:hero?.005:.008});halo(g,hero?0xff761c:color,radius*(hero?6.6:5.6),hero?.72:.64);halo(g,hero?0xffe7a5:0xd9f4ff,radius*(hero?3.05:2.6),hero?.34:.23);return g;
     }
     function planet(radius,primary,secondary,mode,seed){
       const session=realm.__planetMaterialSession||(realm.__planetMaterialSession=window.UniversePlanetMaterials.createSession(T,{lightPosition,materials,spinning}));
@@ -204,25 +215,55 @@
         for(let j=0;j<4;j++){const wire=mesh(new T.BoxGeometry(.70,.035,.009),frame,g);wire.position.set(side*.795,0,-.505+j*.19);}
       });
       const electronics=mesh(new T.BoxGeometry(.25,.16,.26),gold,g);electronics.position.set(0,-.28,-.23);
-      const mast=mesh(new T.CylinderGeometry(.018,.018,.32,10),frame,g);mast.position.set(0,.39,-.35);
-      const dish=mesh(new T.SphereGeometry(.13,20,14,0,TAU,0,Math.PI*.4),silver,g);dish.rotation.x=.6;dish.position.set(0,.55,-.35);
+      const mast=mesh(new T.CylinderGeometry(.022,.028,.46,12),frame,g);mast.position.set(0,.42,-.35);
+      const dish=mesh(new T.SphereGeometry(.22,28,18,0,TAU,0,Math.PI*.42),silver,g);dish.rotation.x=.56;dish.position.set(0,.67,-.35);
+      const receiver=mesh(new T.CylinderGeometry(.028,.038,.28,12),gold,g);receiver.rotation.x=Math.PI/2-.56;receiver.position.set(0,.76,-.22);
+      const lensMaterial=new T.MeshBasicMaterial({color:0x75eaff,transparent:true,opacity:.96,blending:T.AdditiveBlending,depthWrite:false});materials.push(lensMaterial);
+      const lens=mesh(new T.CircleGeometry(.172,32),lensMaterial,g);lens.position.z=.692;
+      const lensGlow=new T.Group();lensGlow.position.z=.72;g.add(lensGlow);halo(lensGlow,0x55dfff,.72,.52);
+      [-1,1].forEach(side=>{
+        const sensor=mesh(new T.CylinderGeometry(.075,.09,.36,18),dark,g);sensor.rotation.z=Math.PI/2;sensor.position.set(side*.42,-.24,-.1);
+        const cap=mesh(new T.SphereGeometry(.078,16,12),gold,g);cap.position.set(side*.61,-.24,-.1);
+      });
       g.rotation.set(-.14,-.42,.18);return g;
     }
     const galaxyRoot=new T.Group();scene.add(galaxyRoot);
-    // Seeded dust volumes: stable, irregular, never a grid of refreshed dots.
-    const positions=[],colors=[];for(let i=0;i<7000;i++){
-      const r=4+Math.pow(rng(),.65)*91,arm=i%3,a=arm*TAU/3+r*.047+(rng()-.5)*.95;
-      const spread=(rng()-.5)*(4+r*.12);positions.push(Math.cos(a)*r+spread,(rng()-.5)*(3+10*Math.exp(-r/20)),Math.sin(a)*r+spread);
-      const c=new T.Color().setHSL(.57+rng()*.22,.65,.34+rng()*.32);if(r<22)c.lerp(new T.Color(0xffc2a9),.65);colors.push(c.r,c.g,c.b);
+    // Several stable, seeded particle volumes create a deep spiral nebula.
+    // Fine stars, luminous dust and broad gas never share a grid or a flat image.
+    function galaxyCloud(count,size,opacity,spreadScale,lightness){
+      const cloudPositions=[],cloudColors=[];
+      for(let i=0;i<count;i++){
+        const core=rng()<.17,r=core?Math.pow(rng(),1.75)*27:5+Math.pow(rng(),.72)*91;
+        const arm=i%4,base=arm*TAU/4+r*.046;
+        const angular=(rng()+rng()+rng()-1.5)*(.16+r*.0065)*spreadScale;
+        const radial=(rng()+rng()+rng()-1.5)*(1.2+r*.052)*spreadScale;
+        const rr=Math.max(.2,r+radial),a=base+angular;
+        const thickness=(.72+7.2*Math.exp(-rr/24)+rr*.014)*spreadScale;
+        cloudPositions.push(Math.cos(a)*rr,(rng()+rng()-1)*thickness,Math.sin(a)*rr);
+        const coreMix=Math.max(0,1-rr/29),armPulse=.5+.5*Math.sin(a*2.7+rr*.08);
+        const c=new T.Color().setHSL(.56+rng()*.20,.54+rng()*.28,lightness+rng()*.16);
+        c.lerp(new T.Color(0xcda8ff),.12+.22*armPulse);if(coreMix)c.lerp(new T.Color(0xffd2a2),coreMix*.76);
+        cloudColors.push(c.r,c.g,c.b);
+      }
+      const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(cloudPositions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(cloudColors,3));
+      const material=new T.PointsMaterial({map:glow,size,vertexColors:true,transparent:true,opacity,alphaTest:.003,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:true});materials.push(material);
+      const cloud=new T.Points(geometry,material);cloud.layers.set(1);galaxyRoot.add(cloud);return cloud;
     }
-    const dustGeometry=new T.BufferGeometry();dustGeometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));dustGeometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-    const dustMaterial=new T.PointsMaterial({map:glow,size:17,vertexColors:true,transparent:true,opacity:.12,blending:T.AdditiveBlending,depthWrite:false});materials.push(dustMaterial);
-    const dust=new T.Points(dustGeometry,dustMaterial);dust.layers.set(1);galaxyRoot.add(dust);
-    const nucleus=new T.Group();halo(nucleus,0xc79eff,35,.75);halo(nucleus,0xffded0,13,.75);layer(nucleus,1);galaxyRoot.add(nucleus);
+    const dust=galaxyCloud(7200,13,.14,1,.30);
+    const fineDust=galaxyCloud(5200,3.4,.50,.82,.48);
+    const nebulaDust=galaxyCloud(2400,29,.047,1.28,.25);
+    const nebulae=new T.Group();
+    [[-35,1,-15,0x7048c8,29],[-18,-2,30,0x2e9bd3,25],[28,1,20,0xa446c9,31],[49,-1,-18,0x397dd0,26],[-58,0,24,0x9b4eaa,22]].forEach(([x,y,z,color,size])=>{
+      const pocket=new T.Group();pocket.position.set(x,y,z);halo(pocket,color,size,.075);nebulae.add(pocket);
+    });
+    layer(nebulae,1);galaxyRoot.add(nebulae);
+    const nucleus=new T.Group();halo(nucleus,0xa980ff,42,.47);halo(nucleus,0xffb989,23,.58);halo(nucleus,0xfff0ce,8,.9);layer(nucleus,1);galaxyRoot.add(nucleus);
+    const galaxyClouds=[dust,fineDust,nebulaDust,nebulae,nucleus];
+    spinning.push({object:dust,speed:.0011},{object:fineDust,speed:.00085},{object:nebulaDust,speed:.00065},{object:nebulae,speed:.0008});
     const primaryOrbit=orbit(galaxyRoot,57,1500,.18,.025,0x95ccff,.18,true,{pitch:.035,yaw:.28});primaryOrbit.line.layers.set(1);
-    const primary=star(2.05,0x4ca9ff);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
+    const primary=star(3.05,0xff8428,true);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
     primaryOrbit.body=primary;
-    const beacon=halo(primaryOrbit.anchor,0xaeeaff,11,.9);beacon.layers.set(0);
+    const beacon=halo(primaryOrbit.anchor,0xffb24b,15,.92);beacon.layers.set(0);
     const clientRecord={id:'client',step:'estrellas',title:'Estrellas · Clientes',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella es un cliente. Orbita el centro de su galaxia, la empresa. Este acercamiento sigue a la estrella seleccionada: sus empleados orbitan a su alrededor.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
     for(let i=0;i<10;i++){
       const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.025*((i%3)-1),0x738caf,.1+(i%3)*.025,false,{pitch:.016*((i%4)-1.5),yaw:i*.41});
@@ -236,7 +277,10 @@
       [-6,.45,1],[-4.5,1.35,-3],[-2.9,.45,4],[-3.4,-.9,-1],[-1.4,-.3,2],
       [.6,.9,-4],[2.3,.3,3],[3.5,1.25,-2],[5.5,.6,1],[4.5,-1.15,-5],
       [-10.7,.15,6],[-9.95,.9,-5],[-8.95,.55,8],[-9.3,-.3,-2],[-8.35,-.95,3],[-7.65,-.25,-8],
-      [7.45,.6,-9],[8.35,.95,2],[9.3,.35,-4],[10.65,-.05,8],[9.75,-.95,0],[8.4,-.65,5]
+      [7.45,.6,-9],[8.35,.95,2],[9.3,.35,-4],[10.65,-.05,8],[9.75,-.95,0],[8.4,-.65,5],
+      [-3.25,1.58,6],[-2.18,2.43,-5],[-.92,1.78,9],[.18,2.68,-7],[1.38,1.91,3],[2.52,2.48,-8],[3.62,1.53,5],
+      [-8.18,1.72,2],[-7.34,2.48,-6],[-6.31,1.93,7],[-5.43,2.63,-4],
+      [5.31,2.28,-7],[6.24,2.73,4],[7.08,1.88,-3],[8.02,2.49,8]
     ].map((position,i)=>{
       const g=new T.Group();g.position.set(...position);const secondary=i>=10;
       const palette=i>=16?[0xc5edff,0xcac1ff,0xeef8ff]:i>=10?[0xffdfb5,0xe5d1ff,0xd5ecff]:[0xdbf3ff,0xffe6ca,0xced1ff];
@@ -250,7 +294,10 @@
     const guideEdges=[
       [0,1],[1,2],[2,3],[3,4],[2,5],[5,6],[6,7],[7,8],[6,9],
       [10,11],[11,12],[12,13],[13,10],[13,14],[14,15],
-      [16,17],[17,18],[18,19],[19,20],[20,21],[21,18]
+      [16,17],[17,18],[18,19],[19,20],[20,21],[21,18],
+      [22,23],[23,24],[24,25],[25,26],[26,27],[27,28],[24,26],[23,25],
+      [29,30],[30,31],[31,32],[29,31],
+      [33,34],[34,35],[35,36],[33,35]
     ];
     const talent=[
       ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,4.8,.48,.6,210],
@@ -277,8 +324,8 @@
       records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
-    const observatory=telescope();observatory.scale.setScalar(1.85);
-    const waypoints=[['launch','lanzamiento','Centro de lanzamiento',rocket(),[0,0,0]],['observatory','observatorio','Observatorio de señales',observatory,[18,0,13]],['earth','mision','Misión en la Tierra',planet(.84,0x126fa9,0x499555,1,12.7),[16,0,-7]]];
+    const observatory=telescope();observatory.scale.setScalar(2.55);
+    const waypoints=[['launch','lanzamiento','Centro de lanzamiento',rocket(),[0,0,0]],['observatory','observatorio','Observatorio de señales',observatory,[21.5,0,10.5]],['earth','mision','Misión en la Tierra',planet(.84,0x126fa9,0x499555,1,12.7),[16,0,-7]]];
     waypoints.forEach(([id,step,title,visual,pos])=>{const anchor=new T.Group();anchor.position.set(...pos);(id==='launch'?scene:primaryOrbit.anchor).add(anchor);anchor.add(visual);if(id==='launch')layer(visual,5);records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
     const launchRecord=records.find(r=>r.id==='launch');
     const constellation={id:'guide',step:'coordenadas',title:'Constelaciones · Nuestra guía',eyebrow:'Agrupación aparente, no estructura física',description:'Los trazos unen estrellas vistas desde aquí, aunque se encuentran a distintas distancias. Representan el modelo de experiencia y la arquitectura empresarial: nos orientan, no son órbitas.',kind:'guide'};records.push(constellation);
@@ -286,7 +333,7 @@
     // Enlarge only the artwork, never the translation anchors: hovering a
     // planet must not drag its satellites out of their orbits or move the camera.
     records.forEach(record=>{
-      const targets=record.visual?[record.visual]:record===galaxyRecord?[dust,nucleus]:record===constellation?guideStars:[];
+      const targets=record.visual?[record.visual]:record===galaxyRecord?galaxyClouds:record===constellation?guideStars:[];
       record.hoverAmount=0;record.hoverTargets=targets.map(object=>({object,scale:object.scale.clone()}));
       const unique=new Set();record.hoverMaterials=[];
       targets.forEach(target=>target.traverse(object=>{
@@ -336,11 +383,11 @@
       else if(record.kind!=='satellite')focusPlanet=null;
       if(compact)mobileView=['guide','galaxy'].includes(record.kind)?'galaxy':'system';resize();
       const index=chapters.findIndex(c=>c[0]===record.step),allowed=index<=progress;
-      inspector.querySelector('small').textContent=record.eyebrow;inspector.querySelector('h2').textContent=record.title;inspector.querySelector('p').textContent=record.description;
       const action=inspector.querySelector('button');action.disabled=!allowed;action.textContent=allowed?'Abrir actividad →':`Disponible en el momento ${index+1}`;
+      action.setAttribute('aria-label',allowed?`Abrir ${record.title}`:`${record.title}. Disponible en el momento ${index+1}`);
       action.onclick=()=>{if(allowed&&typeof window.goStep==='function')window.goStep(record.step);};
       route.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.step===record.step)));labels.forEach(l=>l.button.setAttribute('aria-pressed',String(l.record===record)));
-      stage.querySelector('.cosmos-reset').hidden=!focusPlanet;stage.querySelector('.cosmos-heading.system h2').textContent=focusPlanet===parentPlanet?'Satélites del planeta empleado':focusPlanet?'Planeta empleado':'Sistema del cliente';
+      stage.querySelector('.cosmos-reset').hidden=!focusPlanet;
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet;
       stage.querySelectorAll('[data-actor]').forEach(b=>b.setAttribute('aria-pressed',String(record.id===`satellite-${b.dataset.actor}`)));
       // The explicit close-up contains only this planet and its own satellites.
@@ -451,7 +498,7 @@
       if(compact&&height<340&&!focusPlanet){views.launch={x:0,y:45,w:width*.29,h:height-55};views.system={x:width*.30,y:70,w:width*.70,h:height-70};}
       views.galaxy.visible=views.constellation.visible=!compact||mobileView==='galaxy';views.system.visible=!compact||mobileView==='system';
       views.launch.visible=views.system.visible&&!focusPlanet;
-      stage.querySelector('.cosmos-heading.galaxy').hidden=!views.galaxy.visible;stage.querySelector('.cosmos-heading.constellations').hidden=!views.constellation.visible;stage.querySelector('.cosmos-heading.system').hidden=!views.system.visible;
+      stage.querySelector('.cosmos-galaxy-caption').hidden=!views.galaxy.visible;stage.querySelector('.cosmos-heading.constellations').hidden=!views.constellation.visible;
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet||!views.system.visible;
       tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===mobileView)));stage.querySelector('svg').setAttribute('viewBox',`0 0 ${width} ${height}`);
       const clip=stage.querySelector('clipPath rect'),cv=views.constellation;['x','y'].forEach(k=>clip.setAttribute(k,cv[k]));clip.setAttribute('width',cv.w);clip.setAttribute('height',cv.h);
@@ -513,6 +560,8 @@
         }
       });
       const cv=views.constellation;guideButton.hidden=!cv.visible;guideButton.style.left=`${cv.x+cv.w/2}px`;guideButton.style.top=`${cv.y+cv.h+9*displayScale}px`;
+      const galaxyCaption=stage.querySelector('.cosmos-galaxy-caption'),gv=views.galaxy;
+      if(gv.visible){galaxyCaption.style.left=`${gv.x+gv.w/2}px`;galaxyCaption.style.top=`${gv.y+gv.h-9*displayScale}px`;}
       const path=stage.querySelector('svg path');path.parentNode.style.display=cv.visible?'':'none';const pts=guideStars.map(s=>project(s,'constellation'));
       path.setAttribute('stroke-width',String((.8+constellation.hoverAmount*.45)*displayScale));path.style.filter=constellation.hoverAmount>.01?`drop-shadow(0 0 ${3*constellation.hoverAmount}px #bcc5ff)`:'';
       path.setAttribute('d',cv.visible?guideEdges.map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' '):'');
@@ -576,7 +625,7 @@
       select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,r.view||'system'):r===constellation?project(guideStars[5],'constellation'):r===galaxyRecord?project(galaxyRoot,'galaxy'):null;}};
     const cleanup=()=>{disposed=true;cancelAnimationFrame(animation);observer.disconnect();reduced.removeEventListener('change',motionChange);document.removeEventListener('visibilitychange',visibilityChange);renderer.domElement.removeEventListener('click',pick);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
       stage.removeEventListener('pointermove',pointerMove);stage.removeEventListener('pointerleave',pointerLeave);
-      const geometries=new Set(),allMaterials=new Set(materials);scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)allMaterials.add(o.material);});geometries.forEach(g=>g.dispose());allMaterials.forEach(m=>m.dispose());realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;glow.dispose();renderer.dispose();renderer.forceContextLoss();tabs.remove();stage.remove();inspector.remove();route.remove();if(window.__universeDebug===debug)delete window.__universeDebug;};
+      const geometries=new Set(),allMaterials=new Set(materials);scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)allMaterials.add(o.material);});geometries.forEach(g=>g.dispose());allMaterials.forEach(m=>m.dispose());realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;glow.dispose();renderer.dispose();renderer.forceContextLoss();tabs.remove();stage.remove();navigation.remove();if(window.__universeDebug===debug)delete window.__universeDebug;};
     active=cleanup;resize();select(clientRecord);frame();
     if(shaderErrors.length)throw new Error('No fue posible compilar el material 3D.');
     window.__universeDebug=debug;return cleanup;

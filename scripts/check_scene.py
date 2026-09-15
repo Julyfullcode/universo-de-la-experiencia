@@ -89,15 +89,30 @@ window.__sceneSnapshot=()=>{
 </script><!-- scene-helpers --><script src="/orbital-3d.js"></script>
 <script>window.initClientOrbitalScene?.(7);</script></html>"""
 INTEGRATION_STUB = """<script>
-window.__fixtureWrites=[];window.__networkAttempts=[];
+window.__fixtureWrites=[];window.__fixtureResponses=[];window.__networkAttempts=[];
 localStorage.setItem('universo-experiencia.sesion.v3','fixture-session');
 window.fetch=url=>{window.__networkAttempts.push(String(url));throw Error('Network disabled in isolated integration test');};
 const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
- planeta_explorar:'conectores',rol:'generador',satelites:[],observatorio:'CES',mision:{},avance_maximo:7};
+ planeta_explorar:'conectores',rol:'generador',satelites:['personas','comunidad'],observatorio:'CES',mision:{},avance_maximo:7};
+const validSatelliteIds=new Set(['proveedores','dueno','comunidad']);
+const fixtureResult=(name,correo,viaje,token)=>{
+ const result={correo,viaje:{...viaje,satelites:[...(viaje.satelites||[])]},feedback:null};
+ if(token)result.token=token;
+ window.__fixtureResponses.push({name,result:JSON.parse(JSON.stringify(result))});
+ return {data:result,error:null};
+};
 window.supabase={createClient:()=>({rpc:async(name,args)=>{
  window.__fixtureWrites.push({name,args});
- if(name==='universo_mi_viaje')return {data:{correo:'prueba@local.test',viaje:fixtureJourney,feedback:null},error:null};
- if(name==='universo_guardar_viaje'){Object.assign(fixtureJourney,args.p_viaje);return {data:{correo:'prueba@local.test',viaje:fixtureJourney,feedback:null},error:null};}
+ if(name==='universo_mi_viaje')return fixtureResult(name,'prueba@local.test',fixtureJourney);
+ if(name==='universo_ingresar')return fixtureResult(name,args.p_correo,
+   {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']},'fixture-registration-session');
+ if(name==='universo_guardar_viaje'){
+   const satellites=args?.p_viaje?.satelites;
+   if(satellites!==undefined&&(!Array.isArray(satellites)||satellites.some(id=>!validSatelliteIds.has(id))))
+     return {data:null,error:{message:'El cliente intentó guardar un satélite inválido'}};
+   Object.assign(fixtureJourney,args.p_viaje);
+   return fixtureResult(name,'prueba@local.test',fixtureJourney);
+ }
  if(name==='universo_guardar_feedback')return {data:{calificacion:args.p_calificacion,recomendacion:args.p_recomendacion},error:null};
  return {data:true,error:null};
 }})};
@@ -268,17 +283,29 @@ def layout_metrics(cdp):
 
 
 def visual_copy_checks(cdp):
-    """Only map annotations are checked; contextual lesson/inspector prose is allowed."""
+    """Audit all visible map copy and the exact controls in the bottom strip."""
     return cdp.evaluate("""(()=>{
       const stage=document.querySelector('.cosmos-stage'),box=stage.getBoundingClientRect();
       const shown=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
         return !e.hidden&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
       const annotations=[...stage.querySelectorAll('.cosmos-heading,.cosmos-object-label,.cosmos-overview-link')]
         .filter(shown).map(e=>e.innerText.toLocaleLowerCase('es'));
+      const visibleCopy=document.body.innerText.toLocaleLowerCase('es');
       const forbidden=['modelo de experiencia + arquitectura empresarial','otros actores',
         'seguir a la estrella seleccionada','cliente seleccionado','explora tu universo',
-        'continuar mi viaje','créditos de las superficies'];
-      const forbiddenVisible=forbidden.filter(text=>annotations.some(annotation=>annotation.includes(text)));
+        'continuar mi viaje','créditos de las superficies',
+        'acercamiento a la estrella seleccionada','sistema del cliente','escala galáctica',
+        'sus estrellas son nuestros clientes'];
+      const forbiddenVisible=forbidden.filter(text=>visibleCopy.includes(text));
+      const navigation=document.querySelector('.cosmos-navigation');
+      const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
+      const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
+      const allButtons=navigation?[...navigation.querySelectorAll('button')]:[];
+      const copyOnly=navigation?.cloneNode(true);copyOnly?.querySelectorAll('button').forEach(button=>button.remove());
+      const descriptiveText=(copyOnly?.textContent||'').replace(/\\s+/g,' ').trim();
+      const bottomStrip={momentButtons:momentButtons.length,availabilityButtons:availabilityButtons.length,
+        allButtons:allButtons.length,descriptiveText,
+        pass:momentButtons.length===7&&availabilityButtons.length===1&&allButtons.length===8&&!descriptiveText};
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
       let launchLabel=null;
@@ -289,8 +316,8 @@ def visual_copy_checks(cdp):
       }else if(launch?.visible){
         launchLabel={pass:false,reason:'Visible launch object has no visible label'};
       }
-      return {viewport:[innerWidth,innerHeight],forbiddenVisible,launchLabel,
-        pass:forbiddenVisible.length===0&&(!launchLabel||launchLabel.pass)};
+      return {viewport:[innerWidth,innerHeight],annotations,forbiddenVisible,bottomStrip,launchLabel,
+        pass:forbiddenVisible.length===0&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
     })()""")
 
 
@@ -647,12 +674,28 @@ def main():
         if args.integration:
             integration = cdp.evaluate("""(async()=>{
               const results=[];const wait=ms=>new Promise(r=>setTimeout(r,ms));
+              const waitFor=async(test,timeout=5000)=>{
+                const started=performance.now();
+                while(performance.now()-started<timeout){
+                  try{
+                    if(test()){await wait(180);return Boolean(test());}
+                  }catch{}
+                  await wait(80);
+                }
+                return false;
+              };
+              const waitForMap=()=>waitFor(()=>
+                document.querySelectorAll('.orbital-realm-view').length===1&&
+                document.querySelectorAll('.cosmos-stage').length===1&&
+                document.querySelectorAll('.cosmos-stage canvas').length===1&&
+                !!window.__universeDebug);
               for(let n=0;n<2;n++){
-                window.__universeDebug.select('client');document.querySelector('.cosmos-action').click();await wait(400);
-                results.push({phase:'activity',h1:document.querySelector('.lesson h1')?.innerText,
+                window.__universeDebug?.select('client');document.querySelector('.cosmos-action')?.click();
+                const ready=await waitFor(()=>!!document.querySelector('.journey-view .lesson h1'));
+                results.push({phase:'activity',ready,h1:document.querySelector('.lesson h1')?.innerText,
                   canvas:document.querySelectorAll('canvas').length,debug:!!window.__universeDebug});
-                showMap();await wait(700);
-                results.push({phase:'map',canvas:document.querySelectorAll('.cosmos-stage canvas').length,
+                showMap();const mapReady=await waitForMap();
+                results.push({phase:'map',ready:mapReady,canvas:document.querySelectorAll('.cosmos-stage canvas').length,
                   stage:document.querySelectorAll('.cosmos-stage').length,debug:!!window.__universeDebug,
                   fallback:!!document.querySelector('.cosmos-fallback:not([hidden])')});
               }
@@ -660,7 +703,9 @@ def main():
               const header={epmFirst:nav?.firstElementChild?.classList.contains('nav-epm'),
                 product:nav?.querySelector('.nav-product')?.innerText,
                 feedbackButton:!!nav?.querySelector('.nav-feedback'),
-                forbidden:['explora tu universo','continuar mi viaje','créditos de las superficies'].filter(x=>bodyCopy.includes(x))};
+                forbidden:['explora tu universo','continuar mi viaje','créditos de las superficies',
+                  'acercamiento a la estrella seleccionada','sistema del cliente','escala galáctica',
+                  'sus estrellas son nuestros clientes'].filter(x=>bodyCopy.includes(x))};
               openFeedback();const dialog=document.querySelector('#feedback-dialog'),form=dialog.querySelector('form');
               form.querySelector('input[value="5"]').checked=true;
               form.querySelector('#feedback-recommendation').value='Prueba de evaluación local';
@@ -669,7 +714,39 @@ def main():
               await logoutParticipant();
               const access={name:!!document.querySelector('#name'),email:!!document.querySelector('#email'),
                 adminLink:document.querySelector('.admin-entry')?.getAttribute('href')};
-              return {results,header,evaluation,access,writes:window.__fixtureWrites.length,
+              const registrationInput={name:'Registro local',email:'registro@local.test'};
+              const nameInput=document.querySelector('#name'),emailInput=document.querySelector('#email');
+              if(nameInput)nameInput.value=registrationInput.name;if(emailInput)emailInput.value=registrationInput.email;
+              await loginParticipant({preventDefault(){}});
+              const registrationReady=await waitForMap();
+              const loginWrite=[...window.__fixtureWrites].reverse().find(x=>x.name==='universo_ingresar');
+              const loginResponse=[...window.__fixtureResponses].reverse().find(x=>x.name==='universo_ingresar');
+              const registration={ready:registrationReady,rpcCalls:window.__fixtureWrites.filter(x=>x.name==='universo_ingresar').length,
+                rpcName:loginWrite?.args?.p_nombre,rpcEmail:loginWrite?.args?.p_correo,
+                returnedStep:loginResponse?.result?.viaje?.paso,
+                map:document.querySelectorAll('.orbital-realm-view').length,
+                stage:document.querySelectorAll('.cosmos-stage').length,
+                canvas:document.querySelectorAll('.cosmos-stage canvas').length,
+                debug:!!window.__universeDebug,journey:document.querySelectorAll('.journey-view').length,
+                lesson:document.querySelectorAll('.lesson').length,
+                fallback:!!document.querySelector('.cosmos-fallback:not([hidden])')};
+              const postRegistrationSaveOk=registrationReady&&await persist({satellites:[...trip.satellites]});
+              const mapReadyAfterSave=postRegistrationSaveOk&&await waitForMap();
+              const validSatellites=new Set(['proveedores','dueno','comunidad']);
+              const journeyWrites=window.__fixtureWrites.filter(x=>x.name==='universo_guardar_viaje');
+              const satelliteWrites=journeyWrites.filter(x=>
+                Object.prototype.hasOwnProperty.call(x.args?.p_viaje||{},'satelites'));
+              const invalidWrites=satelliteWrites.map((write,index)=>{
+                const sent=write.args.p_viaje.satelites;
+                const invalid=Array.isArray(sent)?sent.filter(id=>!validSatellites.has(id)):[sent];
+                return invalid.length?{index,sent,invalid}:null;
+              }).filter(Boolean);
+              const legacySatellite={fixtureIncluded:window.__fixtureResponses.some(x=>
+                  (x.result?.viaje?.satelites||[]).includes('personas')),
+                saveOk:Boolean(postRegistrationSaveOk),mapReadyAfterSave:Boolean(mapReadyAfterSave),
+                satelliteWrites:satelliteWrites.length,invalidWrites};
+              return {results,header,evaluation,access,registration,legacySatellite,
+                writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
         report = {"before": before, "after": after, "hierarchyBefore": hierarchy_before,
@@ -712,13 +789,33 @@ def main():
                           "assetErrors": hierarchy_after.get("assetErrors",[]) if hierarchy_after else [],
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
         integration_failed = integration and (integration["errors"] or integration["network"] or
-            any(r.get("debug") or r.get("canvas") != 0 or not r.get("h1") for r in integration["results"] if r["phase"] == "activity") or
-            any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map") or
+            any(not r.get("ready") or r.get("debug") or r.get("canvas") != 0 or not r.get("h1")
+                for r in integration["results"] if r["phase"] == "activity") or
+            any(not r.get("ready") or not r.get("debug") or r.get("canvas") != 1 or
+                r.get("stage") != 1 or r.get("fallback")
+                for r in integration["results"] if r["phase"] == "map") or
             not integration["header"].get("epmFirst") or "—" not in (integration["header"].get("product") or "") or
             not integration["header"].get("feedbackButton") or integration["header"].get("forbidden") or
             not integration["evaluation"].get("opened") or not integration["evaluation"].get("saved") or
             not integration["access"].get("name") or not integration["access"].get("email") or
-            integration["access"].get("adminLink") != "admin.html")
+            integration["access"].get("adminLink") != "admin.html" or
+            not integration["registration"].get("ready") or
+            integration["registration"].get("rpcCalls") != 1 or
+            integration["registration"].get("rpcName") != "Registro local" or
+            integration["registration"].get("rpcEmail") != "registro@local.test" or
+            integration["registration"].get("returnedStep") != "lanzamiento" or
+            integration["registration"].get("map") != 1 or
+            integration["registration"].get("stage") != 1 or
+            integration["registration"].get("canvas") != 1 or
+            not integration["registration"].get("debug") or
+            integration["registration"].get("journey") != 0 or
+            integration["registration"].get("lesson") != 0 or
+            integration["registration"].get("fallback") or
+            not integration["legacySatellite"].get("fixtureIncluded") or
+            not integration["legacySatellite"].get("saveOk") or
+            not integration["legacySatellite"].get("mapReadyAfterSave") or
+            integration["legacySatellite"].get("satelliteWrites", 0) < 1 or
+            integration["legacySatellite"].get("invalidWrites"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
         if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
             raise SystemExit(1)

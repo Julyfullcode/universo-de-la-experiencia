@@ -29,14 +29,41 @@ function feedbackDialog() { return `<dialog class="feedback-dialog" id="feedback
 function nav() { const signed=Boolean(sessionToken); return `<nav class="site-nav"><button class="nav-epm" onclick="${signed?'showMap()':'render()'}" aria-label="${signed?'Ir al universo':'Grupo EPM'}"><img class="epm-logo" src="assets/logo-grupo-epm.png" alt="Grupo EPM"></button><button class="nav-button nav-product" onclick="${signed?'showMap()':'render()'}"><span>Universo de la Experiencia</span><i aria-hidden="true">—</i><strong>Guía de la Experiencia</strong></button><div class="nav-actions">${signed?`<button class="nav-button nav-passport" ${trip.mainPlanet?"":"disabled"} onclick="showPassport()"><span>Mi pasaporte</span><b aria-hidden="true">▣</b></button><button class="nav-button nav-feedback" onclick="openFeedback()"><span>Evaluar experiencia</span><b aria-hidden="true">★</b></button><button class="nav-button nav-logout" onclick="logoutParticipant()" aria-label="Cerrar sesión" title="Cerrar sesión">↗</button>`:""}</div></nav>${signed?feedbackDialog():""}`; }
 function error(message) { return message ? `<p class="error">${safe(message)}</p>` : ""; }
 function rpcPayload(data) { return Array.isArray(data) ? data[0] : data; }
+function normalizeSatelliteId(value) {
+  const id=String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+  if(["proveedores","proveedor","contratistas","proveedores y contratistas"].includes(id))return "proveedores";
+  if(["dueno","dueno de experiencia"].includes(id))return "dueno";
+  if(id==="comunidad")return "comunidad";
+  return "";
+}
+function normalizeSatellites(value) {
+  let source=value;
+  if(typeof source==="string"){
+    try{const parsed=JSON.parse(source);source=Array.isArray(parsed)?parsed:[source];}catch{source=[source];}
+  }
+  if(!Array.isArray(source))return [];
+  return [...new Set(source.map(normalizeSatelliteId).filter(Boolean))].slice(0,3);
+}
 function hydrate(payload) {
   const result=rpcPayload(payload)||{},row=result.viaje||result;
   participantEmail=result.correo||participantEmail;
-  trip={name:row.nombre||trip.name||"",step:row.paso||"lanzamiento",duels:row.duelos||{},mainPlanet:row.planeta_principal||undefined,explorePlanet:row.planeta_explorar||undefined,role:row.rol||undefined,satellites:row.satelites||[],observatory:row.observatorio||undefined,mission:row.mision||{}};
+  trip={name:row.nombre||trip.name||"",step:row.paso||"lanzamiento",duels:row.duelos||{},mainPlanet:row.planeta_principal||undefined,explorePlanet:row.planeta_explorar||undefined,role:row.rol||undefined,satellites:normalizeSatellites(row.satelites),observatory:row.observatorio||undefined,mission:row.mision||{}};
   const saved=result.feedback||null;feedback=saved?{rating:Number(saved.calificacion)||0,recommendation:saved.recomendacion||""}:{rating:0,recommendation:""};
   pendingSatellites=[...trip.satellites];
 }
-function tripPayload(value) { return {nombre:value.name.trim(),paso:value.step,duelos:value.duels||{},planeta_principal:value.mainPlanet||null,planeta_explorar:value.explorePlanet||null,rol:value.role||null,satelites:value.satellites||[],observatorio:value.observatory||null,mision:value.mission||{}}; }
+function tripPayload(changes) {
+  const payload={},has=(key)=>Object.prototype.hasOwnProperty.call(changes,key);
+  if(has("name"))payload.nombre=String(changes.name||"").trim();
+  if(has("step"))payload.paso=changes.step;
+  if(has("duels"))payload.duelos=changes.duels||{};
+  if(has("mainPlanet"))payload.planeta_principal=changes.mainPlanet||null;
+  if(has("explorePlanet"))payload.planeta_explorar=changes.explorePlanet||null;
+  if(has("role"))payload.rol=changes.role||null;
+  if(has("satellites"))payload.satelites=normalizeSatellites(changes.satellites);
+  if(has("observatory"))payload.observatorio=changes.observatory||null;
+  if(has("mission"))payload.mision=changes.mission||{};
+  return payload;
+}
 function startHeartbeat() { clearInterval(heartbeatTimer); if(!sessionToken)return; heartbeatTimer=setInterval(()=>db?.rpc("universo_heartbeat",{p_token:sessionToken}),45000); }
 function sessionError(err) { return /token|sesión|sesion|expir/i.test(err?.message||""); }
 async function load() {
@@ -52,7 +79,7 @@ async function persist(changes, nextView) {
   if(!sessionToken){view="start";render("Ingresa con tu correo para guardar el viaje.");return false;}
   if(!next.name||next.name.trim().length<2){render("Escribe tu nombre completo para continuar.");return false;}
   try{
-    const {data,error:err}=await db.rpc("universo_guardar_viaje",{p_token:sessionToken,p_viaje:tripPayload(next)});
+    const {data,error:err}=await db.rpc("universo_guardar_viaje",{p_token:sessionToken,p_viaje:tripPayload(changes)});
     if(err)throw err;trip=next;if(data)hydrate(data);if(nextView)view=nextView;startHeartbeat();render();return true;
   }catch(err){if(sessionError(err)){localStorage.removeItem(SESSION_KEY);sessionToken="";view="start";}render(`No pudimos guardar tu avance: ${err.message||"intenta de nuevo."}`);return false;}
 }
@@ -89,7 +116,7 @@ async function loginParticipant(event){
     if(err)throw err;const result=rpcPayload(data)||{};
     if(!result.token)throw new Error("Supabase no devolvió una sesión válida.");
     sessionToken=result.token;localStorage.setItem(SESSION_KEY,sessionToken);hydrate(result);
-    view=trip.step==="lanzamiento"?"journey":"map";startHeartbeat();render();
+    view="map";startHeartbeat();render();
   }catch(err){render(`No pudimos ingresar: ${err.message||"intenta nuevamente."}`);}
 }
 function openFeedback(){const dialog=document.querySelector("#feedback-dialog");if(dialog&&!dialog.open)dialog.showModal();}

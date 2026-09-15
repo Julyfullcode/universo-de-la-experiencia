@@ -20,6 +20,22 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-heading.system small { max-width: 26ch; line-height: 1.5; }
 .cosmos-heading.constellations { top: calc(2 * var(--cosmos-unit)); left: 52.5%; transform: translateX(-50%); text-align: center; }
 .cosmos-heading.constellations small { display: none; }
+.cosmos-galaxy-caption {
+  position: absolute;
+  z-index: 3;
+  max-width: 90%;
+  padding: calc(4 * var(--cosmos-unit)) calc(12 * var(--cosmos-unit));
+  color: #f3f6ff;
+  font-size: calc(15 * var(--cosmos-unit));
+  font-weight: 850;
+  letter-spacing: .025em;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 2px 7px #010513, 0 0 18px #24134f;
+  transform: translate(-50%, -100%);
+}
 .cosmos-tools { position: absolute; top: 8px; right: 6px; z-index: 4; display: flex; gap: 6px; }
 .cosmos-tools button, .cosmos-tabs button { border: 1px solid #b4c9f345; background: #070e25a6; color: #e2eaff; border-radius: 30px; padding: calc(7 * var(--cosmos-unit)) calc(12 * var(--cosmos-unit)); font: inherit; font-size: calc(12 * var(--cosmos-unit)); cursor: pointer; }
 .cosmos-tools button:hover, .cosmos-tabs button[aria-selected=true] { border-color: #c1e960; color: #d8ff81; }
@@ -63,6 +79,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-heading.system { left: 2%; top: 8px; }
   .cosmos-heading.system small { max-width: none; }
   .cosmos-heading.constellations { top: 56%; left: 50%; }
+  .cosmos-galaxy-caption { max-width: 74%; padding: 3px 8px; font-size: .72rem; }
   .cosmos-heading h2 { font-size: .9rem; }
   .cosmos-heading p { font-size: .65rem; }
   .cosmos-tools { top: 42px; }
@@ -95,4 +112,122 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-inspector > p { display: none; }
   .cosmos-route { grid-template-columns: repeat(7, 1fr); }
   .cosmos-route button { font-size: .5rem; white-space: normal; }
+}
+
+/* Navegación inferior: siete momentos y una única acción de disponibilidad. */
+.cosmos-navigation{
+  position:relative;
+  z-index:7;
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:clamp(10px,1.4vw,24px);
+  min-height:clamp(66px,8.6vh,88px);
+  padding:clamp(7px,1vh,11px) clamp(14px,2.2vw,34px);
+  border-top:1px solid rgba(169,181,239,.2);
+  background:linear-gradient(90deg,rgba(4,11,34,.96),rgba(15,15,55,.92) 56%,rgba(31,15,66,.94));
+  box-shadow:0 -16px 42px rgba(1,4,18,.4),inset 0 1px 0 rgba(255,255,255,.045);
+}
+.cosmos-navigation .cosmos-route{
+  min-width:0;
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  align-items:stretch;
+  gap:clamp(3px,.45vw,8px);
+  padding:0;
+}
+.cosmos-navigation .cosmos-route button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.42em;
+  min-width:0;
+  min-height:clamp(42px,5.4vh,54px);
+  padding:.48em .4em;
+  border:1px solid rgba(167,195,235,.12);
+  border-radius:.75rem;
+  background:rgba(7,17,48,.42);
+  color:#d8e3f5;
+  font-size:clamp(.78rem,.86vw,1rem);
+  font-weight:720;
+  line-height:1.08;
+  text-align:center;
+  white-space:normal;
+  transition:border-color .2s ease,background .2s ease,color .2s ease;
+}
+.cosmos-navigation .cosmos-route button span{
+  flex:none;
+  margin:0;
+  color:#bca5ff;
+  font-size:.78em;
+  font-weight:900;
+}
+.cosmos-navigation .cosmos-route button[aria-pressed=true]{
+  border-color:rgba(210,246,105,.55);
+  background:linear-gradient(145deg,rgba(195,224,90,.16),rgba(88,50,161,.18));
+  color:#e6ff9c;
+  box-shadow:0 0 20px rgba(195,224,90,.08);
+}
+.cosmos-navigation .cosmos-inspector.cosmos-availability{
+  display:flex;
+  align-items:center;
+  padding:0;
+  border:0;
+  background:none;
+}
+.cosmos-navigation .cosmos-availability>div,
+.cosmos-navigation .cosmos-availability>p,
+.cosmos-navigation .cosmos-availability>small,
+.cosmos-navigation .cosmos-availability>h2{display:none!important}
+.cosmos-navigation .cosmos-availability .cosmos-action{
+  min-width:clamp(178px,14vw,238px);
+  min-height:clamp(44px,5.6vh,56px);
+  padding:.72em 1.25em;
+  border:1px solid rgba(226,255,146,.4);
+  background:linear-gradient(135deg,#ddff73,#aee84d);
+  color:#07142d;
+  font-size:clamp(.75rem,.9vw,1rem);
+  font-weight:900;
+  line-height:1.12;
+  box-shadow:0 0 25px rgba(195,224,90,.2),inset 0 1px 0 rgba(255,255,255,.65);
+}
+.cosmos-navigation .cosmos-availability .cosmos-action:disabled{
+  opacity:.72;
+  color:#17233a;
+  background:linear-gradient(135deg,#d5e6a0,#9eb47d);
+}
+
+@media (max-width: 800px){
+  .cosmos-navigation{
+    grid-template-columns:1fr;
+    gap:5px;
+    min-height:0;
+    padding:5px 2vw 6px;
+  }
+  .cosmos-navigation .cosmos-route{grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+  .cosmos-navigation .cosmos-route button{
+    min-height:36px;
+    padding:4px 2px;
+    gap:2px;
+    border-radius:.48rem;
+    font-size:clamp(.46rem,1.55vw,.62rem);
+    line-height:1.02;
+  }
+  .cosmos-navigation .cosmos-route button span{font-size:.74em}
+  .cosmos-navigation .cosmos-inspector.cosmos-availability{justify-content:stretch}
+  .cosmos-navigation .cosmos-availability .cosmos-action{width:100%;min-width:0;min-height:34px;padding:5px 10px;font-size:.68rem}
+}
+
+@media (min-width: 1800px) and (min-height: 900px){
+  .cosmos-navigation{min-height:96px;padding-left:clamp(36px,2.8vw,64px);padding-right:clamp(36px,2.8vw,64px)}
+  .cosmos-navigation .cosmos-route button{min-height:58px;font-size:clamp(.96rem,.98vw,1.28rem)}
+  .cosmos-navigation .cosmos-availability .cosmos-action{min-width:250px;min-height:58px;font-size:1.02rem}
+}
+
+@media (max-height: 540px) and (max-width: 800px){
+  .cosmos-navigation{grid-template-columns:minmax(0,1fr) minmax(118px,27vw);gap:5px;padding:3px 1.5vw}
+  .cosmos-navigation .cosmos-route button{min-height:31px;font-size:0}
+  .cosmos-navigation .cosmos-route button span{font-size:.58rem}
+  .cosmos-navigation .cosmos-availability .cosmos-action{min-height:31px;font-size:.58rem;padding:3px 6px}
 }
