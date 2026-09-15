@@ -1,7 +1,15 @@
 /* One responsive composition: typography and controls scale with the scene,
    rather than stopping at a small fixed-pixel desktop size. */
-.orbital-realm-view { --cosmos-unit: clamp(.8px, min(calc(100vw / 1440), calc(100dvh / 900)), 3px); }
-.orbital-realm-view .orbital-realm { display: flex; flex-direction: column; perspective: none; padding: 0 2vw calc(10 * var(--cosmos-unit)); }
+.orbital-realm-view {
+  --cosmos-unit: clamp(.8px, min(calc(100vw / 1440), calc(100dvh / 900)), 3px);
+  --cosmos-gutter: clamp(6px, .65vw, 18px);
+}
+.orbital-realm-view .orbital-realm {
+  display: flex;
+  flex-direction: column;
+  perspective: none;
+  padding: 0 var(--cosmos-gutter) calc(7 * var(--cosmos-unit));
+}
 .orbital-realm-view nav { flex-basis: calc(58 * var(--cosmos-unit)); min-height: calc(58 * var(--cosmos-unit)); }
 body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); padding-bottom: calc(9 * var(--cosmos-unit)); }
 .orbital-realm-view .nav-product > span { font-size: calc(13 * var(--cosmos-unit)); }
@@ -18,7 +26,14 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-heading p { color: #b7bfda; font-size: calc(12 * var(--cosmos-unit)); margin: 0; max-width: 28ch; line-height: 1.4; }
 .cosmos-heading.system { left: 76%; top: calc(55 * var(--cosmos-unit)); }
 .cosmos-heading.system small { max-width: 26ch; line-height: 1.5; }
-.cosmos-heading.constellations { top: calc(2 * var(--cosmos-unit)); left: 52.5%; transform: translateX(-50%); text-align: center; }
+.cosmos-heading.constellations {
+  top: calc(8 * var(--cosmos-unit));
+  right: clamp(12px, 1.7vw, 38px);
+  left: auto;
+  max-width: min(28vw, 25rem);
+  text-align: right;
+  transform: none;
+}
 .cosmos-heading.constellations small { display: none; }
 .cosmos-galaxy-caption {
   position: absolute;
@@ -36,7 +51,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   text-shadow: 0 2px 7px #010513, 0 0 18px #24134f;
   transform: translate(-50%, -100%);
 }
-.cosmos-tools { position: absolute; top: 8px; right: 6px; z-index: 4; display: flex; gap: 6px; }
+.cosmos-tools { position: absolute; top: 8px; left: 50%; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); }
+.cosmos-pause { display: none !important; }
+.cosmos-tools:empty { display: none; }
 .cosmos-tools button, .cosmos-tabs button { border: 1px solid #b4c9f345; background: #070e25a6; color: #e2eaff; border-radius: 30px; padding: calc(7 * var(--cosmos-unit)) calc(12 * var(--cosmos-unit)); font: inherit; font-size: calc(12 * var(--cosmos-unit)); cursor: pointer; }
 .cosmos-tools button:hover, .cosmos-tabs button[aria-selected=true] { border-color: #c1e960; color: #d8ff81; }
 .cosmos-tabs { display: none; }
@@ -78,7 +95,14 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-heading { top: 8px; left: 2%; }
   .cosmos-heading.system { left: 2%; top: 8px; }
   .cosmos-heading.system small { max-width: none; }
-  .cosmos-heading.constellations { top: 56%; left: 50%; }
+  .cosmos-heading.constellations {
+    top: 55%;
+    right: 2%;
+    left: auto;
+    max-width: 42vw;
+    text-align: right;
+    transform: none;
+  }
   .cosmos-galaxy-caption { max-width: 74%; padding: 3px 8px; font-size: .72rem; }
   .cosmos-heading h2 { font-size: .9rem; }
   .cosmos-heading p { font-size: .65rem; }

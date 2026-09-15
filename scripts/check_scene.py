@@ -20,6 +20,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -90,6 +91,7 @@ window.__sceneSnapshot=()=>{
 <script>window.initClientOrbitalScene?.(7);</script></html>"""
 INTEGRATION_STUB = """<script>
 window.__fixtureWrites=[];window.__fixtureResponses=[];window.__networkAttempts=[];
+window.__fixtureSaveFailures=0;
 localStorage.setItem('universo-experiencia.sesion.v3','fixture-session');
 window.fetch=url=>{window.__networkAttempts.push(String(url));throw Error('Network disabled in isolated integration test');};
 const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
@@ -107,6 +109,8 @@ window.supabase={createClient:()=>({rpc:async(name,args)=>{
  if(name==='universo_ingresar')return fixtureResult(name,args.p_correo,
    {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']},'fixture-registration-session');
  if(name==='universo_guardar_viaje'){
+   if(window.__fixtureSaveFailures>0){window.__fixtureSaveFailures--;
+     return {data:null,error:{message:'TypeError: Failed to fetch'}};}
    const satellites=args?.p_viaje?.satelites;
    if(satellites!==undefined&&(!Array.isArray(satellites)||satellites.some(id=>!validSatelliteIds.has(id))))
      return {data:null,error:{message:'El cliente intentó guardar un satélite inválido'}};
@@ -211,15 +215,38 @@ def local_scene_helpers():
     return "\n".join(helpers)
 
 
+def stop_edge_profile_processes(profile):
+    """Stop only detached Edge children that belong to this temporary profile."""
+    try:
+        port = int((profile / "DevToolsActivePort").read_text().splitlines()[0])
+        version = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2))
+        detached = CDP(version["webSocketDebuggerUrl"])
+        detached.sock.settimeout(3)
+        detached.call("Browser.close")
+        time.sleep(.3)
+    except (OSError, ValueError, IndexError, KeyError, RuntimeError, urllib.error.URLError):
+        pass
+    script = ("$needle=$args[0]; Get-CimInstance Win32_Process | "
+              "Where-Object {$_.Name -eq 'msedge.exe' -and $_.CommandLine -and "
+              "$_.CommandLine.Contains($needle)} | ForEach-Object {"
+              "Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}")
+    try:
+        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script, str(profile)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60,
+                       creationflags=subprocess.CREATE_NO_WINDOW, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def visibility_sweep(cdp, seconds, samples):
     """Audit actual projected geometry synchronously across complete orbital cycles."""
     options = json.dumps({"seconds": seconds, "samples": samples})
     return cdp.evaluate("""(() => {
       const options=OPTIONS,debug=window.__universeDebug;
-      if(!debug?.setTime||!debug?.auditVisibility)
-        throw Error('Visibility sweep requires __universeDebug.setTime and auditVisibility');
-      const original=debug.snapshot(),pause=document.querySelector('.cosmos-pause');
-      if(!original.paused)pause.click();
+      if(!debug?.setTime||!debug?.setPaused||!debug?.auditVisibility)
+        throw Error('Visibility sweep requires __universeDebug.setTime, setPaused and auditVisibility');
+      const original=debug.snapshot();
+      debug.setPaused(true);
       debug.select('client');
       const frames=[],failures=[];
       const expectedIds=original.objects.filter(o=>['client','planet','satellite','waypoint'].includes(o.kind))
@@ -248,8 +275,7 @@ def visibility_sweep(cdp, seconds, samples):
             visibleGuides:guides.filter(g=>g.visible).length,invalid:invalid.length});
         }
       } finally {
-        debug.setTime(original.elapsed);debug.select(original.selected);
-        if(!original.paused)pause.click();
+        debug.setTime(original.elapsed);debug.select(original.selected);debug.setPaused(original.paused);
       }
       return {viewport:[innerWidth,innerHeight],duration:options.seconds,
         samples:options.samples,expectedIds,frames,failures,pass:failures.length===0};
@@ -277,8 +303,45 @@ def layout_metrics(cdp):
           views:snapshot.views,fonts,objects:(audit.objects||[]).map(o=>({id:o.id,kind:o.kind,
             view:o.view,bounds:o.bounds,safeRect:o.safeRect,
             pixelRadius:o.pixelRadius??o.pxRadius??((o.bounds.right-o.bounds.left)/2)})),
-          constellationHeading:rect(document.querySelector('.cosmos-heading.constellations'))};
+          constellationHeading:rect(document.querySelector('.cosmos-heading.constellations')),
+          constellationSegments:(document.querySelector('.cosmos-constellation-lines path')
+            ?.getAttribute('d')?.match(/M/g)||[]).length};
       } finally {debug.setTime(original.elapsed,false);debug.select(original.selected);}
+    })()""")
+
+
+def ambient_effect_checks(cdp):
+    """Check the subtle sky animation without relying on screenshot timing."""
+    return cdp.evaluate("""(()=>{
+      const debug=window.__universeDebug,original=debug?.snapshot?.();
+      if(!original||typeof debug.setTime!=='function'||typeof debug.setPaused!=='function')
+        return {pass:false,reason:'Missing deterministic debug controls'};
+      try{
+        debug.setPaused(true);debug.select('client');
+        debug.setTime(0);const before=debug.snapshot();
+        debug.setTime(3);const first=debug.snapshot();
+        debug.setTime(4);const moving=debug.snapshot();
+        const repeatAt=3+(first.comet?.period||0);
+        debug.setTime(repeatAt);const repeated=debug.snapshot();
+        debug.setTime(20);const outside=debug.snapshot();
+        const pulses=[];
+        for(const seconds of [0,3,6,9,12]){debug.setTime(seconds);pulses.push(debug.snapshot().twinkle?.pulse);}
+        const finitePulses=pulses.filter(Number.isFinite),pulseRange=finitePulses.length?
+          Math.max(...finitePulses)-Math.min(...finitePulses):0;
+        const a=first.comet?.position||[],b=moving.comet?.position||[];
+        const cometTravel=a.length===3&&b.length===3?Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]):0;
+        const period=first.comet?.period,duration=first.comet?.duration,twinkleCount=before.twinkle?.count||0;
+        const pass=before.comet?.visible===false&&first.comet?.visible===true&&
+          moving.comet?.visible===true&&repeated.comet?.visible===true&&outside.comet?.visible===false&&
+          period>=55&&period<=65&&duration>=6&&duration<=12&&cometTravel>.5&&
+          twinkleCount>=150&&finitePulses.length===pulses.length&&pulseRange>.08;
+        return {beforeVisible:before.comet?.visible,firstVisible:first.comet?.visible,
+          movingVisible:moving.comet?.visible,repeatedVisible:repeated.comet?.visible,
+          outsideVisible:outside.comet?.visible,period,duration,cometTravel,
+          twinkleCount,pulses,pulseRange,pass};
+      }finally{
+        debug.setTime(original.elapsed);debug.select(original.selected);debug.setPaused(original.paused);
+      }
     })()""")
 
 
@@ -297,6 +360,8 @@ def visual_copy_checks(cdp):
         'acercamiento a la estrella seleccionada','sistema del cliente','escala galáctica',
         'sus estrellas son nuestros clientes'];
       const forbiddenVisible=forbidden.filter(text=>visibleCopy.includes(text));
+      const pauseControl=stage.querySelector('.cosmos-pause');
+      const visiblePauseCopy=/\\b(?:pausar|reanudar)\\b/i.test(document.body.innerText);
       const navigation=document.querySelector('.cosmos-navigation');
       const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
       const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
@@ -317,7 +382,8 @@ def visual_copy_checks(cdp):
         launchLabel={pass:false,reason:'Visible launch object has no visible label'};
       }
       return {viewport:[innerWidth,innerHeight],annotations,forbiddenVisible,bottomStrip,launchLabel,
-        pass:forbiddenVisible.length===0&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
+        pauseControl:!!pauseControl,visiblePauseCopy,
+        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
     })()""")
 
 
@@ -330,7 +396,8 @@ def hover_checks(cdp):
     """
     setup = cdp.evaluate("""(()=>{
       const debug=window.__universeDebug,original=debug.snapshot();
-      if(!original.paused)document.querySelector('.cosmos-pause').click();
+      if(!debug?.setPaused)throw Error('Hover checks require __universeDebug.setPaused');
+      debug.setPaused(true);
       window.__sceneFrameControl?.resume();debug.select('client');debug.setTime(0);
       return {original,ids:debug.snapshot().objects.filter(o=>
         ['client','planet','satellite','waypoint'].includes(o.kind)).map(o=>o.id)};
@@ -391,8 +458,7 @@ def hover_checks(cdp):
         original = setup["original"]
         cdp.evaluate("window.__universeDebug.select(" + json.dumps(original["selected"]) + ");" +
                      "window.__universeDebug.setTime(" + json.dumps(original["elapsed"]) + ");")
-        if not original["paused"]:
-            cdp.evaluate("document.querySelector('.cosmos-pause').click()")
+        cdp.evaluate("window.__universeDebug.setPaused(" + json.dumps(original["paused"]) + ")")
     return {"results": results, "finalSnapshot": final_snapshot,
             "pass": all(item["pass"] for item in results)}
 
@@ -419,13 +485,28 @@ def compare_body_metrics(metrics, baseline_report):
 
 
 def layout_checks(metrics):
-    """Check desktop placement and prevent fixed-pixel UI on large displays."""
+    """Check the intended desktop composition and proportional large-screen growth."""
     checks = []
     for item in metrics:
         width, height = item["viewport"]
         if width <= 800:
             continue
         stage = item["stage"]
+        objects = {body["id"]: body for body in item["objects"]}
+        display_scale = max(.8, min(3, width / 1440, height / 900))
+
+        def body_geometry(object_id):
+            body = objects.get(object_id)
+            if not body:
+                checks.append({"viewport": [width, height], "check": f"{object_id}-present", "pass": False})
+                return None
+            bounds = body["bounds"]
+            return body, bounds, {
+                "centerXFraction": (bounds["left"] + bounds["right"]) / (2 * stage["w"]),
+                "centerYFraction": (bounds["top"] + bounds["bottom"]) / (2 * stage["h"]),
+                "diameter": bounds["bottom"] - bounds["top"],
+            }
+
         launch = next((o for o in item["objects"] if o.get("view") == "launch" or
                        o["id"] in ("launch", "launchpad", "lanzamiento")), None)
         if launch:
@@ -433,20 +514,63 @@ def layout_checks(metrics):
             center_x = (bounds["left"] + bounds["right"]) / (2 * stage["w"])
             diameter = bounds["bottom"] - bounds["top"]
             checks.append({"viewport": [width, height], "check": "launch-far-left",
-                           "centerXFraction": center_x, "pass": center_x <= .22})
-            checks.append({"viewport": [width, height], "check": "launch-readable-size",
-                           "projectedDiameter": diameter, "pass": diameter >= 90})
+                           "centerXFraction": center_x, "pass": center_x <= .18})
+            checks.append({"viewport": [width, height], "check": "launch-prominent-size",
+                           "projectedDiameter": diameter,
+                           "minimum": 275 * display_scale,
+                           "pass": diameter >= 275 * display_scale})
         else:
             checks.append({"viewport": [width, height], "check": "launch-present", "pass": False})
+
+        system = item["views"].get("system")
+        if system:
+            left = system["x"] / stage["w"]
+            top = system["y"] / stage["h"]
+            right = (system["x"] + system["w"]) / stage["w"]
+            width_fraction = system["w"] / stage["w"]
+            checks.append({"viewport": [width, height], "check": "system-uses-upper-wide-stage",
+                           "leftFraction": left, "rightFraction": right,
+                           "topFraction": top, "widthFraction": width_fraction,
+                           "pass": left <= .21 and right >= .99 and top <= .06 and width_fraction >= .79})
+        else:
+            checks.append({"viewport": [width, height], "check": "system-view-present", "pass": False})
+
         constellation = item["views"].get("constellation")
         if constellation:
             center_x = (constellation["x"] + constellation["w"] / 2) / stage["w"]
+            left = constellation["x"] / stage["w"]
+            right = (constellation["x"] + constellation["w"]) / stage["w"]
             top = constellation["y"] / stage["h"]
-            checks.append({"viewport": [width, height], "check": "constellation-top-center",
+            segments = item.get("constellationSegments", 0)
+            checks.append({"viewport": [width, height], "check": "constellation-top-right",
+                           "leftFraction": left, "rightFraction": right,
                            "centerXFraction": center_x, "topFraction": top,
-                           "pass": .35 <= center_x <= .75 and 0 <= top <= .30})
+                           "pass": left >= .64 and center_x >= .78 and right <= 1.01 and 0 <= top <= .24})
+            checks.append({"viewport": [width, height], "check": "constellation-rich-cluster",
+                           "connectedSegments": segments, "pass": segments >= 42})
         else:
             checks.append({"viewport": [width, height], "check": "constellation-present", "pass": False})
+
+        for object_id, minimum in (("earth", 50), ("forjadores", 72)):
+            geometry = body_geometry(object_id)
+            if geometry:
+                _, _, values = geometry
+                checks.append({"viewport": [width, height], "check": f"{object_id}-prominent-size",
+                               "projectedDiameter": values["diameter"],
+                               "minimum": minimum * display_scale,
+                               "pass": values["diameter"] >= minimum * display_scale})
+
+        observatory = body_geometry("observatory")
+        if observatory:
+            _, _, values = observatory
+            checks.append({"viewport": [width, height], "check": "observatory-lower-right",
+                           "centerXFraction": values["centerXFraction"],
+                           "centerYFraction": values["centerYFraction"],
+                           "pass": values["centerXFraction"] >= .84 and values["centerYFraction"] >= .65})
+            checks.append({"viewport": [width, height], "check": "observatory-dominant-size",
+                           "projectedDiameter": values["diameter"],
+                           "minimum": 190 * display_scale,
+                           "pass": values["diameter"] >= 190 * display_scale})
     normal = next((m for m in metrics if m["viewport"] == [1440, 900]), None)
     large = next((m for m in metrics if m["viewport"] == [2560, 1440]), None)
     if normal and large:
@@ -515,7 +639,11 @@ def main():
         library = cache / "three-r160.min.js"
     if not library.exists():
         urllib.request.urlretrieve(THREE_URL, library)
-    artifacts = Path(tempfile.mkdtemp(prefix="universo-scene-check-", dir=str(ROOT / "node_modules") if (ROOT / "node_modules").exists() else None))
+    # Python 3.13 gives ``mkdtemp`` directories a Windows-specific 0700 ACL.
+    # Under managed/impersonated shells that ACL can exclude the following
+    # process, so create the unique folder with the normal inherited ACL.
+    artifacts = Path(tempfile.gettempdir()) / f"universo-scene-check-{os.getpid()}-{time.time_ns()}"
+    artifacts.mkdir(mode=0o777)
 
     class Handler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
@@ -556,14 +684,20 @@ def main():
         deadline = time.monotonic() + 90
         port = None
         while port is None:
-            if process.poll() is not None:
-                raise RuntimeError(f"Edge exited {process.returncode}; see {artifacts / 'edge.log'}")
-            if time.monotonic() > deadline:
-                raise RuntimeError(f"DevTools port did not open; see {artifacts / 'edge.log'}")
             try:
                 port = int(port_file.read_text().splitlines()[0])
             except (OSError, ValueError, IndexError):
                 pass
+            if port is not None:
+                break
+            return_code = process.poll()
+            if return_code is not None:
+                # Recent Edge builds may detach a healthy headless child and let
+                # the launcher exit with code 0 before DevToolsActivePort lands.
+                if return_code != 0:
+                    raise RuntimeError(f"Edge exited {return_code}; see {artifacts / 'edge.log'}")
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"DevTools port did not open; see {artifacts / 'edge.log'}")
             time.sleep(.2)
         targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list"))
         cdp = CDP(next(t["webSocketDebuggerUrl"] for t in targets if t["type"] == "page"))
@@ -632,14 +766,30 @@ def main():
                     "radius":world_radius, "parentTransformValid":abs(world_radius-local_radius)<1e-6,
                     "orbitalMotion":math.dist(relative,prior_relative)>1e-5})
         pause_check = cdp.evaluate("""(async()=>{
-          if(!window.__universeDebug)return null;
-          const button=document.querySelector('.cosmos-pause');
-          if(!window.__universeDebug.snapshot().paused)button.click();
-          const before=window.__universeDebug.snapshot().elapsed;
-          await new Promise(r=>setTimeout(r,180));
-          const after=window.__universeDebug.snapshot().elapsed;button.click();
-          return {before,after,pass:before===after};
+          const debug=window.__universeDebug;
+          if(!debug)return null;
+          const original=debug.snapshot().paused;
+          const pauseControl=document.querySelector('.cosmos-pause');
+          const visiblePauseCopy=/\\b(?:pausar|reanudar)\\b/i.test(document.body.innerText);
+          if(typeof debug.setPaused!=='function')return {api:false,pauseControl:!!pauseControl,
+            visiblePauseCopy,pass:false};
+          try{
+            debug.setPaused(true);
+            const frozenBefore=debug.snapshot().elapsed;
+            await new Promise(r=>setTimeout(r,650));
+            const frozenAfter=debug.snapshot().elapsed;
+            debug.setPaused(false);
+            const movingBefore=debug.snapshot().elapsed;
+            await new Promise(r=>setTimeout(r,650));
+            const movingAfter=debug.snapshot().elapsed;
+            const frozen=Math.abs(frozenAfter-frozenBefore)<1e-9;
+            const resumed=movingAfter>movingBefore;
+            return {api:true,pauseControl:!!pauseControl,visiblePauseCopy,
+              frozenBefore,frozenAfter,movingBefore,movingAfter,frozen,resumed,
+              pass:!pauseControl&&!visiblePauseCopy&&frozen&&resumed};
+          }finally{debug.setPaused(original);}
         })()""")
+        ambient_check = ambient_effect_checks(cdp)
         if not args.no_screenshot:
             capture_scene(cdp, artifacts / "scene.png")
         sweeps = []
@@ -745,13 +895,49 @@ def main():
                   (x.result?.viaje?.satelites||[]).includes('personas')),
                 saveOk:Boolean(postRegistrationSaveOk),mapReadyAfterSave:Boolean(mapReadyAfterSave),
                 satelliteWrites:satelliteWrites.length,invalidWrites};
-              return {results,header,evaluation,access,registration,legacySatellite,
+              showMap();const offlineMapReady=await waitForMap();
+              const failureWriteStart=window.__fixtureWrites.length;
+              window.__fixtureSaveFailures=3;
+              window.__universeDebug?.select('launch');
+              const launchAction=document.querySelector('.cosmos-action');
+              const clickedAt=performance.now();
+              launchAction?.click();
+              await wait(50);
+              const immediateJourney={ready:!!document.querySelector('.journey-view .lesson h1'),
+                elapsedMs:performance.now()-clickedAt,
+                lesson:document.querySelector('.journey-view .lesson h1')?.innerText||'',
+                redError:document.querySelector('.journey-view .error')?.innerText||''};
+              const pendingRaw=localStorage.getItem('universo-experiencia.pendiente.v1');
+              let pending=null;try{pending=JSON.parse(pendingRaw||'null');}catch{}
+              const offlineJourneyReady=await waitFor(()=>(
+                document.querySelector('.journey-view .lesson h1')?.innerText||''
+              ).includes('Antes de despegar'),7000);
+              const offlineError=document.querySelector('.journey-view .error')?.innerText||'';
+              const failuresCompleted=await waitFor(()=>window.__fixtureSaveFailures===0&&
+                window.__fixtureWrites.slice(failureWriteStart)
+                  .filter(x=>x.name==='universo_guardar_viaje').length===3,7000);
+              const failureWrites=window.__fixtureWrites.slice(failureWriteStart)
+                .filter(x=>x.name==='universo_guardar_viaje');
+              const flushWriteStart=window.__fixtureWrites.length;
+              const flushResult=await flushPending();
+              const flushWrites=window.__fixtureWrites.slice(flushWriteStart)
+                .filter(x=>x.name==='universo_guardar_viaje');
+              const pendingAfterFlush=localStorage.getItem('universo-experiencia.pendiente.v1');
+              const offlineRecovery={mapReady:offlineMapReady,actionFound:!!launchAction,
+                immediateJourney,journeyReady:offlineJourneyReady,
+                lesson:document.querySelector('.lesson h1')?.innerText||'',failuresCompleted,
+                redError:offlineError,pendingStored:!!pendingRaw,pendingToken:pending?.token,
+                pendingStep:pending?.changes?.step,failureWrites:failureWrites.length,
+                flushResult:Boolean(flushResult),flushWrites:flushWrites.length,
+                flushedStep:flushWrites.at(-1)?.args?.p_viaje?.paso,
+                serverStep:fixtureJourney.paso,pendingCleared:pendingAfterFlush===null};
+              return {results,header,evaluation,access,registration,legacySatellite,offlineRecovery,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
         report = {"before": before, "after": after, "hierarchyBefore": hierarchy_before,
                   "hierarchyAfter": hierarchy_after, "hierarchyChecks":hierarchy_checks,
-                  "pauseCheck":pause_check, "visibilitySweeps":sweeps,
+                  "pauseCheck":pause_check, "ambientEffects":ambient_check, "visibilitySweeps":sweeps,
                   "layoutMetrics":layout_measurements, "layoutChecks":proportional_checks,
                   "visualCopyChecks":copy_checks, "bodySizeComparisons":body_comparisons,
                   "hoverChecks":hover_report,
@@ -782,6 +968,7 @@ def main():
                           "resourceErrors": failed_resources, "labels": after.get("labels"),
                           "scroll": after.get("scroll"), "integration": integration,
                           "hierarchyChecks":hierarchy_checks, "pauseCheck":pause_check,
+                          "ambientEffects":ambient_check,
                           "layoutChecks":proportional_checks,
                           "visualCopyChecks":copy_checks, "bodySizeComparisons":body_comparisons,
                           "hoverChecks":hover_report,
@@ -815,12 +1002,29 @@ def main():
             not integration["legacySatellite"].get("saveOk") or
             not integration["legacySatellite"].get("mapReadyAfterSave") or
             integration["legacySatellite"].get("satelliteWrites", 0) < 1 or
-            integration["legacySatellite"].get("invalidWrites"))
+            integration["legacySatellite"].get("invalidWrites") or
+            not integration["offlineRecovery"].get("mapReady") or
+            not integration["offlineRecovery"].get("actionFound") or
+            not integration["offlineRecovery"].get("immediateJourney", {}).get("ready") or
+            "Antes de despegar" not in integration["offlineRecovery"].get("immediateJourney", {}).get("lesson", "") or
+            integration["offlineRecovery"].get("immediateJourney", {}).get("redError") or
+            not integration["offlineRecovery"].get("journeyReady") or
+            not integration["offlineRecovery"].get("failuresCompleted") or
+            integration["offlineRecovery"].get("redError") or
+            not integration["offlineRecovery"].get("pendingStored") or
+            integration["offlineRecovery"].get("pendingToken") != "fixture-registration-session" or
+            integration["offlineRecovery"].get("pendingStep") != "lanzamiento" or
+            integration["offlineRecovery"].get("failureWrites") != 3 or
+            not integration["offlineRecovery"].get("flushResult") or
+            integration["offlineRecovery"].get("flushWrites") != 1 or
+            integration["offlineRecovery"].get("flushedStep") != "lanzamiento" or
+            integration["offlineRecovery"].get("serverStep") != "lanzamiento" or
+            not integration["offlineRecovery"].get("pendingCleared"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
-        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
+        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or not ambient_check.get("pass") or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
             raise SystemExit(1)
     finally:
-        if cdp is not None and process.poll() is None:
+        if cdp is not None:
             try:
                 cdp.sock.settimeout(3)
                 cdp.call("Browser.close")
@@ -828,6 +1032,7 @@ def main():
                 pass
         if process.poll() is None:
             process.terminate()
+        stop_edge_profile_processes(profile)
         server.shutdown()
         log.close()
 

@@ -70,6 +70,9 @@ errores de materiales, carga de texturas y los ciclos de entrada/salida del mapa
 ## Publicar en Vercel
 
 1. Cree un repositorio en GitHub y suba esta carpeta.
-2. En Vercel, importe ese repositorio.
-3. Seleccione **Framework Preset: Other**, deje vacío **Build Command** y establezca **Output Directory: `.`**.
-4. Despliegue. Vercel publicará el sitio estático sin necesitar Node localmente.
+2. En Vercel, importe ese repositorio y seleccione **Framework Preset: Other**.
+3. Deje vacío **Build Command** y establezca **Output Directory: `.`**.
+4. Despliegue. Vercel publicará el sitio estático y la función serverless
+   `/api/rpc` definida en `api/rpc.js`; no se requiere un proyecto Next.js ni una
+   instalación local de Node.
+5. Los `push` posteriores a la rama de producción activarán nuevos despliegues.

@@ -1,8 +1,10 @@
 const SUPABASE_URL = "https://vbrezgsxbfxtfzfcmqce.supabase.co";
 const SUPABASE_KEY = "sb_publishable_mwJdpfrhPEZCxzHIrJ-7_w_jze0OPzT";
 const db = window.supabase?.createClient(SUPABASE_URL, SUPABASE_KEY);
+const CAN_USE_RPC_PROXY = location.protocol === "https:";
 const ID_KEY = "universo-experiencia.identidad.v2";
 const SESSION_KEY = "universo-experiencia.sesion.v3";
+const PENDING_KEY = "universo-experiencia.pendiente.v1";
 const steps = [["lanzamiento", "Centro de lanzamiento", "Puerta de entrada al cúmulo Grupo EPM"], ["estrellas", "Estrellas cliente", "Clientes y usuarios orbitan el centro de su galaxia"], ["planetas", "Planetas de talento", "Empleados, roles y competencias alrededor del cliente"], ["coordenadas", "Constelación guía", "Modelo de experiencia y arquitectura empresarial"], ["satelites", "Satélites del ecosistema", "Proveedores y contratistas, Dueño y Comunidad"], ["observatorio", "Observatorio de señales", "Medir para aprender y actuar"], ["mision", "Misión en la Tierra", "Convertir aprendizaje en acción"]];
 const planets = { empaticos:{name:"Planeta de los Empáticos",power:"Lees necesidades y emociones antes de buscar una respuesta.",color:"#3fd6a8"}, conectores:{name:"Planeta de los Conectores",power:"Conectas perspectivas y haces que las personas trabajen juntas.",color:"#6fb6ff"}, impulsores:{name:"Planeta de los Impulsores",power:"Das dirección a la energía del equipo para que las promesas se cumplan.",color:"#ffc15e"}, exploradores:{name:"Planeta de los Exploradores",power:"Encuentras caminos posibles cuando el contexto cambia.",color:"#c77bff"}, forjadores:{name:"Planeta de los Forjadores",power:"Conviertes la experiencia diaria en crecimiento personal y ejemplo.",color:"#b7e05a"} };
 const duels = [
@@ -21,7 +23,7 @@ let clientId = localStorage.getItem(ID_KEY); if (!clientId) { clientId = crypto.
 let sessionToken = localStorage.getItem(SESSION_KEY) || "";
 let participantEmail = "";
 let feedback = {rating:0,recommendation:""};
-let heartbeatTimer;
+let heartbeatTimer, pendingSyncTimer, syncPromise=null, sessionEpoch=0, lastSyncError=null, rpcProxyDisabledUntil=0;
 let trip = {name:"",step:"lanzamiento",duels:{},satellites:[],mission:{}}; let view = "start"; let duelIndex = 0; let localAnswer = ""; let pendingSatellites = [];
 const app = document.querySelector("#app");
 const safe = (v) => String(v || "").replace(/[&<>'"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
@@ -44,6 +46,90 @@ function normalizeSatellites(value) {
   if(!Array.isArray(source))return [];
   return [...new Set(source.map(normalizeSatelliteId).filter(Boolean))].slice(0,3);
 }
+function errorDetails(err) { return [err?.name,err?.message,err?.details,err?.hint,err?.code,err?.cause?.message,String(err||"")].filter(Boolean).join(" "); }
+function isNetworkError(err) { return navigator.onLine===false||/failed to fetch|network\s*(?:error|request)|load failed|fetch failed|err_network|aborterror|timed?\s*out|conexi[oó]n|conectar|canal seguro|tard[oó] demasiado|respuesta incompleta|temporar(?:io|ily)|gateway|upstream|\b50[234]\b/i.test(errorDetails(err)); }
+const retryDelay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+async function proxyRpc(name,args) {
+  const response=await fetch("/api/rpc",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,args})});
+  if(response.headers.get("x-universe-rpc-proxy")!=="1")throw new TypeError("El canal seguro de Supabase no está disponible.");
+  const text=await response.text();let payload=null;
+  try{payload=text?JSON.parse(text):null;}catch{throw new TypeError("El canal seguro de Supabase devolvió una respuesta incompleta.");}
+  if(!response.ok)return {data:null,error:payload&&typeof payload==="object"?payload:{message:text||`Error ${response.status}`}};
+  return {data:payload,error:null};
+}
+async function requestRpc(name,args) {
+  if(CAN_USE_RPC_PROXY&&Date.now()>=rpcProxyDisabledUntil){
+    try{return await proxyRpc(name,args);}
+    catch(err){rpcProxyDisabledUntil=Date.now()+60000;if(!db)throw err;}
+  }
+  if(!db)throw new TypeError("No se pudo iniciar la conexión con Supabase.");
+  return db.rpc(name,args);
+}
+async function rpcWithRetry(name,args,retries=2) {
+  let lastError;
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      const result=await requestRpc(name,args);
+      if(result?.error&&isNetworkError(result.error))throw result.error;
+      return result;
+    }catch(err){
+      lastError=err;
+      if(!isNetworkError(err)||attempt===retries)throw err;
+      await retryDelay(attempt?900:350);
+    }
+  }
+  throw lastError;
+}
+function queuedEntry() {
+  try{
+    const queued=JSON.parse(localStorage.getItem(PENDING_KEY)||"null");
+    if(queued?.token!==sessionToken||!queued.changes||typeof queued.changes!=="object")return null;
+    const changes={...queued.changes};
+    if(Object.prototype.hasOwnProperty.call(changes,"satellites"))changes.satellites=normalizeSatellites(changes.satellites);
+    return {token:queued.token,version:Number(queued.version)||0,changes};
+  }catch{return null;}
+}
+function queuedChanges() { return queuedEntry()?.changes||{}; }
+function queueChanges(changes) {
+  const current=queuedEntry(),merged={...(current?.changes||{}),...changes};
+  if(Object.prototype.hasOwnProperty.call(merged,"satellites"))merged.satellites=normalizeSatellites(merged.satellites);
+  const version=(current?.version||0)+1;
+  localStorage.setItem(PENDING_KEY,JSON.stringify({token:sessionToken,version,changes:merged}));
+  schedulePendingSync();
+  return version;
+}
+async function flushPending() {
+  if(syncPromise)return syncPromise;
+  const tokenAtStart=sessionToken,epochAtStart=sessionEpoch;
+  if(!tokenAtStart||(!db&&!CAN_USE_RPC_PROXY)||!queuedEntry())return true;
+  syncPromise=(async()=>{
+    lastSyncError=null;
+    while(tokenAtStart===sessionToken&&epochAtStart===sessionEpoch){
+      const entry=queuedEntry();if(!entry)return true;
+      try{
+        const {data,error:err}=await rpcWithRetry("universo_guardar_viaje",{p_token:tokenAtStart,p_viaje:tripPayload(entry.changes)},2);
+        if(err)throw err;
+        if(tokenAtStart!==sessionToken||epochAtStart!==sessionEpoch)return false;
+        const latest=queuedEntry();
+        if(latest?.version!==entry.version)continue;
+        localStorage.removeItem(PENDING_KEY);
+        if(data)hydrate(data);
+        return true;
+      }catch(err){
+        lastSyncError=err;
+        if(sessionError(err)&&tokenAtStart===sessionToken){sessionEpoch++;clearInterval(heartbeatTimer);localStorage.removeItem(PENDING_KEY);localStorage.removeItem(SESSION_KEY);sessionToken="";view="start";render("Tu sesión terminó. Ingresa nuevamente con tu correo.");}
+        return false;
+      }
+    }
+    return false;
+  })().finally(()=>{syncPromise=null;});
+  return syncPromise;
+}
+function schedulePendingSync(delay=5000) {
+  clearTimeout(pendingSyncTimer);
+  pendingSyncTimer=setTimeout(async()=>{if(!await flushPending())schedulePendingSync(12000);},delay);
+}
+window.addEventListener("online",()=>{if(sessionToken)schedulePendingSync(0);});
 function hydrate(payload) {
   const result=rpcPayload(payload)||{},row=result.viaje||result;
   participantEmail=result.correo||participantEmail;
@@ -64,24 +150,38 @@ function tripPayload(changes) {
   if(has("mission"))payload.mision=changes.mission||{};
   return payload;
 }
-function startHeartbeat() { clearInterval(heartbeatTimer); if(!sessionToken)return; heartbeatTimer=setInterval(()=>db?.rpc("universo_heartbeat",{p_token:sessionToken}),45000); }
+function startHeartbeat() { clearInterval(heartbeatTimer); if(!sessionToken)return; heartbeatTimer=setInterval(async()=>{try{await flushPending();await rpcWithRetry("universo_heartbeat",{p_token:sessionToken},0);}catch{}},45000); }
 function sessionError(err) { return /token|sesión|sesion|expir/i.test(err?.message||""); }
 async function load() {
-  if(!db)return render("No se pudo iniciar la conexión con Supabase.");
+  if(!db&&!CAN_USE_RPC_PROXY)return render("No se pudo iniciar la conexión con Supabase.");
   if(!sessionToken)return render();
+  const tokenAtStart=sessionToken,epochAtStart=sessionEpoch;
   try{
-    const {data,error:err}=await db.rpc("universo_mi_viaje",{p_token:sessionToken});
-    if(err)throw err;hydrate(data);view="map";startHeartbeat();render();
-  }catch(err){localStorage.removeItem(SESSION_KEY);sessionToken="";view="start";render(sessionError(err)?"Tu sesión terminó. Ingresa nuevamente con tu correo.":`No pudimos recuperar tu viaje: ${err.message||"revisa la conexión con Supabase."}`);}
+    const {data,error:err}=await rpcWithRetry("universo_mi_viaje",{p_token:sessionToken},1);
+    if(tokenAtStart!==sessionToken||epochAtStart!==sessionEpoch)return;
+    if(err)throw err;hydrate(data);const pending=queuedChanges();if(Object.keys(pending).length){trip={...trip,...pending,satellites:normalizeSatellites(pending.satellites??trip.satellites)};pendingSatellites=[...trip.satellites];schedulePendingSync(0);}view="map";startHeartbeat();render();
+  }catch(err){
+    if(tokenAtStart!==sessionToken||epochAtStart!==sessionEpoch)return;
+    if(sessionError(err)){sessionEpoch++;localStorage.removeItem(PENDING_KEY);localStorage.removeItem(SESSION_KEY);sessionToken="";view="start";render("Tu sesión terminó. Ingresa nuevamente con tu correo.");return;}
+    view="start";render(`No pudimos recuperar tu viaje todavía: ${err.message||"revisa la conexión."} Reintentaremos automáticamente.`);
+    setTimeout(()=>{if(tokenAtStart===sessionToken&&epochAtStart===sessionEpoch)load();},5000);
+  }
 }
 async function persist(changes, nextView) {
   const next={...trip,...changes};
   if(!sessionToken){view="start";render("Ingresa con tu correo para guardar el viaje.");return false;}
   if(!next.name||next.name.trim().length<2){render("Escribe tu nombre completo para continuar.");return false;}
-  try{
-    const {data,error:err}=await db.rpc("universo_guardar_viaje",{p_token:sessionToken,p_viaje:tripPayload(changes)});
-    if(err)throw err;trip=next;if(data)hydrate(data);if(nextView)view=nextView;startHeartbeat();render();return true;
-  }catch(err){if(sessionError(err)){localStorage.removeItem(SESSION_KEY);sessionToken="";view="start";}render(`No pudimos guardar tu avance: ${err.message||"intenta de nuevo."}`);return false;}
+  const tokenAtStart=sessionToken,epochAtStart=sessionEpoch,version=queueChanges(changes);
+  trip=next;if(nextView)view=nextView;render();
+  const saved=await flushPending();
+  if(tokenAtStart!==sessionToken||epochAtStart!==sessionEpoch){if(!sessionToken&&view!=="start"){view="start";render("Tu sesión terminó. Ingresa nuevamente con tu correo.");}return false;}
+  if(saved){startHeartbeat();return true;}
+  if(!sessionToken){view="start";render("Tu sesión terminó. Ingresa nuevamente con tu correo.");return false;}
+  if(lastSyncError&&!isNetworkError(lastSyncError)){
+    if(queuedEntry()?.version===version)localStorage.removeItem(PENDING_KEY);
+    render(`No pudimos guardar tu avance: ${lastSyncError.message||"intenta de nuevo."}`);return false;
+  }
+  startHeartbeat();schedulePendingSync(12000);return true;
 }
 function render(message="") { window.destroyClientOrbitalScene?.(); if(view==="start") return renderStart(message); if(view==="map"){renderClientCenteredRealm(message); window.requestAnimationFrame(()=>window.initClientOrbitalScene?.(steps.findIndex((s)=>s[0]===trip.step))); return;} if(view==="passport") return renderPassport(); renderJourney(message); }
 function renderOrbitalRealm(message) { const index=steps.findIndex((s)=>s[0]===trip.step); const objects=[['launch','lanzamiento','Centro de lanzamiento','assets/cohete-realista.png','18','-7'],['stars','estrellas','Las estrellas','assets/estrella-realista.png','23','-14'],['planets','planetas','Los planetas','assets/planeta-anillado.png','28','-21'],['coordinates','coordenadas','Coordenadas','assets/coordenadas-3d.png','25','-9'],['satellites','satelites','Satélites y constelaciones','assets/satelites-constelacion.png','31','-17'],['observatory','observatorio','Observatorio de señales','assets/observatorio-orbital.png','34','-27']]; const bodies=objects.map((o,i)=>`<div class="realm-ring realm-ring-${o[0]}" aria-hidden="true"></div><button class="realm-body realm-body-${o[0]} ${i<=index?'available':''}" style="--duration:${o[4]}s;--delay:${o[5]}s" ${i>index?'disabled':''} onclick="goStep('${o[1]}')"><span class="realm-art"><img src="${o[3]}" alt=""></span><span class="realm-label"><small>${i<index?'COMPLETADO':i===index?'SIGUIENTE SEÑAL':`MOMENTO ${i+1}`}</small><b>${o[2]}</b></span></button>`).join(''); const missionIndex=steps.findIndex(s=>s[0]==='mision'); app.innerHTML=`<main class="universo orbital-realm-view">${nav()}<section class="orbital-realm" aria-label="Sistema orbital interactivo"><button class="realm-core ${missionIndex<=index?'available':''}" ${missionIndex>index?'disabled':''} onclick="goStep('mision')"><img src="assets/tierra-realista.png" alt="Misión en la Tierra"><span class="realm-label"><small>${missionIndex<index?'COMPLETADO':missionIndex===index?'SIGUIENTE SEÑAL':'MOMENTO 7'}</small><b>Misión en la Tierra</b></span></button>${bodies}</section>${error(message)}</main>`; }
@@ -112,10 +212,11 @@ async function loginParticipant(event){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return render("Escribe un correo electrónico válido.");
   const button=document.querySelector(".access-form .primary");if(button){button.disabled=true;button.textContent="Ingresando…";}
   try{
-    const {data,error:err}=await db.rpc("universo_ingresar",{p_correo:email,p_nombre:name,p_legacy_client_id:clientId});
+    const {data,error:err}=await rpcWithRetry("universo_ingresar",{p_correo:email,p_nombre:name,p_legacy_client_id:clientId},1);
     if(err)throw err;const result=rpcPayload(data)||{};
     if(!result.token)throw new Error("Supabase no devolvió una sesión válida.");
-    sessionToken=result.token;localStorage.setItem(SESSION_KEY,sessionToken);hydrate(result);
+    sessionEpoch++;sessionToken=result.token;localStorage.setItem(SESSION_KEY,sessionToken);
+    if(!queuedEntry())localStorage.removeItem(PENDING_KEY);hydrate(result);
     view="map";startHeartbeat();render();
   }catch(err){render(`No pudimos ingresar: ${err.message||"intenta nuevamente."}`);}
 }
@@ -124,9 +225,9 @@ function closeFeedback(){document.querySelector("#feedback-dialog")?.close();}
 async function saveFeedback(event){
   event.preventDefault();const form=event.currentTarget,rating=Number(new FormData(form).get("rating")),recommendation=document.querySelector("#feedback-recommendation")?.value.trim()||"";
   const status=document.querySelector("#feedback-status"),button=form.querySelector("button[type=submit]");button.disabled=true;status.textContent="Guardando tu evaluación…";
-  try{const {data,error:err}=await db.rpc("universo_guardar_feedback",{p_token:sessionToken,p_calificacion:rating,p_recomendacion:recommendation});if(err)throw err;const saved=rpcPayload(data)||{};feedback={rating:Number(saved.calificacion)||rating,recommendation:saved.recomendacion??recommendation};status.textContent="Gracias. Tu evaluación quedó guardada.";setTimeout(closeFeedback,900);}catch(err){status.textContent=`No pudimos guardar: ${err.message||"intenta nuevamente."}`;}finally{button.disabled=false;}
+  try{const {data,error:err}=await rpcWithRetry("universo_guardar_feedback",{p_token:sessionToken,p_calificacion:rating,p_recomendacion:recommendation},1);if(err)throw err;const saved=rpcPayload(data)||{};feedback={rating:Number(saved.calificacion)||rating,recommendation:saved.recomendacion??recommendation};status.textContent="Gracias. Tu evaluación quedó guardada.";setTimeout(closeFeedback,900);}catch(err){status.textContent=`No pudimos guardar: ${err.message||"intenta nuevamente."}`;}finally{button.disabled=false;}
 }
-async function logoutParticipant(){const token=sessionToken;sessionToken="";clearInterval(heartbeatTimer);localStorage.removeItem(SESSION_KEY);try{if(token)await db.rpc("universo_salir",{p_token:token});}catch{}trip={name:"",step:"lanzamiento",duels:{},satellites:[],mission:{}};participantEmail="";feedback={rating:0,recommendation:""};view="start";render();}
+async function logoutParticipant(){const token=sessionToken;sessionEpoch++;sessionToken="";clearInterval(heartbeatTimer);clearTimeout(pendingSyncTimer);localStorage.removeItem(SESSION_KEY);localStorage.removeItem(PENDING_KEY);trip={name:"",step:"lanzamiento",duels:{},satellites:[],mission:{}};participantEmail="";feedback={rating:0,recommendation:""};view="start";render();try{if(token)await rpcWithRetry("universo_salir",{p_token:token},0);}catch{}}
 function showMap(){if(!sessionToken){view="start";return render();}view="map";render();}function showPassport(){if(!sessionToken)return;view="passport";render();}function goStep(step){localAnswer="";persist({step},"journey");}function answer(value){localAnswer=value;render();}function pickDuel(id){const picks={...trip.duels,[duelIndex]:id};if(duelIndex<duels.length-1){duelIndex++;persist({duels:picks});}else{const points=Object.keys(planets).reduce((a,k)=>(a[k]=0,a),{});Object.values(picks).forEach(x=>points[x]++);const rank=Object.keys(planets).sort((a,b)=>points[b]-points[a]);persist({duels:picks,mainPlanet:rank[0],explorePlanet:rank[1],step:"coordenadas"});}}function pickRole(role){persist({role,step:"satelites"});}function toggleSatellite(id){pendingSatellites=pendingSatellites.includes(id)?pendingSatellites.filter(x=>x!==id):[...pendingSatellites,id];render();}function saveSatellites(){persist({satellites:pendingSatellites,step:"observatorio"});}function saveObservatory(){persist({observatory:"CES · Esfuerzo del cliente",step:"mision"});}function saveMission(){const mission={accion:document.querySelector("#action").value.trim(),conQuien:document.querySelector("#with").value,aprendizaje:document.querySelector("#learning").value};if(!mission.accion||!mission.conQuien||!mission.aprendizaje)return render("Completa los tres componentes de tu misión.");persist({mission},"passport");}
 
 function renderMap(message) { const index=steps.findIndex((s)=>s[0]===trip.step); const coordinates=[["22%","18%"],["47%","12%"],["77%","20%"],["83%","51%"],["70%","78%"],["23%","74%"],["50%","47%"]]; const hotspot=steps.map((s,i)=>`<button class="real-hotspot ${i<=index?"available":""}" style="left:${coordinates[i][0]};top:${coordinates[i][1]}" ${i>index?"disabled":""} onclick="goStep('${s[0]}')" aria-label="${s[1]}"><span class="hotspot-ring"></span><span class="hotspot-copy"><small>${i<index?"COMPLETADO":i===index?"SIGUIENTE SEÑAL":`MOMENTO ${i+1}`}</small><b>${s[1]}</b></span></button>`).join(""); app.innerHTML=`<main class="universo map-view">${nav()}<section class="map-head map-real-head"><div><p class="tag">Universo → mapa de navegación</p><p>Selecciona los cuerpos celestes para abrir cada territorio de la experiencia.</p></div><div class="counter"><b>${Math.max(0,index+1)}<small>de 7 momentos</small></b><span>Tu viaje</span></div></section><section class="real-orbital-map" style="background-image:linear-gradient(180deg,rgba(1,5,18,.05),rgba(1,5,18,.18)),url('assets/mapa-orbital-realista.png')" aria-label="Mapa orbital realista">${hotspot}</section>${error(message)}</main>`; }
