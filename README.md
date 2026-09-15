@@ -17,12 +17,21 @@ Luego abra `http://127.0.0.1:4173/`. No requiere Node ni instalación de depende
 El mapa usa Three.js r160, incluido en `vendor/` con su licencia MIT. Una sola
 escena representa la jerarquía galaxia → estrellas cliente → planetas empleados
 → satélites de otros actores. La vista ampliada sigue la posición de la misma
-estrella señalada en la galaxia; no es otro sistema independiente. Las superficies
-son mallas 3D con materiales procedurales y rotación propia. Las constelaciones son
+estrella señalada en la galaxia; no es otro sistema independiente. Los planetas son
+mallas 3D opacas con mapas equirectangulares 2K, iluminación y rotación propia.
+La Tierra incluye continentes reales y una capa de nubes con movimiento independiente.
+Las texturas y su licencia están documentadas en [los créditos](texture-credits.html).
+Las constelaciones son
 líneas en pantalla que unen proyecciones de estrellas a distintas profundidades.
 
-Las órbitas y las posiciones comparten la misma ecuación. Las traslaciones duran
-entre 48 segundos (satélite interior) y 25 minutos (estrella seleccionada).
+Las órbitas y las posiciones comparten la misma ecuación. Las guías son bandas
+tenues con transparencia gradual en los bordes, sin un trazo central definido.
+Solo se dibujan si tienen un cuerpo asociado y corresponden a la escala visible:
+el acercamiento a un planeta muestra únicamente las órbitas de sus propios satélites.
+El encuadre considera la envolvente de las órbitas completas y el volumen de cada
+objeto; reserva un margen inferior antes de la información y los controles.
+Las traslaciones duran 48–94 segundos para satélites, 210–650 segundos para planetas
+y 25 minutos para la estrella seleccionada.
 La pausa y la preferencia de movimiento reducido detienen la animación. En móvil,
 las pestañas alternan las dos escalas y seleccionar un planeta permite acercarse.
 
@@ -34,10 +43,14 @@ Prueba visual y de ejecución, con Python y Microsoft Edge existentes:
 
 ```bash
 python scripts/check_scene.py --width 1440 --height 900 --advance 120
+python scripts/check_scene.py --sweep --resize-sweep --integration
 ```
 
 El comprobador usa un servidor local, captura WebGL, registra errores y posiciones
 3D, y no escribe en Supabase. Los artefactos de prueba no se publican.
+El barrido comprueba límites y selección de los 12 cuerpos durante 1.500 segundos
+simulados en escritorio, pantalla baja y móvil; también valida guías sin dueño,
+errores de materiales, carga de texturas y los ciclos de entrada/salida del mapa.
 
 ## Configurar Supabase
 

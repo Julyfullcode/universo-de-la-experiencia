@@ -1,6 +1,6 @@
 """Run the isolated orbital map in Edge with real WebGL; no Node or Supabase.
 
-Usage: python scripts/check_scene.py --width 1440 --height 900
+Usage: python scripts/check_scene.py --width 1440 --height 900 --sweep --resize-sweep
 Artifacts are kept in a temporary folder. Three r160 is cached outside the repo.
 """
 import argparse
@@ -11,6 +11,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import socket
 import struct
@@ -35,7 +36,16 @@ HARNESS = """<!doctype html><html lang="es"><meta charset="utf-8">
 <script>window.__errors=[];window.__clicked=[];
 window.addEventListener('error',e=>window.__errors.push(e.message));
 window.addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason)));
-window.goStep=step=>window.__clicked.push(step);</script>
+window.goStep=step=>window.__clicked.push(step);
+// Keep screenshots deterministic and let software WebGL finish its current frame.
+const nativeRAF=window.requestAnimationFrame.bind(window),deferredFrames=[];
+let framesFrozen=false;
+window.requestAnimationFrame=callback=>nativeRAF(time=>{
+ if(framesFrozen)deferredFrames.push(callback);else callback(time);
+});
+window.__sceneFrameControl={pause(){framesFrozen=true;},resume(){
+ framesFrozen=false;deferredFrames.splice(0).forEach(callback=>nativeRAF(callback));
+}};</script>
 <script src="/__three_local__.js"></script>
 <script>
 const OriginalRenderer=THREE.WebGLRenderer;
@@ -59,10 +69,11 @@ window.__sceneSnapshot=()=>{
   inspector:document.querySelector('.cosmos-inspector')?.innerText,
   labels:Array.from(document.querySelectorAll('.three-space-label,.cosmos-object-label')).map(e=>{
    const r=e.getBoundingClientRect();return {text:e.innerText,disabled:e.disabled,
-    rect:[r.x,r.y,r.width,r.height],visible:!e.hidden&&r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight};
+    rect:[r.x,r.y,r.width,r.height],visible:!e.hidden&&getComputedStyle(e).visibility!=='hidden'&&r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,
+    fullyInside:r.left>=0&&r.top>=0&&r.right<=innerWidth+.5&&r.bottom<=innerHeight+.5};
   })};
 };
-</script><script src="/orbital-3d.js"></script>
+</script><!-- scene-helpers --><script src="/orbital-3d.js"></script>
 <script>window.initClientOrbitalScene?.(7);</script></html>"""
 INTEGRATION_STUB = """<script>
 window.__fixtureWrites=[];window.__networkAttempts=[];
@@ -152,6 +163,78 @@ class CDP:
         return result.get("result", {}).get("value")
 
 
+def local_scene_helpers():
+    """Mirror production's local helpers without loading analytics or Supabase."""
+    scripts = re.findall(r'<script\b[^>]*\bsrc=["\']([^"\']+)["\']',
+                         (ROOT / "index.html").read_text(encoding="utf-8"), flags=re.I)
+    helpers = []
+    for source in scripts:
+        parsed = urllib.parse.urlsplit(source)
+        if Path(parsed.path).name == "orbital-3d.js":
+            break
+        if parsed.scheme or parsed.netloc or "three" in Path(parsed.path).name.lower():
+            continue
+        helpers.append(f'<script src="/{source.lstrip(chr(47))}"></script>')
+    return "\n".join(helpers)
+
+
+def visibility_sweep(cdp, seconds, samples):
+    """Audit actual projected geometry synchronously across complete orbital cycles."""
+    options = json.dumps({"seconds": seconds, "samples": samples})
+    return cdp.evaluate("""(() => {
+      const options=OPTIONS,debug=window.__universeDebug;
+      if(!debug?.setTime||!debug?.auditVisibility)
+        throw Error('Visibility sweep requires __universeDebug.setTime and auditVisibility');
+      const original=debug.snapshot(),pause=document.querySelector('.cosmos-pause');
+      if(!original.paused)pause.click();
+      debug.select('client');
+      const frames=[],failures=[];
+      const expectedIds=original.objects.filter(o=>['client','planet','satellite','waypoint'].includes(o.kind))
+        .map(o=>o.id).sort().join(',');
+      try {
+        for(let sample=0;sample<options.samples;sample++) {
+          const t=options.seconds*sample/(options.samples-1);
+          // CPU geometry/camera audit; defer GPU rendering to the final frame.
+          debug.setTime(t,false);
+          const audit=debug.auditVisibility(),objects=audit.objects||[],guides=audit.orbitGuides||[];
+          if(!objects.length)throw Error('Visibility audit returned no stellar objects');
+          const ids=objects.map(o=>o.id).sort().join(',');
+          if(ids!==expectedIds)failures.push({time:t,type:'missing-object',ids});
+          const invalid=objects.filter(o=>!o.inside||!o.selectable||!o.bounds||
+            !['left','right','top','bottom'].every(k=>Number.isFinite(o.bounds[k])));
+          invalid.forEach(o=>failures.push({time:t,type:'object',object:o,safeRect:audit.safeRect}));
+          guides.filter(g=>g.visible&&(!g.occupied||g.soft!==true)).forEach(g=>
+            failures.push({time:t,type:'orbit-guide',guide:g}));
+          frames.push({time:t,view:audit.view,objects:objects.length,
+            visibleGuides:guides.filter(g=>g.visible).length,invalid:invalid.length});
+        }
+      } finally {
+        debug.setTime(original.elapsed);debug.select(original.selected);
+        if(!original.paused)pause.click();
+      }
+      return {viewport:[innerWidth,innerHeight],duration:options.seconds,
+        samples:options.samples,expectedIds,frames,failures,pass:failures.length===0};
+    })()""".replace("OPTIONS", options))
+
+
+def set_viewport(cdp, width, height):
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
+             "deviceScaleFactor": 1, "mobile": False})
+    cdp.evaluate("""new Promise(resolve=>requestAnimationFrame(()=>
+      requestAnimationFrame(()=>requestAnimationFrame(resolve))))""")
+
+
+def capture_scene(cdp, target):
+    cdp.evaluate("window.__sceneFrameControl?.pause()")
+    try:
+        # A screenshot must not race an unbounded stream of software-rendered frames.
+        time.sleep(.25)
+        screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})
+        target.write_bytes(base64.b64decode(screenshot["data"]))
+    finally:
+        cdp.evaluate("window.__sceneFrameControl?.resume()")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--width", type=int, default=1440)
@@ -161,9 +244,15 @@ def main():
     parser.add_argument("--click", help="Click a local CSS selector before the second snapshot")
     parser.add_argument("--select", help="Select a scene debug record before the second snapshot")
     parser.add_argument("--integration", action="store_true", help="Load the real app with a local fake Supabase")
+    parser.add_argument("--sweep", action="store_true", help="Audit all selectable 3D bodies across a complete galactic orbit")
+    parser.add_argument("--sweep-samples", type=int, default=61, help="Time samples including both orbital-cycle endpoints")
+    parser.add_argument("--sweep-seconds", type=float, default=1500, help="Total simulated time for the visibility sweep")
+    parser.add_argument("--resize-sweep", action="store_true", help="Also audit 1440x900, 1440x650 and 390x844 without relaunching Edge")
     parser.add_argument("--no-screenshot", action="store_true", help="Only validate runtime and integration")
     parser.add_argument("--url", help="Optional local page path instead of the isolated scene")
     args = parser.parse_args()
+    if args.sweep_samples < 2 or args.sweep_seconds <= 0:
+        parser.error("A visibility sweep requires at least two samples and positive duration")
     edge = Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
     if not edge.exists():
         raise RuntimeError("Microsoft Edge was not found")
@@ -180,7 +269,7 @@ def main():
         def do_GET(self):
             path = urllib.parse.urlsplit(self.path).path
             if path in ("/__scene_check__", "/__three_local__.js"):
-                page = HARNESS
+                page = HARNESS.replace('<!-- scene-helpers -->', local_scene_helpers())
                 if args.integration:
                     first = page.index('<main class="universo orbital-realm-view">')
                     last = page.index('</main>', first) + len('</main>')
@@ -239,6 +328,14 @@ def main():
                 (artifacts / "failure.json").write_text(json.dumps({"diagnostics": diagnostics, "events": cdp.events}, ensure_ascii=False, indent=2), encoding="utf-8")
                 raise RuntimeError(f"Scene did not render; see {artifacts / 'failure.json'}")
             time.sleep(.2)
+        deadline = time.monotonic() + 25
+        while not cdp.evaluate("window.__universeDebug?.snapshot?.().assetsReady !== false"):
+            if time.monotonic() > deadline:
+                diagnostics = cdp.evaluate("window.__universeDebug?.snapshot?.()")
+                (artifacts / "asset-failure.json").write_text(json.dumps(diagnostics,
+                    ensure_ascii=False, indent=2), encoding="utf-8")
+                raise RuntimeError(f"Scene textures did not finish loading; see {artifacts / 'asset-failure.json'}")
+            time.sleep(.2)
         time.sleep(1)
         before = cdp.evaluate("window.__sceneSnapshot()")
         hierarchy_before = cdp.evaluate("window.__universeDebug?.snapshot?.() ?? null")
@@ -278,8 +375,26 @@ def main():
           return {before,after,pass:before===after};
         })()""")
         if not args.no_screenshot:
-            screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})
-            (artifacts / "scene.png").write_bytes(base64.b64decode(screenshot["data"]))
+            capture_scene(cdp, artifacts / "scene.png")
+        sweeps = []
+        if args.sweep or args.resize_sweep:
+            layouts = [(args.width, args.height)]
+            if args.resize_sweep:
+                layouts += [(1440, 900), (1440, 650), (390, 844)]
+            for width, height in dict.fromkeys(layouts):
+                if (width, height) != (args.width, args.height):
+                    set_viewport(cdp, width, height)
+                sweep = visibility_sweep(cdp, args.sweep_seconds, args.sweep_samples)
+                layout_snapshot = cdp.evaluate("window.__sceneSnapshot()")
+                sweep["clippedLabels"] = [label for label in layout_snapshot.get("labels", [])
+                    if label["visible"] and not label["fullyInside"]]
+                sweep["scroll"] = layout_snapshot["scroll"]
+                sweep["pass"] = sweep["pass"] and not sweep["clippedLabels"] and \
+                    layout_snapshot["scroll"][0] <= width and layout_snapshot["scroll"][1] <= height
+                sweeps.append(sweep)
+                if not args.no_screenshot and (width, height) != (args.width, args.height):
+                    capture_scene(cdp, artifacts / f"scene-{width}x{height}.png")
+            set_viewport(cdp, args.width, args.height)
         integration = None
         if args.integration:
             integration = cdp.evaluate("""(async()=>{
@@ -297,12 +412,18 @@ def main():
             })()""")
         report = {"before": before, "after": after, "hierarchyBefore": hierarchy_before,
                   "hierarchyAfter": hierarchy_after, "hierarchyChecks":hierarchy_checks,
-                  "pauseCheck":pause_check, "integration": integration, "browserEvents": cdp.events}
+                  "pauseCheck":pause_check, "visibilitySweeps":sweeps,
+                  "integration": integration, "browserEvents": cdp.events}
         (artifacts / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         output_dir = ROOT / "node_modules"
         output_dir.mkdir(exist_ok=True)
         if not args.no_screenshot:
             shutil.copyfile(artifacts / "scene.png", output_dir / f"scene-check-{args.width}x{args.height}.png")
+            for sweep in sweeps:
+                width, height = sweep["viewport"]
+                source = artifacts / f"scene-{width}x{height}.png"
+                if source.exists():
+                    shutil.copyfile(source, output_dir / f"scene-check-{width}x{height}.png")
         shutil.copyfile(artifacts / "report.json", output_dir / f"scene-check-{args.width}x{args.height}.json")
         prior = {o["id"]: o for o in before.get("objects", [])}
         moved = sum(o["position"] != prior.get(o["id"], {}).get("position") for o in after.get("objects", []))
@@ -319,12 +440,14 @@ def main():
                           "resourceErrors": failed_resources, "labels": after.get("labels"),
                           "scroll": after.get("scroll"), "integration": integration,
                           "hierarchyChecks":hierarchy_checks, "pauseCheck":pause_check,
+                          "visibilitySweeps":[{k:v for k,v in sweep.items() if k != "frames"} for sweep in sweeps],
+                          "assetErrors": hierarchy_after.get("assetErrors",[]) if hierarchy_after else [],
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
         integration_failed = integration and (integration["errors"] or integration["network"] or
             any(r.get("debug") or r.get("canvas") != 0 or not r.get("h1") for r in integration["results"] if r["phase"] == "activity") or
             any(not r.get("debug") or r.get("canvas") != 1 or r.get("stage") != 1 or r.get("fallback") for r in integration["results"] if r["phase"] == "map"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
-        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and hierarchy_after.get("shaderErrors")) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]):
+        if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or any(not sweep["pass"] for sweep in sweeps):
             raise SystemExit(1)
     finally:
         if cdp is not None and process.poll() is None:

@@ -25,7 +25,7 @@
   function build(realm,progress){
     const T=window.THREE,renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
     // A rollback exists even if initialization stops before the full lifecycle.
-    active=()=>{renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-inspector,.cosmos-route').forEach(e=>e.remove());};
+    active=()=>{realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-inspector,.cosmos-route').forEach(e=>e.remove());};
     renderer.setClearColor(0x000000,0);renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.outputColorSpace=T.SRGBColorSpace;renderer.autoClear=false;
     const fallback=realm.querySelector('.cosmos-fallback');
     const tabs=document.createElement('div');tabs.className='cosmos-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Escala del universo');
@@ -37,6 +37,7 @@
       <button class="cosmos-overview-link">Seguir a la estrella seleccionada ↗</button>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button><button class="cosmos-pause" aria-pressed="false">Ⅱ Pausar</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
+      <a class="cosmos-credit" href="texture-credits.html" target="_blank" rel="noopener">Créditos de las superficies</a>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath></defs><path clip-path="url(#constellation-viewport)" fill="none" stroke="#a1a7ff" stroke-width="1" stroke-opacity=".65"/></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector';inspector.setAttribute('aria-label','Elemento seleccionado');
@@ -74,32 +75,35 @@
       materials.push(m);const surface=mesh(new T.SphereGeometry(radius,48,32),m,g);spinning.push({object:surface,speed:.018});halo(g,color,radius*5.5,.57);return g;
     }
     function planet(radius,primary,secondary,mode,seed){
-      const g=new T.Group(),m=new T.ShaderMaterial({uniforms:{uLight:{value:lightPosition},uPrimary:{value:new T.Color(primary)},uSecondary:{value:new T.Color(secondary)},uMode:{value:mode},uSeed:{value:seed}},vertexShader:surfaceVertex,fragmentShader:`
-        uniform vec3 uLight,uPrimary,uSecondary;uniform float uMode,uSeed;varying vec3 vLocal,vWorld,vNormal;${noiseGLSL}
-        void main(){vec3 p=normalize(vLocal);float f=fbm(p*4.+uSeed);vec3 base;
-          if(uMode<.5){float bands=sin(p.y*19.+fbm(p*4.)*5.);base=mix(uPrimary,uSecondary,smoothstep(-1.,1.,bands)*.78);base*=.82+f*.5;}
-          else if(uMode<1.5){float land=smoothstep(.49,.53,f);base=mix(uPrimary*(.65+f),uSecondary*(.55+f),land);
-            float clouds=smoothstep(.62,.77,fbm(p*13.+vec3(7.,0.,4.)));base=mix(base,vec3(.87,.96,1.),clouds*.9);
-            base=mix(base,vec3(.7,.87,.97),smoothstep(.88,.99,abs(p.y))*.85);}
-          else {base=mix(uPrimary,uSecondary,smoothstep(.32,.65,f));base*=.6+noise3(p*65.)*.6;}
-          vec3 n=normalize(vNormal),l=normalize(uLight-vWorld),v=normalize(cameraPosition-vWorld);
-          float diffuse=max(dot(n,l),0.),rim=pow(1.-max(dot(n,v),0.),3.);
-          vec3 c=base*(.34+diffuse*.9)+uPrimary*rim*.19;
-          float spec=pow(max(dot(n,normalize(l+v)),0.),40.)*.19*diffuse;
-          gl_FragColor=vec4(c+vec3(.55,.8,1.)*spec,1.);
-          #include <colorspace_fragment>
-        }`});
-      materials.push(m);const surface=mesh(new T.SphereGeometry(radius,48,32),m,g);surface.rotation.z=.22;spinning.push({object:surface,speed:.065});
-      const atm=new T.ShaderMaterial({uniforms:{uColor:{value:new T.Color(primary)}},vertexShader:surfaceVertex,fragmentShader:`uniform vec3 uColor;varying vec3 vLocal,vWorld,vNormal;void main(){float f=pow(1.-abs(dot(normalize(vNormal),normalize(cameraPosition-vWorld))),3.);gl_FragColor=vec4(uColor,f*.32);}`,side:T.BackSide,transparent:true,depthWrite:false,blending:T.AdditiveBlending});materials.push(atm);
-      mesh(new T.SphereGeometry(radius*1.055,32,24),atm,g);return g;
+      const session=realm.__planetMaterialSession||(realm.__planetMaterialSession=window.UniversePlanetMaterials.createSession(T,{lightPosition,materials,spinning}));
+      const kind=Math.abs(seed-12.7)<.01?'earth':['neptune','uranus','saturn','mars','jupiter'][Math.round(seed/7.1)];
+      return session.create({radius,kind});
     }
     // The visible path and the animated position share the same ellipse.
-    function orbit(parent,radius,period,phase,tilt=0,color=0x678cb2,eccentricity=0){
+    function orbit(parent,radius,period,phase,tilt=0,color=0x678cb2,eccentricity=0,showGuide=true){
       const plane=new T.Group();plane.rotation.z=tilt;parent.add(plane);const anchor=new T.Group();plane.add(anchor);
-      const points=[];for(let i=0;i<=160;i++){const t=i/160*TAU;points.push(new T.Vector3(radius*(Math.cos(t)-eccentricity),0,radius*Math.sqrt(1-eccentricity*eccentricity)*Math.sin(t)));}
-      const m=new T.LineBasicMaterial({color,transparent:true,opacity:.26,depthWrite:false});materials.push(m);
-      const line=new T.Line(new T.BufferGeometry().setFromPoints(points),m);line.layers.set(2);plane.add(line);
-      const entry={anchor,radius,period,phase,eccentricity,line};moving.push(entry);return entry;
+      let line=null;
+      if(showGuide){
+        // A screen-width feathered ribbon, not a hard WebGL line. Opacity fades
+        // continuously across both edges; no central stroke is drawn.
+        const positions=[],tangents=[],sides=[],indices=[],segments=192,b=radius*Math.sqrt(1-eccentricity*eccentricity);
+        for(let i=0;i<=segments;i++){
+          const t=i/segments*TAU,dx=-radius*Math.sin(t),dz=b*Math.cos(t),length=Math.hypot(dx,dz);
+          [-1,1].forEach(side=>{positions.push(radius*(Math.cos(t)-eccentricity),0,b*Math.sin(t));tangents.push(dx/length,0,dz/length);sides.push(side);});
+          if(i<segments){const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2);}
+        }
+        const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('orbitTangent',new T.Float32BufferAttribute(tangents,3));geometry.setAttribute('edgeSide',new T.Float32BufferAttribute(sides,1));geometry.setIndex(indices);
+        const material=new T.ShaderMaterial({uniforms:{uColor:{value:new T.Color(color)},uViewport:{value:new T.Vector2(1,1)},uFeather:{value:3.6},uAlpha:{value:.075}},
+          vertexShader:`attribute vec3 orbitTangent;attribute float edgeSide;uniform vec2 uViewport;uniform float uFeather;varying float vEdge;
+            void main(){vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);vec4 q=projectionMatrix*modelViewMatrix*vec4(position+orbitTangent,1.);
+              vec2 d=(q.xy/q.w-p.xy/p.w)*uViewport;vec2 n=normalize(vec2(-d.y,d.x));p.xy+=n*edgeSide*uFeather*2./uViewport*p.w;vEdge=edgeSide;gl_Position=p;}`,
+          fragmentShader:`uniform vec3 uColor;uniform float uAlpha;varying float vEdge;
+            void main(){float d=abs(vEdge);float feather=exp(-d*d*5.)*(1.-smoothstep(.55,1.,d));gl_FragColor=vec4(uColor,uAlpha*feather);
+              #include <colorspace_fragment>
+            }`,transparent:true,depthWrite:false,side:T.DoubleSide});
+        materials.push(material);line=new T.Mesh(geometry,material);line.layers.set(2);line.frustumCulled=false;plane.add(line);
+      }
+      const entry={anchor,parent,radius,period,phase,eccentricity,line,body:null};moving.push(entry);return entry;
     }
     function satellite(){
       const g=new T.Group(),metal=standard(0xf4dfb4,.8),blue=standard(0x204eab,.6),edge=standard(0x97c8e5,.8);
@@ -128,13 +132,14 @@
     const dustMaterial=new T.PointsMaterial({map:glow,size:17,vertexColors:true,transparent:true,opacity:.12,blending:T.AdditiveBlending,depthWrite:false});materials.push(dustMaterial);
     const dust=new T.Points(dustGeometry,dustMaterial);dust.layers.set(1);galaxyRoot.add(dust);
     const nucleus=new T.Group();halo(nucleus,0xc79eff,35,.75);halo(nucleus,0xffded0,13,.75);layer(nucleus,1);galaxyRoot.add(nucleus);
-    const primaryOrbit=orbit(galaxyRoot,57,1500,.18,0,0x95ccff,.08);primaryOrbit.line.layers.set(1);primaryOrbit.line.material.opacity=.28;
+    const primaryOrbit=orbit(galaxyRoot,57,1500,.18,0,0x95ccff,.08);primaryOrbit.line.layers.set(1);
     const primary=star(1.23,0x4ca9ff);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
+    primaryOrbit.body=primary;
     const beacon=halo(primaryOrbit.anchor,0xaeeaff,11,.9);beacon.layers.set(0);
     const clientRecord={id:'client',step:'estrellas',title:'Estrellas · Clientes',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella es un cliente. Orbita el centro de su galaxia, la empresa. Este acercamiento sigue a la estrella seleccionada: sus empleados orbitan a su alrededor.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
     for(let i=0;i<10;i++){
-      const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.02*(i%3),0x738caf,.05);o.line.visible=false;
-      const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);if(i<7)s.traverse(n=>n.layers.enable(3));o.anchor.add(s);stars.push({object:s,anchor:o.anchor});
+      const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.02*(i%3),0x738caf,.05,false);
+      const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);if(i<7)s.traverse(n=>n.layers.enable(3));o.anchor.add(s);o.body=s;stars.push({object:s,anchor:o.anchor});
     }
     const talent=[
       ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,4.8,.48,.6,210],
@@ -146,7 +151,7 @@
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
       const o=orbit(primaryOrbit.anchor,radius,period,phase,(i-2)*.024,[0x4bb5c7,0x789fff,0xd6a776,0xb694e8,0x92cba2][i],.035);
-      const p=planet(size,c1,c2,mode,i*7.1);o.anchor.add(p);
+      const p=planet(size,c1,c2,mode,i*7.1);o.anchor.add(p);o.body=p;
       if(id==='impulsores'){
         const ringMaterial=new T.MeshStandardMaterial({color:0xdbc1ad,side:T.DoubleSide,roughness:.85,transparent:true,opacity:.66});materials.push(ringMaterial);
         const ring=mesh(new T.RingGeometry(size*1.35,size*1.95,80),ringMaterial,p);ring.rotation.x=Math.PI/2-.24;
@@ -157,7 +162,7 @@
     const parentPlanet=talentRecords[4];
     ['Proveedores y contratistas','Dueño','Comunidad'].forEach((name,i)=>{
       const o=orbit(parentPlanet.object,1.35+i*.62,48+i*23,.8+i*2.1,.22+i*.18,0xbeadf4,.03);
-      const s=satellite();s.scale.setScalar(.62);o.anchor.add(s);spinning.push({object:s,speed:.025});
+      const s=satellite();s.scale.setScalar(.62);o.anchor.add(s);o.body=s;spinning.push({object:s,speed:.025});
       records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
@@ -166,6 +171,9 @@
     const constellation={id:'guide',step:'coordenadas',title:'Constelaciones · Nuestra guía',eyebrow:'Agrupación aparente, no estructura física',description:'Los trazos unen estrellas vistas desde aquí, aunque se encuentran a distintas distancias. Representan el modelo de experiencia y la arquitectura empresarial: nos orientan, no son órbitas.',kind:'guide'};records.push(constellation);
     const galaxyRecord={id:'galaxy',step:'lanzamiento',title:'Galaxias · Empresas',eyebrow:'Una red de sistemas de experiencia',description:'La galaxia reúne sus estrellas cliente. Cada estrella tiene planetas empleados y cada planeta puede contar con satélites de otros actores. La vista ampliada sigue el mismo cliente que ves señalado aquí.',kind:'galaxy'};records.push(galaxyRecord);
     const recordForStep=id=>records.find(r=>r.step===id&&r.kind!=='satellite')||records.find(r=>r.step===id);
+    const motionByAnchor=new Map(moving.map(o=>[o.anchor,o]));
+    const cameraOffset=new T.Vector3(0,23,37),screenRight=new T.Vector3(1,0,0),screenUp=new T.Vector3(0,37,-23).normalize(),framingCache=new Map();
+    const systemRecords=()=>records.filter(r=>r.visual&&(!focusPlanet||r===focusPlanet||(r.kind==='satellite'&&focusPlanet===parentPlanet)));
     function select(record,zoom=false){
       selected=record;if(zoom&&record.kind==='satellite')focusPlanet=parentPlanet;
       else if(compact&&record.kind==='planet')focusPlanet=record;
@@ -179,6 +187,12 @@
       stage.querySelector('.cosmos-reset').hidden=!focusPlanet;stage.querySelector('.cosmos-heading.system h2').textContent=focusPlanet===parentPlanet?'Satélites del planeta empleado':focusPlanet?'Planeta empleado':'Sistema del cliente';
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet;
       stage.querySelectorAll('[data-actor]').forEach(b=>b.setAttribute('aria-pressed',String(record.id===`satellite-${b.dataset.actor}`)));
+      // The explicit close-up contains only this planet and its own satellites.
+      // Other orbits cannot cross it while their owners are off-screen.
+      records.filter(r=>r.visual).forEach(r=>r.visual.traverse(o=>o.layers.disable(4)));
+      if(focusPlanet)systemRecords().forEach(r=>r.visual.traverse(o=>o.layers.enable(4)));
+      cameras.system.layers.set(focusPlanet?4:2);
+      moving.forEach(o=>{if(o.line){o.line.layers.disable(4);o.line.visible=!!o.body&&(!focusPlanet||o.parent===galaxyRoot||o.parent===focusPlanet.object);if(focusPlanet&&o.parent===focusPlanet.object)o.line.layers.enable(4);}});
     }
     function addLabel(record,text,view='system',offset=22){
       const button=document.createElement('button');button.className=`cosmos-object-label ${record.kind}`;button.innerHTML=text;button.setAttribute('aria-pressed','false');button.onclick=()=>select(record,record.kind==='satellite');
@@ -203,6 +217,42 @@
       camera.left=-horizontal/2;camera.right=horizontal/2;camera.top=horizontal/aspect/2;camera.bottom=-camera.top;
       camera.position.copy(target).add(offset);camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();
     }
+    function bodyExtent(record){
+      if(record.extent!==undefined)return record.extent;
+      const origin=record.object.getWorldPosition(new T.Vector3());let radius=0;
+      record.visual.traverse(o=>{if(!o.isMesh||!o.geometry)return;if(!o.geometry.boundingSphere)o.geometry.computeBoundingSphere();const b=o.geometry.boundingSphere;
+        const scale=o.getWorldScale(new T.Vector3()),center=b.center.clone().applyMatrix4(o.matrixWorld);
+        radius=Math.max(radius,center.distanceTo(origin)+b.radius*Math.max(scale.x,scale.y,scale.z));});
+      record.extent=Math.max(.2,radius);return record.extent;
+    }
+    function orbitalEnvelope(){
+      const center=focusPlanet?.object||primaryOrbit.anchor;if(framingCache.has(center))return framingCache.get(center);
+      const envelope={left:Infinity,right:-Infinity,bottom:Infinity,top:-Infinity};
+      systemRecords().forEach(record=>{
+        let node=record.object,h=0,v=0,rangeH=0,rangeV=0;
+        while(node&&node!==center){
+          const parent=node.parent;if(!parent)break;const motion=motionByAnchor.get(node);
+          const xAxis=new T.Vector3(1,0,0).transformDirection(parent.matrixWorld),zAxis=new T.Vector3(0,0,1).transformDirection(parent.matrixWorld);
+          if(motion){const a=motion.radius,b=a*Math.sqrt(1-motion.eccentricity*motion.eccentricity);
+            h-=a*motion.eccentricity*screenRight.dot(xAxis);v-=a*motion.eccentricity*screenUp.dot(xAxis);
+            rangeH+=Math.hypot(a*screenRight.dot(xAxis),b*screenRight.dot(zAxis));rangeV+=Math.hypot(a*screenUp.dot(xAxis),b*screenUp.dot(zAxis));
+          }else{const offset=node.position.clone().applyMatrix3(new T.Matrix3().setFromMatrix4(parent.matrixWorld));h+=screenRight.dot(offset);v+=screenUp.dot(offset);}
+          node=parent;
+        }
+        const extent=bodyExtent(record);envelope.left=Math.min(envelope.left,h-rangeH-extent);envelope.right=Math.max(envelope.right,h+rangeH+extent);envelope.bottom=Math.min(envelope.bottom,v-rangeV-extent);envelope.top=Math.max(envelope.top,v+rangeV+extent);
+      });
+      const minimum=focusPlanet?7.1:37;envelope.left=Math.min(envelope.left,-minimum/2);envelope.right=Math.max(envelope.right,minimum/2);
+      framingCache.set(center,envelope);return envelope;
+    }
+    function fitSystem(){
+      const camera=cameras.system,r=views.system,e=orbitalEnvelope(),sidePad=Math.min(24,r.w*.06),topPad=Math.min(18,r.h*.1),bottomPad=Math.min(focusPlanet?48:68,r.h*.24);
+      const usableW=Math.max(1,r.w-sidePad*2),usableH=Math.max(1,r.h-topPad-bottomPad);
+      const units=Math.max((e.right-e.left)/usableW,(e.top-e.bottom)/usableH);
+      const center=(focusPlanet?.object||primaryOrbit.anchor).getWorldPosition(new T.Vector3());
+      const target=center.addScaledVector(screenRight,(e.left+e.right)/2).addScaledVector(screenUp,(e.top+e.bottom)/2+(topPad-bottomPad)*units/2);
+      camera.left=-r.w*units/2;camera.right=r.w*units/2;camera.top=r.h*units/2;camera.bottom=-r.h*units/2;camera.position.copy(target).add(cameraOffset);camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+      r.safeRect={left:r.x+sidePad,right:r.x+r.w-sidePad,top:r.y+topPad,bottom:r.y+r.h-bottomPad};
+    }
     function resize(){
       const box=stage.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;renderer.setSize(width,height,false);
       views.galaxy=compact?{x:0,y:35,w:width,h:height*.43-35}:{x:0,y:38,w:width*.3,h:height*.5-30};
@@ -218,21 +268,21 @@
     function project(object,view){const v=views[view];object.getWorldPosition(temp);temp.project(cameras[view]);return{x:v.x+(temp.x+1)*v.w/2,y:v.y+(1-temp.y)*v.h/2,z:temp.z};}
     function updatePositions(){
       moving.forEach(o=>{const mean=o.phase+elapsed*TAU/o.period;let a=mean;for(let j=0;j<3;j++)a=mean+o.eccentricity*Math.sin(a);o.anchor.position.set(o.radius*(Math.cos(a)-o.eccentricity),0,o.radius*Math.sqrt(1-o.eccentricity*o.eccentricity)*Math.sin(a));});
-      spinning.forEach(s=>{s.object.rotation.y=elapsed*s.speed;});materials.forEach(m=>{if(m.uniforms?.uTime)m.uniforms.uTime.value=elapsed;});
+      spinning.forEach(s=>{s.object.rotation.y=(s.phase||0)+elapsed*s.speed;});materials.forEach(m=>{if(m.uniforms?.uTime)m.uniforms.uTime.value=elapsed;});
       scene.updateMatrixWorld(true);primaryOrbit.anchor.getWorldPosition(mainWorld);lightPosition.copy(mainWorld);sunlight.position.copy(mainWorld);
       fit(cameras.galaxy,views.galaxy,224,new T.Vector3(),new T.Vector3(0,100,170));fit(cameras.constellation,views.constellation,145,new T.Vector3(),new T.Vector3(0,95,180));
-      const focus=focusPlanet?focusPlanet.object.getWorldPosition(new T.Vector3()):mainWorld.clone();fit(cameras.system,views.system,focusPlanet?(compact?7.1:8.7):39,focus,new T.Vector3(0,23,37));
+      fitSystem();
     }
     function draw(){
       updatePositions();renderer.setScissorTest(false);renderer.clear();renderer.setScissorTest(true);
-      Object.keys(views).forEach(name=>{const r=views[name];if(!r.visible||r.h<=0)return;renderer.setViewport(r.x,height-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,height-r.y-r.h,r.w,r.h);renderer.clearDepth();renderer.render(scene,cameras[name]);});renderer.setScissorTest(false);
+      Object.keys(views).forEach(name=>{const r=views[name];if(!r.visible||r.h<=0)return;moving.forEach(o=>{if(o.line)o.line.material.uniforms.uViewport.value.set(r.w,r.h);});renderer.setViewport(r.x,height-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,height-r.y-r.h,r.w,r.h);renderer.clearDepth();renderer.render(scene,cameras[name]);});renderer.setScissorTest(false);
       const placed=[];const priority=l=>l.record===selected?0:l.record.kind==='client'?1:l.record.kind==='planet'?2:3;
       [...labels].sort((a,b)=>priority(a)-priority(b)).forEach(l=>{
         const v=views[l.view],p=project(l.record.object,l.view),inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
-        const show=v.visible&&inFocus&&!(compact&&focusPlanet&&l.view==='system')&&(!l.focusOnly||focusPlanet===parentPlanet)&&p.z>=-1&&p.z<=1&&p.x>v.x+10&&p.x<v.x+v.w-10&&p.y>v.y+5&&p.y<v.y+v.h-l.offset-12;
+        const show=v.visible&&inFocus&&!(compact&&focusPlanet&&l.view==='system')&&(!l.focusOnly||focusPlanet===parentPlanet)&&p.z>=-1&&p.z<=1;
         l.button.hidden=!show;if(show){
           if(l.record.id==='satellite-0')l.button.querySelector('b').textContent=focusPlanet===parentPlanet?'Proveedores y contratistas':'Satélites ↗';
-          const half=l.button.offsetWidth/2+4;l.button.style.left=`${Math.max(v.x+half,Math.min(v.x+v.w-half,p.x))}px`;l.button.style.top=`${p.y+l.offset}px`;
+          const half=l.button.offsetWidth/2+4,halfHeight=l.button.offsetHeight/2+5;l.button.style.left=`${Math.max(v.x+half,Math.min(v.x+v.w-half,p.x))}px`;l.button.style.top=`${Math.max(v.y+halfHeight,Math.min(v.y+v.h-halfHeight,p.y+l.offset))}px`;
           const rect=l.button.getBoundingClientRect(),collision=placed.some(r=>rect.left<r.right+3&&rect.right>r.left-3&&rect.top<r.bottom+3&&rect.bottom>r.top-3);
           l.button.style.visibility=collision?'hidden':'';l.button.setAttribute('aria-hidden',String(collision));if(!collision)placed.push(rect);
         }
@@ -246,8 +296,9 @@
       const box=stage.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
       const view=Object.keys(views).find(k=>{const r=views[k];return r.visible&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;});if(!view)return;
       if(view==='constellation'){select(constellation);return;}if(view==='galaxy'){select(galaxyRecord);return;}
-      const v=views[view];pointer.set((x-v.x)/v.w*2-1,-(y-v.y)/v.h*2+1);raycaster.layers.set(2);raycaster.setFromCamera(pointer,cameras[view]);
-      const hits=raycaster.intersectObjects(records.filter(r=>r.visual).map(r=>r.visual),true);const hit=hits.find(h=>!h.object.isSprite&&h.object.isMesh&&!h.object.material.transparent);if(!hit)return;
+      const v=views[view];pointer.set((x-v.x)/v.w*2-1,-(y-v.y)/v.h*2+1);raycaster.layers.set(focusPlanet?4:2);raycaster.setFromCamera(pointer,cameras[view]);
+      const hits=raycaster.intersectObjects(systemRecords().map(r=>r.visual),true);const hit=hits.find(h=>!h.object.isSprite&&h.object.isMesh&&!h.object.material.transparent);
+      if(!hit){const nearest=systemRecords().map(r=>({record:r,p:project(r.object,'system')})).map(r=>({...r,distance:Math.hypot(r.p.x-x,r.p.y-y)})).sort((a,b)=>a.distance-b.distance)[0];if(nearest&&nearest.distance<=Math.max(18,bodyExtent(nearest.record)*v.w/(cameras.system.right-cameras.system.left)))select(nearest.record,nearest.record.kind==='satellite');return;}
       let object=hit.object,record;while(object&&!record){record=records.find(r=>r.visual===object);object=object.parent;}if(record)select(record,record.kind==='satellite');
     }
     renderer.domElement.addEventListener('click',pick);
@@ -257,11 +308,21 @@
     // returning from a hidden tab instead of fast-forwarding the universe.
     const visibilityChange=()=>{clock.getDelta();};document.addEventListener('visibilitychange',visibilityChange);
     function frame(){if(disposed)return;const dt=clock.getDelta();if(!paused&&!document.hidden)elapsed+=dt;draw();animation=requestAnimationFrame(frame);}
-    const debug={snapshot:()=>({elapsed,paused,selected:selected.id,focus:focusPlanet?.id||null,shaderErrors:[...shaderErrors],views:JSON.parse(JSON.stringify(views)),triangles:renderer.info.render.triangles,
+    function auditVisibility(){
+      const view=views.system,safe=view.safeRect,pixelsPerUnit=view.w/(cameras.system.right-cameras.system.left);
+      return {view:focusPlanet?'detail':'system',safeRect:{...safe},objects:systemRecords().map(r=>{
+        const p=project(r.object,'system'),radius=bodyExtent(r)*pixelsPerUnit,bounds={left:p.x-radius,right:p.x+radius,top:p.y-radius,bottom:p.y+radius};
+        const inside=bounds.left>=safe.left-.01&&bounds.right<=safe.right+.01&&bounds.top>=safe.top-.01&&bounds.bottom<=safe.bottom+.01;
+        let rendered=false;r.visual.traverse(o=>{if(o.isMesh&&!o.material.transparent&&o.layers.test(cameras.system.layers))rendered=true;});
+        return{id:r.id,kind:r.kind,bounds,inside,selectable:inside&&rendered&&p.z>=-1&&p.z<=1};
+      }),orbitGuides:moving.filter(o=>o.line).map(o=>({ownerId:records.find(r=>r.visual===o.body)?.id||'galaxy-star',visible:o.line.visible,occupied:!!o.body&&o.anchor.children.includes(o.body),soft:!!o.line.material.uniforms?.uFeather,opacity:o.line.material.uniforms?.uAlpha.value}))};
+    }
+    const debug={snapshot:()=>({elapsed,paused,selected:selected.id,focus:focusPlanet?.id||null,assetsReady:realm.__planetMaterialSession?.getState().ready??true,assetErrors:realm.__planetMaterialSession?.getState().errors||[],shaderErrors:[...shaderErrors],views:JSON.parse(JSON.stringify(views)),triangles:renderer.info.render.triangles,
       objects:records.filter(r=>r.object).map(r=>{let node=r.object.parent,parent;while(node&&!parent){parent=records.find(p=>p.object===node);node=node.parent;}return{id:r.id,kind:r.kind,position:r.object.getWorldPosition(new T.Vector3()).toArray(),local:r.object.position.toArray(),parent:parent?.id||'galaxy',rotation:r.visual?.children[0]?.rotation.toArray().slice(0,3),sphere:r.visual?.children.some(n=>n.geometry?.type==='SphereGeometry')||false};}),orbitPeriods:moving.map(o=>o.period),bodyCount:records.filter(r=>r.visual).length}),
-      advance:seconds=>{elapsed+=seconds;draw();return debug.snapshot();},select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,'system'):null;}};
+      advance:seconds=>{elapsed+=seconds;draw();return debug.snapshot();},setTime:(seconds,render=true)=>{elapsed=Math.max(0,Number(seconds)||0);if(render)draw();else updatePositions();},auditVisibility,
+      select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,'system'):null;}};
     const cleanup=()=>{disposed=true;cancelAnimationFrame(animation);observer.disconnect();reduced.removeEventListener('change',motionChange);document.removeEventListener('visibilitychange',visibilityChange);renderer.domElement.removeEventListener('click',pick);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
-      const geometries=new Set(),allMaterials=new Set(materials);scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)allMaterials.add(o.material);});geometries.forEach(g=>g.dispose());allMaterials.forEach(m=>m.dispose());glow.dispose();renderer.dispose();renderer.forceContextLoss();tabs.remove();stage.remove();inspector.remove();route.remove();if(window.__universeDebug===debug)delete window.__universeDebug;};
+      const geometries=new Set(),allMaterials=new Set(materials);scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)allMaterials.add(o.material);});geometries.forEach(g=>g.dispose());allMaterials.forEach(m=>m.dispose());realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;glow.dispose();renderer.dispose();renderer.forceContextLoss();tabs.remove();stage.remove();inspector.remove();route.remove();if(window.__universeDebug===debug)delete window.__universeDebug;};
     active=cleanup;resize();select(clientRecord);frame();
     if(shaderErrors.length)throw new Error('No fue posible compilar el material 3D.');
     window.__universeDebug=debug;return cleanup;
