@@ -368,8 +368,9 @@ def visual_copy_checks(cdp):
       const forbiddenVisible=forbidden.filter(text=>visibleCopy.includes(text));
       const pauseControl=stage.querySelector('.cosmos-pause');
       const visiblePauseCopy=/\\b(?:pausar|reanudar)\\b/i.test(document.body.innerText);
-      const oldGalaxyBackground=getComputedStyle(document.querySelector('.orbital-realm-view'))
-        .backgroundImage.includes('universo-galaxia-realista.png');
+      const realmBackground=getComputedStyle(document.querySelector('.orbital-realm-view')).backgroundImage;
+      const oldGalaxyBackground=realmBackground.includes('universo-galaxia-realista.png');
+      const starfieldLayers=(realmBackground.match(/radial-gradient/g)||[]).length;
       const navigation=document.querySelector('.cosmos-navigation');
       const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
       const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
@@ -390,8 +391,8 @@ def visual_copy_checks(cdp):
         launchLabel={pass:false,reason:'Visible launch object has no visible label'};
       }
       return {viewport:[innerWidth,innerHeight],annotations,forbiddenVisible,bottomStrip,launchLabel,
-        pauseControl:!!pauseControl,visiblePauseCopy,oldGalaxyBackground,
-        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&!oldGalaxyBackground&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
+        pauseControl:!!pauseControl,visiblePauseCopy,oldGalaxyBackground,starfieldLayers,
+        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&!oldGalaxyBackground&&starfieldLayers>=6&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
     })()""")
 
 
@@ -518,6 +519,7 @@ def layout_checks(metrics):
             return body, bounds, {
                 "centerXFraction": (bounds["left"] + bounds["right"]) / (2 * stage["w"]),
                 "centerYFraction": (bounds["top"] + bounds["bottom"]) / (2 * stage["h"]),
+                "rightFraction": bounds["right"] / stage["w"],
                 "diameter": bounds["bottom"] - bounds["top"],
             }
 
@@ -590,13 +592,14 @@ def layout_checks(metrics):
             wide_screen = width / height > 2
             checks.append({"viewport": [width, height], "check": "observatory-lower-right",
                            "centerXFraction": values["centerXFraction"],
+                           "rightFraction": values["rightFraction"],
                            "centerYFraction": values["centerYFraction"],
-                           "pass": values["centerXFraction"] >= (.77 if wide_screen else .84) and
+                           "pass": values["rightFraction"] >= (.82 if wide_screen else .93) and
                                    values["centerYFraction"] >= .63})
             checks.append({"viewport": [width, height], "check": "observatory-dominant-size",
                            "projectedDiameter": values["diameter"],
-                           "minimum": 205 * display_scale,
-                           "pass": values["diameter"] >= 205 * display_scale})
+                           "minimum": 275 * display_scale,
+                           "pass": values["diameter"] >= 275 * display_scale})
     normal = next((m for m in metrics if m["viewport"] == [1440, 900]), None)
     large = next((m for m in metrics if m["viewport"] == [2560, 1440]), None)
     if normal and large:

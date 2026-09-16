@@ -394,10 +394,10 @@
       records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
-    const observatory=telescope();observatory.scale.setScalar(5.10);
+    const observatory=telescope();observatory.scale.setScalar(7.20);
     const launchCraft=rocket();launchCraft.scale.setScalar(1.18);
     const launchAnchor=new T.Group();scene.add(launchAnchor);launchAnchor.add(launchCraft);layer(launchCraft,5);
-    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(29.8,0,25.5);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
+    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(25.8,0,25.5);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
     const earthVisual=planet(1.58,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
     const waypoints=[['launch','lanzamiento','Centro de lanzamiento',launchCraft,launchAnchor],['observatory','observatorio','Observatorio de señales',observatory,observatoryAnchor],['earth','mision','Misión en la Tierra',earthVisual,earthOrbit.anchor]];
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
