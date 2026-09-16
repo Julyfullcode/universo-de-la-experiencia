@@ -346,23 +346,29 @@
       const palette=background?[0x7890a4,0x9bacbb,0xb6c1ca]:[0xe6f2ff,0xfafcff,0xc8dcf0];
       const color=palette[i%palette.length],brightness=[.55,.88,.68,1,.62][i%5],radius=background?.019+(i%3)*.006:.070+(i%3)*.020;
       const material=new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(.72+brightness*.28),transparent:background,opacity:background?.24:1});materials.push(material);
-      mesh(new T.SphereGeometry(radius,14,10),material,g);halo(g,color,background?.16+brightness*.08:.68+brightness*.38,background?.075+brightness*.045:.40+brightness*.18);
+      mesh(new T.SphereGeometry(radius,14,10),material,g);halo(g,color,background?.16+brightness*.08:.82+brightness*.48,background?.075+brightness*.045:.46+brightness*.20);
       layer(g,3);scene.add(g);return g;
     });
     const skyPositions=[],skyColors=[];
-    for(let i=0;i<1300;i++){
+    for(let i=0;i<1800;i++){
       const x=(rng()-.5)*23.8,y=(rng()-.5)*13.4,z=(rng()-.5)*22;
+      const fade=Math.max(0,Math.min(1,(x+11.9)/5))*Math.max(0,Math.min(1,(y+6.7)/3));if(rng()>fade)continue;
       skyPositions.push(x,y,z);const c=new T.Color([0xf5f8ff,0xdce9f5,0xbacada,0xc9c0d6,0xd8d5ca][i%5]).multiplyScalar(.48+Math.pow(rng(),2)*.52);skyColors.push(c.r,c.g,c.b);
     }
     const skyGeometry=new T.BufferGeometry();skyGeometry.setAttribute('position',new T.Float32BufferAttribute(skyPositions,3));skyGeometry.setAttribute('color',new T.Float32BufferAttribute(skyColors,3));
     const skyMaterial=new T.PointsMaterial({map:glow,size:1.55,vertexColors:true,transparent:true,opacity:.90,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
     const guideField=new T.Points(skyGeometry,skyMaterial);guideField.layers.set(3);scene.add(guideField);
-    const brightPositions=[];for(let i=0;i<84;i++)brightPositions.push((rng()-.5)*23.8,(rng()-.5)*13.4,(rng()-.5)*18);
+    const brightPositions=[];for(let i=0;i<110;i++){const x=(rng()-.5)*23.8,y=(rng()-.5)*13.4,z=(rng()-.5)*18,fade=Math.max(0,Math.min(1,(x+11.9)/5))*Math.max(0,Math.min(1,(y+6.7)/3));if(rng()<=fade)brightPositions.push(x,y,z);}
     const brightGeometry=new T.BufferGeometry();brightGeometry.setAttribute('position',new T.Float32BufferAttribute(brightPositions,3));
     const brightMaterial=new T.PointsMaterial({map:glow,color:0xeaf4ff,size:3.1,transparent:true,opacity:.75,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(brightMaterial);
     const brightField=new T.Points(brightGeometry,brightMaterial);brightField.layers.set(3);scene.add(brightField);
     const constellationDust=new T.Group();
-    [[-8,-3.4,10,3.4,0x607082,.09],[-4.2,-2.2,12,4.2,0x53647a,.13],[0,-.9,13,4.6,0x626579,.12],[4.3,.6,11,4.1,0x596b7e,.11],[8.1,2.2,8,3.2,0x6a677c,.09]].forEach(([x,y,w,h,color,opacity],i)=>{
+    const nebulaMaterial=new T.ShaderMaterial({vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec2 vUv;${noiseGLSL}
+      void main(){vec2 p=vUv-.5;float diagonal=p.y-p.x*.24+.055;float band=exp(-diagonal*diagonal*19.);float broad=fbm(vec3(vUv*4.6,2.7));float detail=fbm(vec3(vUv*12.3,6.1));float wisps=smoothstep(.29,.74,broad)*(.40+.60*detail);float vignette=smoothstep(0.,.50,vUv.x)*smoothstep(0.,.12,1.-vUv.x)*smoothstep(0.,.30,vUv.y)*smoothstep(0.,.15,1.-vUv.y);vec3 blueGrey=mix(vec3(.22,.29,.38),vec3(.43,.41,.51),broad);gl_FragColor=vec4(blueGrey,band*wisps*vignette*.36);
+      #include <colorspace_fragment>
+      }`,transparent:true,blending:T.AdditiveBlending,depthWrite:false,depthTest:false,side:T.DoubleSide});materials.push(nebulaMaterial);
+    const nebula=mesh(new T.PlaneGeometry(23.8,13.4),nebulaMaterial,constellationDust);nebula.position.z=-23;nebula.renderOrder=-24;
+    [[-5.7,-2.5,8.2,2.8,0x607082,.045],[0,-1,9.5,3.3,0x53647a,.052],[5.8,.7,7.8,2.7,0x6a677c,.042]].forEach(([x,y,w,h,color,opacity],i)=>{
       const cloud=halo(constellationDust,color,1,opacity);cloud.position.set(x,y,-18-i);cloud.scale.set(w,h,1);cloud.material.depthTest=false;cloud.renderOrder=-20+i;
     });
     const dustPositions=[],dustColors=[],dustPalette=[0x8090a2,0x68798e,0x777387];
