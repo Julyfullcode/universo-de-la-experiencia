@@ -35,7 +35,7 @@
       <div class="cosmos-heading constellations"><small>Guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
-      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="secondary-constellations" fill="none" stroke="url(#constellation-light)" opacity=".28"/><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>`;
+      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
     inspector.innerHTML='<button class="cosmos-action"></button>';
@@ -330,14 +330,10 @@
       const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.025*((i%3)-1),0x738caf,.1+(i%3)*.025,false,{pitch:.016*((i%4)-1.5),yaw:i*.41});
       const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);o.anchor.add(s);o.body=s;stars.push({object:s,anchor:o.anchor});
     }
-    // The supplied reference remains the protagonist. Smaller, dimmer
-    // asterisms provide depth around it without labels or visual competition.
+    // The upper-right guide reproduces the supplied reference as one single
+    // white constellation over a transparent, star-filled celestial layer.
     const zodiacPatterns=[
-      {id:'reference',hero:true,center:[5.2,-1.4],scale:1.72,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]},
-      {id:'background-a',center:[-7.4,4.7],scale:.58,points:[[-2,-.4],[-.8,.5],[.4,.1],[1.7,1],[2.4,.2]],edges:[[0,1],[1,2],[2,3],[3,4]]},
-      {id:'background-b',center:[-6.5,-3.5],scale:.66,points:[[-1.8,.8],[-.7,-.2],[.5,.5],[1.6,-.7],[2.4,.2]],edges:[[0,1],[1,2],[2,3],[3,4],[1,3]]},
-      {id:'background-c',center:[-.8,5.6],scale:.52,points:[[-2,-.1],[-.7,.7],[.3,-.2],[1.4,.5],[2.2,-.4]],edges:[[0,1],[1,2],[2,3],[3,4]]},
-      {id:'background-d',center:[-.4,-6.2],scale:.48,points:[[-2,.5],[-.9,-.5],[.2,.3],[1.2,-.4],[2.1,.6]],edges:[[0,1],[1,2],[2,3],[3,4]]}
+      {id:'reference',hero:true,center:[5.2,-1.4],scale:1.72,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
@@ -354,26 +350,28 @@
       layer(g,3);scene.add(g);return g;
     });
     const skyPositions=[],skyColors=[];
-    for(let i=0;i<720;i++){
-      const x=(rng()-.5)*22.5,y=(rng()-.5)*10.8,z=(rng()-.5)*22;
-      skyPositions.push(x,y,z);const c=new T.Color([0xddeaff,0xf5f7ff,0xaec8dc,0xc8b8d8,0xd8cfb5][i%5]).multiplyScalar(.42+rng()*.48);skyColors.push(c.r,c.g,c.b);
+    for(let i=0;i<1300;i++){
+      const x=(rng()-.5)*23.8,y=(rng()-.5)*13.4,z=(rng()-.5)*22;
+      skyPositions.push(x,y,z);const c=new T.Color([0xf5f8ff,0xdce9f5,0xbacada,0xc9c0d6,0xd8d5ca][i%5]).multiplyScalar(.48+Math.pow(rng(),2)*.52);skyColors.push(c.r,c.g,c.b);
     }
     const skyGeometry=new T.BufferGeometry();skyGeometry.setAttribute('position',new T.Float32BufferAttribute(skyPositions,3));skyGeometry.setAttribute('color',new T.Float32BufferAttribute(skyColors,3));
-    const skyMaterial=new T.PointsMaterial({map:glow,size:1.18,vertexColors:true,transparent:true,opacity:.62,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
+    const skyMaterial=new T.PointsMaterial({map:glow,size:1.55,vertexColors:true,transparent:true,opacity:.90,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
     const guideField=new T.Points(skyGeometry,skyMaterial);guideField.layers.set(3);scene.add(guideField);
-    const constellationBackdropMaterial=new T.SpriteMaterial({map:glow,color:0x01040a,transparent:true,opacity:.78,blending:T.NormalBlending,depthWrite:false,depthTest:false});materials.push(constellationBackdropMaterial);
-    const constellationBackdrop=new T.Sprite(constellationBackdropMaterial);constellationBackdrop.scale.set(25,14,1);constellationBackdrop.position.set(0,0,-30);constellationBackdrop.layers.set(3);constellationBackdrop.renderOrder=-30;scene.add(constellationBackdrop);
+    const brightPositions=[];for(let i=0;i<84;i++)brightPositions.push((rng()-.5)*23.8,(rng()-.5)*13.4,(rng()-.5)*18);
+    const brightGeometry=new T.BufferGeometry();brightGeometry.setAttribute('position',new T.Float32BufferAttribute(brightPositions,3));
+    const brightMaterial=new T.PointsMaterial({map:glow,color:0xeaf4ff,size:3.1,transparent:true,opacity:.75,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(brightMaterial);
+    const brightField=new T.Points(brightGeometry,brightMaterial);brightField.layers.set(3);scene.add(brightField);
     const constellationDust=new T.Group();
-    [[-7.4,2.8,8.5,4.3,0x315dff,.22],[-4.2,-2.4,10.5,5.1,0x7137d4,.20],[-.7,3.2,9.2,4.4,0x257fbd,.18],[2.4,-3.5,10.8,5.2,0x713ca8,.20],[5.8,2.2,8.6,4.1,0x168f82,.17],[8.6,-3.5,6.8,3.8,0x435fd4,.16]].forEach(([x,y,w,h,color,opacity],i)=>{
+    [[-8,-3.4,10,3.4,0x607082,.09],[-4.2,-2.2,12,4.2,0x53647a,.13],[0,-.9,13,4.6,0x626579,.12],[4.3,.6,11,4.1,0x596b7e,.11],[8.1,2.2,8,3.2,0x6a677c,.09]].forEach(([x,y,w,h,color,opacity],i)=>{
       const cloud=halo(constellationDust,color,1,opacity);cloud.position.set(x,y,-18-i);cloud.scale.set(w,h,1);cloud.material.depthTest=false;cloud.renderOrder=-20+i;
     });
-    const dustPositions=[],dustColors=[],dustPalette=[0x607cff,0x8b4fd8,0x39a58d];
-    for(let i=0;i<260;i++){
-      const x=(rng()-.5)*23,y=(rng()-.5)*12,z=-12-rng()*8,density=.25+.75*rng();dustPositions.push(x,y,z);
-      const c=new T.Color(dustPalette[i%dustPalette.length]).multiplyScalar(.34+density*.42);dustColors.push(c.r,c.g,c.b);
+    const dustPositions=[],dustColors=[],dustPalette=[0x8090a2,0x68798e,0x777387];
+    for(let i=0;i<520;i++){
+      const x=(rng()-.5)*24,band=(rng()+rng()+rng()-1.5)*2.05,y=x*.24-1+band,z=-12-rng()*8,density=.25+.75*rng();dustPositions.push(x,y,z);
+      const c=new T.Color(dustPalette[i%dustPalette.length]).multiplyScalar(.40+density*.35);dustColors.push(c.r,c.g,c.b);
     }
     const dustGeometry=new T.BufferGeometry();dustGeometry.setAttribute('position',new T.Float32BufferAttribute(dustPositions,3));dustGeometry.setAttribute('color',new T.Float32BufferAttribute(dustColors,3));
-    const dustMaterial=new T.PointsMaterial({map:glow,size:2.1,vertexColors:true,transparent:true,opacity:.31,alphaTest:.015,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(dustMaterial);
+    const dustMaterial=new T.PointsMaterial({map:glow,size:2,vertexColors:true,transparent:true,opacity:.38,alphaTest:.015,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(dustMaterial);
     const dustGrains=new T.Points(dustGeometry,dustMaterial);constellationDust.add(dustGrains);
     layer(constellationDust,3);scene.add(constellationDust);
     const talent=[
@@ -660,10 +658,9 @@
       if(gv.visible){galaxyCaption.style.left=`${gv.x+gv.w/2}px`;galaxyCaption.style.top=`${gv.y+gv.h-9*displayScale}px`;}
       const zodiacSvg=stage.querySelector('.cosmos-constellation-lines'),pts=guideStars.map(s=>project(s,'constellation'));
       zodiacSvg.querySelector('g').style.display=cv.visible?'':'none';
-      const constellationPath=zodiacSvg.querySelector('.reference-constellation'),secondaryPath=zodiacSvg.querySelector('.secondary-constellations');
-      const edgePath=hero=>guideEdges.filter(([, ,group])=>(group==='reference')===hero).map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' ');
-      constellationPath.setAttribute('d',cv.visible?edgePath(true):'');constellationPath.setAttribute('stroke-width',String((.68+constellation.hoverAmount*.22)*displayScale));constellationPath.style.filter=`drop-shadow(0 0 ${1.1+2*constellation.hoverAmount}px #dcecff)`;
-      secondaryPath.setAttribute('d',cv.visible?edgePath(false):'');secondaryPath.setAttribute('stroke-width',String(.42*displayScale));secondaryPath.style.filter='drop-shadow(0 0 1px #a9c9e8)';
+      const constellationPath=zodiacSvg.querySelector('.reference-constellation');
+      const edgePath=guideEdges.map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' ');
+      constellationPath.setAttribute('d',cv.visible?edgePath:'');constellationPath.setAttribute('stroke-width',String((.56+constellation.hoverAmount*.18)*displayScale));constellationPath.style.filter=`drop-shadow(0 0 ${1+1.8*constellation.hoverAmount}px #dcecff)`;
     }
     const raycaster=new T.Raycaster(),pointer=new T.Vector2();
     function hitTest(x,y,exact=false){

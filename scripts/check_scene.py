@@ -573,8 +573,7 @@ def layout_checks(metrics):
                            "pass": left >= .64 and center_x >= .78 and right <= 1.01 and 0 <= top <= .24})
             checks.append({"viewport": [width, height], "check": "reference-constellation-shape",
                            "connectedSegments": segments, "referenceSegments": reference_segments,
-                           "secondarySegments": segments - reference_segments,
-                           "pass": reference_segments == 12 and segments - reference_segments >= 12})
+                           "pass": segments == 12 and reference_segments == 12})
             checks.append({"viewport": [width, height], "check": "constellation-names-removed",
                            "visibleNames": constellation_names, "pass": constellation_names == 0})
         else:
