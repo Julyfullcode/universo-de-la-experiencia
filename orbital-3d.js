@@ -333,7 +333,7 @@
     // The upper-right guide reproduces the supplied reference: one restrained
     // white asterism, without labels or a second zodiac atlas behind it.
     const zodiacPatterns=[
-      {id:'reference',hero:true,center:[1,-.2],scale:2.05,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
+      {id:'reference',hero:true,center:[-1,0],scale:1.55,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
