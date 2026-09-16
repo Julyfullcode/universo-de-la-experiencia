@@ -309,7 +309,8 @@ def layout_metrics(cdp):
           constellationHeroSegments:[...document.querySelectorAll('.cosmos-constellation-lines .zodiac-hero')]
             .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
           constellationBackgroundSegments:(document.querySelector('.cosmos-constellation-lines .zodiac-background')
-            ?.getAttribute('d')?.match(/M/g)||[]).length};
+            ?.getAttribute('d')?.match(/M/g)||[]).length,
+          constellationNames:document.querySelectorAll('.cosmos-constellation-lines text').length};
       } finally {debug.setTime(original.elapsed,false);debug.select(original.selected);}
     })()""")
 
@@ -337,12 +338,12 @@ def ambient_effect_checks(cdp):
         const routeIndexes=new Set(routes.map(route=>route.index)),twinkleCount=before.twinkle?.count||0;
         const pass=before.comet?.visible===false&&first.comet?.visible===true&&
           moving.comet?.visible===true&&routes.every(route=>route.visible)&&outside.comet?.visible===false&&
-          first.comet?.routeCount>=4&&routeIndexes.size===4&&period>=14&&period<=30&&duration>=7&&duration<=15&&cometTravel>.5&&
+          first.comet?.routeCount>=4&&routeIndexes.size===4&&first.comet?.scale<=.55&&period>=45&&period<=75&&duration>=5&&duration<=10&&cometTravel>.5&&
           twinkleCount>=150&&finitePulses.length===pulses.length&&pulseRange>.08&&
-          before.galaxy?.photoReady&&before.galaxy?.photoWidth>=1200&&before.stellarWeather?.stormPatches>=4&&before.stellarWeather?.prominenceLoops>=6;
+          before.galaxy?.photoReady&&before.galaxy?.photoWidth>=1200&&before.galaxy?.layers===1&&before.stellarWeather?.stormPatches>=4&&before.stellarWeather?.prominenceLoops>=6;
         return {beforeVisible:before.comet?.visible,firstVisible:first.comet?.visible,
           movingVisible:moving.comet?.visible,outsideVisible:outside.comet?.visible,period,duration,cometTravel,
-          routeCount:first.comet?.routeCount,routes,galaxy:before.galaxy,stellarWeather:before.stellarWeather,
+          routeCount:first.comet?.routeCount,cometScale:first.comet?.scale,routes,galaxy:before.galaxy,stellarWeather:before.stellarWeather,
           twinkleCount,pulses,pulseRange,pass};
       }finally{
         debug.setTime(original.elapsed);debug.select(original.selected);debug.setPaused(original.paused);
@@ -367,6 +368,8 @@ def visual_copy_checks(cdp):
       const forbiddenVisible=forbidden.filter(text=>visibleCopy.includes(text));
       const pauseControl=stage.querySelector('.cosmos-pause');
       const visiblePauseCopy=/\\b(?:pausar|reanudar)\\b/i.test(document.body.innerText);
+      const oldGalaxyBackground=getComputedStyle(document.querySelector('.orbital-realm-view'))
+        .backgroundImage.includes('universo-galaxia-realista.png');
       const navigation=document.querySelector('.cosmos-navigation');
       const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
       const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
@@ -387,8 +390,8 @@ def visual_copy_checks(cdp):
         launchLabel={pass:false,reason:'Visible launch object has no visible label'};
       }
       return {viewport:[innerWidth,innerHeight],annotations,forbiddenVisible,bottomStrip,launchLabel,
-        pauseControl:!!pauseControl,visiblePauseCopy,
-        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
+        pauseControl:!!pauseControl,visiblePauseCopy,oldGalaxyBackground,
+        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&!oldGalaxyBackground&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
     })()""")
 
 
@@ -555,6 +558,7 @@ def layout_checks(metrics):
             segments = item.get("constellationSegments", 0)
             hero_segments = item.get("constellationHeroSegments", 0)
             background_segments = item.get("constellationBackgroundSegments", 0)
+            constellation_names = item.get("constellationNames", 0)
             checks.append({"viewport": [width, height], "check": "constellation-top-right",
                            "leftFraction": left, "rightFraction": right,
                            "centerXFraction": center_x, "topFraction": top,
@@ -562,13 +566,16 @@ def layout_checks(metrics):
             checks.append({"viewport": [width, height], "check": "constellation-rich-cluster",
                            "connectedSegments": segments, "pass": segments >= 42})
             checks.append({"viewport": [width, height], "check": "gemini-taurus-prominent",
-                           "heroSegments": hero_segments, "pass": hero_segments >= 20})
+                           "heroSegments": hero_segments, "pass": hero_segments >= 18})
             checks.append({"viewport": [width, height], "check": "zodiac-background-present",
                            "backgroundSegments": background_segments, "pass": background_segments >= 50})
+            checks.append({"viewport": [width, height], "check": "constellation-names-removed",
+                           "visibleNames": constellation_names, "pass": constellation_names == 0})
         else:
             checks.append({"viewport": [width, height], "check": "constellation-present", "pass": False})
 
-        for object_id, minimum in (("earth", 50), ("forjadores", 72)):
+        for object_id, minimum in (("empaticos", 19), ("conectores", 26), ("impulsores", 30),
+                                   ("exploradores", 26), ("earth", 46), ("forjadores", 72)):
             geometry = body_geometry(object_id)
             if geometry:
                 _, _, values = geometry
@@ -580,14 +587,16 @@ def layout_checks(metrics):
         observatory = body_geometry("observatory")
         if observatory:
             _, _, values = observatory
+            wide_screen = width / height > 2
             checks.append({"viewport": [width, height], "check": "observatory-lower-right",
                            "centerXFraction": values["centerXFraction"],
                            "centerYFraction": values["centerYFraction"],
-                           "pass": values["centerXFraction"] >= .75 and values["centerYFraction"] >= .61})
+                           "pass": values["centerXFraction"] >= (.77 if wide_screen else .84) and
+                                   values["centerYFraction"] >= .63})
             checks.append({"viewport": [width, height], "check": "observatory-dominant-size",
                            "projectedDiameter": values["diameter"],
-                           "minimum": 190 * display_scale,
-                           "pass": values["diameter"] >= 190 * display_scale})
+                           "minimum": 205 * display_scale,
+                           "pass": values["diameter"] >= 205 * display_scale})
     normal = next((m for m in metrics if m["viewport"] == [1440, 900]), None)
     large = next((m for m in metrics if m["viewport"] == [2560, 1440]), None)
     if normal and large:

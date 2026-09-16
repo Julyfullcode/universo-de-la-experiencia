@@ -32,10 +32,10 @@
     tabs.innerHTML='<button role="tab" data-view="system" aria-selected="true">Sistema estelar</button><button role="tab" data-view="galaxy" aria-selected="false">Galaxia y guía</button>';
     const stage=document.createElement('div');stage.className='cosmos-stage';
     stage.innerHTML=`<div class="cosmos-galaxy-caption" aria-hidden="true">Galaxia empresa</div>
-      <div class="cosmos-heading constellations"><small>Zodiaco · Guía en el cielo</small><h2>Géminis · Tauro</h2></div>
+      <div class="cosmos-heading constellations"><small>Guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
-      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="zodiac-background-light"><stop stop-color="#7db8df" stop-opacity=".18"/><stop offset=".5" stop-color="#c6c0e9" stop-opacity=".34"/><stop offset="1" stop-color="#d8a9c8" stop-opacity=".14"/></linearGradient><linearGradient id="gemini-light"><stop stop-color="#8ee7ff"/><stop offset=".52" stop-color="#e7f7ff"/><stop offset="1" stop-color="#b5a7ff"/></linearGradient><linearGradient id="taurus-light"><stop stop-color="#ffd78b"/><stop offset=".5" stop-color="#fff3cf"/><stop offset="1" stop-color="#9edcff"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="zodiac-background" fill="none" stroke="url(#zodiac-background-light)"/><path class="zodiac-hero zodiac-gemini" fill="none" stroke="url(#gemini-light)"/><path class="zodiac-hero zodiac-taurus" fill="none" stroke="url(#taurus-light)"/><text class="zodiac-name zodiac-name-gemini">GÉMINIS</text><text class="zodiac-name zodiac-name-taurus">TAURO</text></g></svg><div class="cosmos-labels"></div>`;
+      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="zodiac-background-light"><stop stop-color="#7893a8" stop-opacity=".06"/><stop offset=".5" stop-color="#d6e1eb" stop-opacity=".16"/><stop offset="1" stop-color="#8398aa" stop-opacity=".05"/></linearGradient><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".88"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="zodiac-background" fill="none" stroke="url(#zodiac-background-light)"/><path class="zodiac-hero zodiac-gemini" fill="none" stroke="url(#constellation-light)"/><path class="zodiac-hero zodiac-taurus" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
     inspector.innerHTML='<button class="cosmos-action"></button>';
@@ -261,52 +261,13 @@
       g.rotation.set(-.14,-.42,.18);return g;
     }
     const galaxyRoot=new T.Group();scene.add(galaxyRoot);
-    // A transparent astrophotographic plate carries the natural bulge, broken
-    // dust lanes and asymmetric disk. Seeded 3D particles remain above it so
-    // the galaxy keeps depth as the camera and client star move.
+    // The supplied astrophotographic plate is the sole galaxy artwork. Keeping
+    // it unlayered avoids the former procedural galaxy showing through it.
     const galaxyTexture=new T.TextureLoader().load('assets/galaxia-andromeda-fotorealista.png');
     galaxyTexture.colorSpace=T.SRGBColorSpace;galaxyTexture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
     const galaxyPhotoMaterial=new T.SpriteMaterial({map:galaxyTexture,color:0xffffff,transparent:true,opacity:.96,depthTest:false,depthWrite:false});materials.push(galaxyPhotoMaterial);
     const galaxyPhoto=new T.Sprite(galaxyPhotoMaterial);galaxyPhoto.scale.set(204,122,1);galaxyPhoto.material.rotation=-.025;galaxyPhoto.layers.set(1);galaxyPhoto.renderOrder=-10;galaxyRoot.add(galaxyPhoto);
-    // Fine stars, luminous dust and broad gas occupy separate point volumes.
-    function galaxyCloud(count,size,opacity,spreadScale,lightness){
-      const cloudPositions=[],cloudColors=[];
-      for(let i=0;i<count;i++){
-        // Three broad, imperfect logarithmic arms with a soft inter-arm
-        // population read as stellar dust rather than a diagrammatic pinwheel.
-        const core=rng()<.22,r=core?Math.pow(rng(),1.92)*29:6+Math.pow(rng(),.69)*92;
-        const arm=i%3,wobble=Math.sin(r*.091+arm*1.73)*.13+Math.sin(r*.027-arm*.8)*.075;
-        const base=arm*TAU/3+r*.051+wobble,interarm=!core&&rng()<.14;
-        const angular=(rng()+rng()+rng()-1.5)*(.105+r*.0052)*spreadScale+(interarm?(rng()-.5)*.9:0);
-        const radial=(rng()+rng()+rng()-1.5)*(1.45+r*.061)*spreadScale;
-        const rr=Math.max(.2,r+radial),a=base+angular;
-        const thickness=(.55+7.8*Math.exp(-rr/21)+rr*.011)*spreadScale;
-        const asymmetry=1+.045*Math.sin(a*2.3+rr*.036);
-        cloudPositions.push(Math.cos(a)*rr*asymmetry,(rng()+rng()+rng()-1.5)*thickness,Math.sin(a)*rr*(2-asymmetry));
-        const coreMix=Math.max(0,1-rr/31),armPulse=.5+.5*Math.sin(a*2.15+rr*.071);
-        const c=new T.Color().setHSL(.56+rng()*.18,.42+rng()*.33,lightness+rng()*.19);
-        c.lerp(new T.Color(0xdabaff),.09+.18*armPulse);if(coreMix)c.lerp(new T.Color(0xffe3bd),coreMix*.82);
-        cloudColors.push(c.r,c.g,c.b);
-      }
-      const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(cloudPositions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(cloudColors,3));
-      const material=new T.PointsMaterial({map:glow,size,vertexColors:true,transparent:true,opacity,alphaTest:.003,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:true});materials.push(material);
-      const cloud=new T.Points(geometry,material);cloud.layers.set(1);galaxyRoot.add(cloud);return cloud;
-    }
-    const dust=galaxyCloud(7600,7.8,.055,1,.27);
-    const fineDust=galaxyCloud(5200,2.35,.24,.72,.47);
-    const nebulaDust=galaxyCloud(2600,18,.022,1.34,.24);
-    const stellarKnots=galaxyCloud(920,5.6,.20,.42,.57);
-    const nebulae=new T.Group();
-    [[-46,1,-11,0x6445b7,31,1.55,.46,.3],[-27,-2,27,0x2d8fc5,27,1.8,.42,-.45],[-4,1,-34,0x8a5cba,25,1.5,.5,.7],[25,1,21,0xa44cab,34,1.72,.43,.2],[47,-1,-13,0x347bc1,28,1.62,.44,-.55],[-58,0,19,0xa6559f,24,1.45,.48,.4],[62,1,13,0x545bc8,21,1.65,.4,-.2]].forEach(([x,y,z,color,size,sx,sy,rotation])=>{
-      const pocket=new T.Group();pocket.position.set(x,y,z);const haze=halo(pocket,color,size,.052);haze.scale.set(size*sx,size*sy,1);haze.material.rotation=rotation;nebulae.add(pocket);
-    });
-    layer(nebulae,1);galaxyRoot.add(nebulae);
-    const nucleus=new T.Group();
-    const coreMist=halo(nucleus,0xb8cfff,29,.035);coreMist.scale.set(38,13,1);coreMist.material.rotation=.22;
-    const warmCore=halo(nucleus,0xffcf9b,15,.10);warmCore.scale.set(20,8,1);warmCore.material.rotation=.22;
-    halo(nucleus,0xfff0d4,5.2,.28);layer(nucleus,1);galaxyRoot.add(nucleus);
-    const galaxyClouds=[galaxyPhoto,dust,fineDust,nebulaDust,stellarKnots,nebulae,nucleus];
-    spinning.push({object:dust,speed:.00105},{object:fineDust,speed:.00083},{object:nebulaDust,speed:.00061},{object:stellarKnots,speed:.00092},{object:nebulae,speed:.00072});
+    const galaxyClouds=[galaxyPhoto];
     const primaryOrbit=orbit(galaxyRoot,57,1500,.18,.025,0x95ccff,.18,true,{pitch:.035,yaw:.28});primaryOrbit.line.layers.set(1);
     const primary=star(3.45,0xff4f0a,true);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
     primaryOrbit.body=primary;
@@ -330,9 +291,9 @@
       transparent:true,blending:T.AdditiveBlending,depthWrite:false});materials.push(ambientMaterial);
     const ambientField=new T.Points(ambientGeometry,ambientMaterial);ambientField.layers.set(2);primaryOrbit.anchor.add(ambientField);
 
-    // One bright comet returns frequently, cycling through four genuinely
-    // different 3D trajectories so it never repeats the same screen crossing.
-    const COMET_FIRST=.35,COMET_PERIOD=16,COMET_DURATION=13.5;
+    // A small occasional comet cycles through four genuinely different 3D
+    // trajectories without becoming a permanent foreground element.
+    const COMET_FIRST=8,COMET_PERIOD=52,COMET_DURATION=7.5;
     const cometRoutes=[
       u=>({position:new T.Vector3(-31+63*u,3.4+7.2*Math.sin(Math.PI*u),-17+34*u),tangent:new T.Vector3(63,Math.PI*7.2*Math.cos(Math.PI*u),34)}),
       u=>({position:new T.Vector3(32-64*u,-1.8+8.4*Math.sin(Math.PI*u),16-29*u+2.2*Math.sin(TAU*u)),tangent:new T.Vector3(-64,Math.PI*8.4*Math.cos(Math.PI*u),-29+TAU*2.2*Math.cos(TAU*u))}),
@@ -362,18 +323,19 @@
       }`,transparent:true,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide});materials.push(tailRibbonMaterial);
     const dustRibbon=mesh(tailRibbonGeometry,tailRibbonMaterial,comet);dustRibbon.renderOrder=-1;
     const ionMaterial=tailRibbonMaterial.clone();ionMaterial.uniforms={uTime:{value:0},uWarm:{value:0}};materials.push(ionMaterial);const ionRibbon=mesh(tailRibbonGeometry.clone(),ionMaterial,comet);ionRibbon.rotation.x=Math.PI/2;ionRibbon.scale.y=.72;ionRibbon.renderOrder=-1;
-    comet.scale.setScalar(1.45);layer(comet,2);comet.visible=false;primaryOrbit.anchor.add(comet);
+    comet.scale.setScalar(.48);layer(comet,2);comet.visible=false;primaryOrbit.anchor.add(comet);
     const cometState={visible:false,phase:-1,progress:0,routeIndex:-1,routeCount:cometRoutes.length};
     const clientRecord={id:'client',step:'estrellas',title:'Estrellas · Clientes',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella es un cliente. Orbita el centro de su galaxia, la empresa. Este acercamiento sigue a la estrella seleccionada: sus empleados orbitan a su alrededor.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
     for(let i=0;i<10;i++){
       const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.025*((i%3)-1),0x738caf,.1+(i%3)*.025,false,{pitch:.016*((i%4)-1.5),yaw:i*.41});
       const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);o.anchor.add(s);o.body=s;stars.push({object:s,anchor:o.anchor});
     }
-    // A recognisable zodiac sky: Gemini and Taurus are large foreground
-    // figures; the other ten signs form a pale, distant atlas around them.
+    // A restrained photographic-style sky: two large foreground asterisms use
+    // sparse white points and hairline links; the remaining zodiac stays far
+    // behind as a barely visible atlas without any written names.
     const zodiacPatterns=[
-      {id:'gemini',hero:true,center:[-4.3,.05],scale:.78,points:[[-1.15,2],[1.05,2.05],[-.92,1.18],[.83,1.15],[-.72,.15],[.62,.08],[-.48,-1.05],[.42,-1.12],[-1.16,-1.92],[-.15,-1.92],[.04,-2.02],[1.08,-2.08]],edges:[[0,2],[1,3],[2,3],[2,4],[4,6],[6,8],[6,9],[3,5],[5,7],[7,10],[7,11]]},
-      {id:'taurus',hero:true,center:[4.35,.08],scale:.76,points:[[-2.35,2.1],[-1.05,1.45],[-.72,.22],[0,-.18],[.82,.22],[1.18,1.5],[2.55,2.3],[-1.32,-.72],[1.42,-.64],[.02,-1.55]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[2,7],[4,8],[3,9]]},
+      {id:'gemini',hero:true,center:[-4.1,.02],scale:1.08,points:[[-1.42,-1.78],[-1.92,-.68],[-1.34,.58],[-.22,.82],[.86,1.72],[1.36,1.12],[.35,.36],[-.48,-.18],[.18,-1.08],[1.08,-.58]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[3,6],[6,7],[7,8],[8,9],[6,9]]},
+      {id:'taurus',hero:true,center:[4.25,.02],scale:1.04,points:[[-2.28,1.72],[-1.08,.92],[-.52,.08],[0,-.24],[.58,.08],[1.16,.96],[2.34,1.78],[-.92,-.76],[.88,-.72]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[2,7],[4,8]]},
       {id:'aries',center:[-8.1,3.65],points:[[-1,.2],[-.35,.65],[.25,.45],[.72,-.05],[1,-.62]],edges:[[0,1],[1,2],[2,3],[3,4]]},
       {id:'cancer',center:[-4.1,3.75],points:[[-.9,.15],[-.25,.05],[.2,.55],[.25,-.45],[.95,-.12]],edges:[[0,1],[1,2],[1,3],[3,4]]},
       {id:'leo',center:[0,3.72],points:[[-1,-.4],[-.45,-.08],[-.15,.5],[.35,.78],[.82,.42],[.62,-.08],[1,-.48]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]},
@@ -387,32 +349,32 @@
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
-      const start=guideSpecs.length,scale=pattern.hero?pattern.scale:.38;zodiacStarIndices[pattern.id]=[];
+      const start=guideSpecs.length,scale=pattern.hero?pattern.scale:.34;zodiacStarIndices[pattern.id]=[];
       pattern.points.forEach(([x,y],i)=>{const index=guideSpecs.length;guideSpecs.push({x:pattern.center[0]+x*scale,y:pattern.center[1]+y*scale,z:((index*7)%17)-8,group:pattern.id,hero:!!pattern.hero});zodiacStarIndices[pattern.id].push(index);});
       pattern.edges.forEach(([a,b])=>guideEdges.push([start+a,start+b,pattern.id]));
     });
     const guideStars=guideSpecs.map((spec,i)=>{
       const g=new T.Group();g.position.set(spec.x,spec.y,spec.z);const background=!spec.hero;
-      const palette=spec.group==='gemini'?[0x9be9ff,0xf1fbff,0xb8adff]:spec.group==='taurus'?[0xffd78d,0xfff3d2,0xa8deff]:[0x91bbd8,0xb7afd5,0xd2b7c9,0x9ec9c5];
-      const color=palette[i%palette.length],brightness=[.64,.92,.74,1,.7][i%5],radius=background?.026+(i%3)*.009:.065+(i%3)*.025;
-      const material=new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(.72+brightness*.34),transparent:background,opacity:background?.52:1});materials.push(material);
-      mesh(new T.SphereGeometry(radius,16,12),material,g);halo(g,color,background?.30+brightness*.16:.88+brightness*.48,background?.17+brightness*.12:.58+brightness*.25);
+      const palette=background?[0x7890a4,0x9bacbb,0xb6c1ca]:[0xe6f2ff,0xfafcff,0xc8dcf0];
+      const color=palette[i%palette.length],brightness=[.55,.88,.68,1,.62][i%5],radius=background?.019+(i%3)*.006:.052+(i%3)*.018;
+      const material=new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(.72+brightness*.28),transparent:background,opacity:background?.24:1});materials.push(material);
+      mesh(new T.SphereGeometry(radius,14,10),material,g);halo(g,color,background?.16+brightness*.08:.58+brightness*.32,background?.075+brightness*.045:.36+brightness*.18);
       layer(g,3);scene.add(g);return g;
     });
     const skyPositions=[],skyColors=[];
-    for(let i=0;i<640;i++){
+    for(let i=0;i<390;i++){
       const x=(rng()-.5)*22.5,y=(rng()-.5)*10.8,z=(rng()-.5)*22;
-      skyPositions.push(x,y,z);const c=new T.Color([0x78cfff,0xffd38a,0xa990ff,0xff9fc9,0x88e0cb,0xeaf5ff][i%6]).multiplyScalar(.18+rng()*.42);skyColors.push(c.r,c.g,c.b);
+      skyPositions.push(x,y,z);const c=new T.Color([0xddeaff,0xf5f7ff,0xaec8dc,0xc8b8d8,0xd8cfb5][i%5]).multiplyScalar(.11+rng()*.23);skyColors.push(c.r,c.g,c.b);
     }
     const skyGeometry=new T.BufferGeometry();skyGeometry.setAttribute('position',new T.Float32BufferAttribute(skyPositions,3));skyGeometry.setAttribute('color',new T.Float32BufferAttribute(skyColors,3));
-    const skyMaterial=new T.PointsMaterial({map:glow,size:1.55,vertexColors:true,transparent:true,opacity:.30,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
+    const skyMaterial=new T.PointsMaterial({map:glow,size:1.25,vertexColors:true,transparent:true,opacity:.20,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
     const guideField=new T.Points(skyGeometry,skyMaterial);guideField.layers.set(3);scene.add(guideField);
     const talent=[
-      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,5.6,.52,.6,210],
-      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,.72,2.5,300],
-      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,.82,4.5,400],
-      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,.70,5.6,520],
-      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,18.2,2.20,2.5,650]
+      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,5.6,.68,.6,210],
+      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,.93,2.5,300],
+      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,1.06,4.5,400],
+      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,.91,5.6,520],
+      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,18.2,2.50,2.5,650]
     ];
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
@@ -432,10 +394,10 @@
       records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
-    const observatory=telescope();observatory.scale.setScalar(4.15);
+    const observatory=telescope();observatory.scale.setScalar(5.10);
     const launchCraft=rocket();launchCraft.scale.setScalar(1.18);
     const launchAnchor=new T.Group();scene.add(launchAnchor);launchAnchor.add(launchCraft);layer(launchCraft,5);
-    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(24.2,0,20.9);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
+    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(29.8,0,25.5);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
     const earthVisual=planet(1.58,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
     const waypoints=[['launch','lanzamiento','Centro de lanzamiento',launchCraft,launchAnchor],['observatory','observatorio','Observatorio de señales',observatory,observatoryAnchor],['earth','mision','Misión en la Tierra',earthVisual,earthOrbit.anchor]];
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
@@ -685,8 +647,8 @@
       zodiacSvg.querySelector('g').style.display=cv.visible?'':'none';
       const zodiacPaths={background:zodiacSvg.querySelector('.zodiac-background'),gemini:zodiacSvg.querySelector('.zodiac-gemini'),taurus:zodiacSvg.querySelector('.zodiac-taurus')};
       const edgePath=group=>guideEdges.filter(edge=>group==='background'?!['gemini','taurus'].includes(edge[2]):edge[2]===group).map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' ');
-      zodiacPaths.background.setAttribute('d',cv.visible?edgePath('background'):'');zodiacPaths.background.setAttribute('stroke-width',String(.68*displayScale));
-      ['gemini','taurus'].forEach(group=>{const path=zodiacPaths[group];path.setAttribute('d',cv.visible?edgePath(group):'');path.setAttribute('stroke-width',String((1.18+constellation.hoverAmount*.42)*displayScale));path.style.filter=`drop-shadow(0 0 ${1.8+3*constellation.hoverAmount}px ${group==='gemini'?'#9be9ff':'#ffd78d'})`;const indices=zodiacStarIndices[group],center=indices.reduce((sum,index)=>({x:sum.x+pts[index].x,y:sum.y+pts[index].y}),{x:0,y:0});const label=zodiacSvg.querySelector(`.zodiac-name-${group}`);label.setAttribute('x',(center.x/indices.length).toFixed(2));label.setAttribute('y',(center.y/indices.length+38*displayScale).toFixed(2));});
+      zodiacPaths.background.setAttribute('d',cv.visible?edgePath('background'):'');zodiacPaths.background.setAttribute('stroke-width',String(.42*displayScale));
+      ['gemini','taurus'].forEach(group=>{const path=zodiacPaths[group];path.setAttribute('d',cv.visible?edgePath(group):'');path.setAttribute('stroke-width',String((.68+constellation.hoverAmount*.22)*displayScale));path.style.filter=`drop-shadow(0 0 ${1.1+2*constellation.hoverAmount}px #dcecff)`;});
     }
     const raycaster=new T.Raycaster(),pointer=new T.Vector2();
     function hitTest(x,y,exact=false){
@@ -746,7 +708,7 @@
       }),orbitGuides:moving.filter(o=>o.line).map(o=>({ownerId:records.find(r=>r.visual===o.body)?.id||'galaxy-star',visible:o.line.visible,occupied:!!o.body&&o.anchor.children.includes(o.body),soft:!!o.line.material.uniforms?.uFeather,opacity:o.line.material.uniforms?.uAlpha.value}))};
     }
     const debug={snapshot:()=>({elapsed,paused,selected:selected.id,hovered:hovered?.id||null,focus:focusPlanet?.id||null,assetsReady:(realm.__planetMaterialSession?.getState().ready??true)&&!!galaxyTexture.image?.complete,assetErrors:realm.__planetMaterialSession?.getState().errors||[],shaderErrors:[...shaderErrors],views:JSON.parse(JSON.stringify(views)),triangles:renderer.info.render.triangles,
-      comet:{visible:cometState.visible,phase:cometState.phase,progress:cometState.progress,first:COMET_FIRST,period:COMET_PERIOD,duration:COMET_DURATION,routeIndex:cometState.routeIndex,routeCount:cometState.routeCount,position:comet.position.toArray()},twinkle:{count:ambientCount,pulse:.5+.5*Math.sin(elapsed*ambientSpeeds[0]+ambientPhases[0])},galaxy:{photoReady:!!galaxyTexture.image?.complete,photoWidth:galaxyTexture.image?.naturalWidth||0},stellarWeather:{stormPatches:primary.userData.stormPatches||0,prominenceLoops:primary.userData.prominenceLoops||0},
+      comet:{visible:cometState.visible,phase:cometState.phase,progress:cometState.progress,first:COMET_FIRST,period:COMET_PERIOD,duration:COMET_DURATION,routeIndex:cometState.routeIndex,routeCount:cometState.routeCount,scale:comet.scale.x,position:comet.position.toArray()},twinkle:{count:ambientCount,pulse:.5+.5*Math.sin(elapsed*ambientSpeeds[0]+ambientPhases[0])},galaxy:{photoReady:!!galaxyTexture.image?.complete,photoWidth:galaxyTexture.image?.naturalWidth||0,layers:galaxyClouds.length},stellarWeather:{stormPatches:primary.userData.stormPatches||0,prominenceLoops:primary.userData.prominenceLoops||0},
       objects:records.filter(r=>r.object).map(r=>{let node=r.object.parent,parent;while(node&&!parent){parent=records.find(p=>p.object===node);node=node.parent;}return{id:r.id,kind:r.kind,position:r.object.getWorldPosition(new T.Vector3()).toArray(),local:r.object.position.toArray(),parent:parent?.id||'galaxy',visualScale:r.visual.scale.toArray(),hoverAmount:r.hoverAmount,brightness:1+.38*r.hoverAmount,rotation:r.visual?.children[0]?.rotation.toArray().slice(0,3),sphere:r.visual?.children.some(n=>n.geometry?.type==='SphereGeometry')||false};}),orbitPeriods:moving.map(o=>o.period),bodyCount:records.filter(r=>r.visual).length}),
       advance:seconds=>{elapsed+=seconds;draw();return debug.snapshot();},setTime:(seconds,render=true)=>{elapsed=Math.max(0,Number(seconds)||0);if(render)draw();else updatePositions();},auditVisibility,
       setPaused:value=>{paused=!!value;return debug.snapshot();},

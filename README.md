@@ -21,9 +21,10 @@ estrella señalada en la galaxia; no es otro sistema independiente. Los planetas
 mallas 3D opacas con mapas equirectangulares 2K, iluminación y rotación propia.
 La Tierra incluye continentes reales y una capa de nubes con movimiento independiente.
 Las texturas y su licencia están documentadas en [los créditos](texture-credits.html).
-La galaxia principal combina un activo astrofotográfico transparente con capas 3D
-de estrellas y polvo. Las constelaciones presentan a Géminis y Tauro en primer
-plano y los otros diez signos zodiacales como un atlas tenue de fondo; sus líneas
+La galaxia principal utiliza un único activo astrofotográfico transparente, sin
+la ilustración galáctica anterior ni capas procedurales superpuestas. Las
+constelaciones presentan dos figuras principales con puntos blancos y trazos
+finos, acompañadas por un atlas zodiacal tenue y sin nombres visibles; sus líneas
 unen proyecciones de estrellas a distintas profundidades.
 
 Las órbitas y las posiciones comparten la misma ecuación. Las guías son bandas
@@ -34,7 +35,8 @@ El encuadre considera la envolvente de las órbitas completas y el volumen de ca
 objeto; reserva un margen inferior antes de la información y los controles.
 Las traslaciones duran 48–94 segundos para satélites, 210–650 segundos para planetas
 y 25 minutos para la estrella seleccionada. La Tierra también recorre una órbita
-elíptica visible. Un cometa alterna cuatro rutas tridimensionales cada 16 segundos.
+elíptica visible. Un cometa pequeño alterna cuatro rutas tridimensionales con una
+aparición breve cada 52 segundos.
 La pausa y la preferencia de movimiento reducido detienen la animación. En móvil,
 las pestañas alternan las dos escalas y seleccionar un planeta permite acercarse.
 
