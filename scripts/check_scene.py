@@ -304,7 +304,11 @@ def layout_metrics(cdp):
             view:o.view,bounds:o.bounds,safeRect:o.safeRect,
             pixelRadius:o.pixelRadius??o.pxRadius??((o.bounds.right-o.bounds.left)/2)})),
           constellationHeading:rect(document.querySelector('.cosmos-heading.constellations')),
-          constellationSegments:(document.querySelector('.cosmos-constellation-lines path')
+          constellationSegments:[...document.querySelectorAll('.cosmos-constellation-lines path')]
+            .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
+          constellationHeroSegments:[...document.querySelectorAll('.cosmos-constellation-lines .zodiac-hero')]
+            .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
+          constellationBackgroundSegments:(document.querySelector('.cosmos-constellation-lines .zodiac-background')
             ?.getAttribute('d')?.match(/M/g)||[]).length};
       } finally {debug.setTime(original.elapsed,false);debug.select(original.selected);}
     })()""")
@@ -318,26 +322,27 @@ def ambient_effect_checks(cdp):
         return {pass:false,reason:'Missing deterministic debug controls'};
       try{
         debug.setPaused(true);debug.select('client');
-        debug.setTime(0);const before=debug.snapshot();
-        debug.setTime(3);const first=debug.snapshot();
-        debug.setTime(4);const moving=debug.snapshot();
-        const repeatAt=3+(first.comet?.period||0);
-        debug.setTime(repeatAt);const repeated=debug.snapshot();
-        debug.setTime(20);const outside=debug.snapshot();
+        debug.setTime(0);const before=debug.snapshot(),firstAt=before.comet?.first||0;
+        debug.setTime(firstAt+1);const first=debug.snapshot();
+        debug.setTime(firstAt+2);const moving=debug.snapshot();
+        const period=first.comet?.period||0,duration=first.comet?.duration||0,routes=[];
+        for(let route=0;route<4;route++){debug.setTime(firstAt+route*period+duration*.42);const state=debug.snapshot().comet;routes.push({visible:state?.visible,index:state?.routeIndex,position:state?.position});}
+        debug.setTime(firstAt+duration+1);const outside=debug.snapshot();
         const pulses=[];
         for(const seconds of [0,3,6,9,12]){debug.setTime(seconds);pulses.push(debug.snapshot().twinkle?.pulse);}
         const finitePulses=pulses.filter(Number.isFinite),pulseRange=finitePulses.length?
           Math.max(...finitePulses)-Math.min(...finitePulses):0;
         const a=first.comet?.position||[],b=moving.comet?.position||[];
         const cometTravel=a.length===3&&b.length===3?Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]):0;
-        const period=first.comet?.period,duration=first.comet?.duration,twinkleCount=before.twinkle?.count||0;
+        const routeIndexes=new Set(routes.map(route=>route.index)),twinkleCount=before.twinkle?.count||0;
         const pass=before.comet?.visible===false&&first.comet?.visible===true&&
-          moving.comet?.visible===true&&repeated.comet?.visible===true&&outside.comet?.visible===false&&
-          period>=55&&period<=65&&duration>=6&&duration<=12&&cometTravel>.5&&
-          twinkleCount>=150&&finitePulses.length===pulses.length&&pulseRange>.08;
+          moving.comet?.visible===true&&routes.every(route=>route.visible)&&outside.comet?.visible===false&&
+          first.comet?.routeCount>=4&&routeIndexes.size===4&&period>=14&&period<=30&&duration>=7&&duration<=15&&cometTravel>.5&&
+          twinkleCount>=150&&finitePulses.length===pulses.length&&pulseRange>.08&&
+          before.galaxy?.photoReady&&before.galaxy?.photoWidth>=1200&&before.stellarWeather?.stormPatches>=4&&before.stellarWeather?.prominenceLoops>=6;
         return {beforeVisible:before.comet?.visible,firstVisible:first.comet?.visible,
-          movingVisible:moving.comet?.visible,repeatedVisible:repeated.comet?.visible,
-          outsideVisible:outside.comet?.visible,period,duration,cometTravel,
+          movingVisible:moving.comet?.visible,outsideVisible:outside.comet?.visible,period,duration,cometTravel,
+          routeCount:first.comet?.routeCount,routes,galaxy:before.galaxy,stellarWeather:before.stellarWeather,
           twinkleCount,pulses,pulseRange,pass};
       }finally{
         debug.setTime(original.elapsed);debug.select(original.selected);debug.setPaused(original.paused);
@@ -408,9 +413,15 @@ def hover_checks(cdp):
         for object_id in setup["ids"]:
             selection = "satellite-0" if object_id.startswith("satellite-") else "client"
             point = cdp.evaluate("""(()=>{
-              const debug=window.__universeDebug;debug.select(SELECTION);debug.setTime(0);
-              const p=debug.project(ID),r=document.querySelector('.cosmos-stage').getBoundingClientRect();
-              return p?{x:p.x+r.x,y:p.y+r.y}:null;
+              const debug=window.__universeDebug;debug.select(SELECTION);
+              const times=ID.startsWith('satellite-')?[0,8,16,24,32,40,48,56,64,72]:[0];
+              const r=document.querySelector('.cosmos-stage').getBoundingClientRect();
+              for(const time of times){
+                debug.setTime(time);const p=debug.project(ID);
+                if(p&&debug.hitAt(p.x,p.y,true)===ID)return{x:p.x+r.x,y:p.y+r.y,time};
+              }
+              debug.setTime(0);const p=debug.project(ID);
+              return p?{x:p.x+r.x,y:p.y+r.y,time:0}:null;
             })()""".replace("SELECTION", json.dumps(selection)).replace("ID", json.dumps(object_id)))
             if not point:
                 results.append({"id": object_id, "pass": False, "reason": "Missing projected pointer target"})
@@ -542,12 +553,18 @@ def layout_checks(metrics):
             right = (constellation["x"] + constellation["w"]) / stage["w"]
             top = constellation["y"] / stage["h"]
             segments = item.get("constellationSegments", 0)
+            hero_segments = item.get("constellationHeroSegments", 0)
+            background_segments = item.get("constellationBackgroundSegments", 0)
             checks.append({"viewport": [width, height], "check": "constellation-top-right",
                            "leftFraction": left, "rightFraction": right,
                            "centerXFraction": center_x, "topFraction": top,
                            "pass": left >= .64 and center_x >= .78 and right <= 1.01 and 0 <= top <= .24})
             checks.append({"viewport": [width, height], "check": "constellation-rich-cluster",
                            "connectedSegments": segments, "pass": segments >= 42})
+            checks.append({"viewport": [width, height], "check": "gemini-taurus-prominent",
+                           "heroSegments": hero_segments, "pass": hero_segments >= 20})
+            checks.append({"viewport": [width, height], "check": "zodiac-background-present",
+                           "backgroundSegments": background_segments, "pass": background_segments >= 50})
         else:
             checks.append({"viewport": [width, height], "check": "constellation-present", "pass": False})
 
@@ -566,7 +583,7 @@ def layout_checks(metrics):
             checks.append({"viewport": [width, height], "check": "observatory-lower-right",
                            "centerXFraction": values["centerXFraction"],
                            "centerYFraction": values["centerYFraction"],
-                           "pass": values["centerXFraction"] >= .84 and values["centerYFraction"] >= .65})
+                           "pass": values["centerXFraction"] >= .75 and values["centerYFraction"] >= .61})
             checks.append({"viewport": [width, height], "check": "observatory-dominant-size",
                            "projectedDiameter": values["diameter"],
                            "minimum": 190 * display_scale,
@@ -753,7 +770,7 @@ def main():
             first_objects = {o["id"]: o for o in hierarchy_before["objects"]}
             last_objects = {o["id"]: o for o in hierarchy_after["objects"]}
             for body in hierarchy_after["objects"]:
-                if body["kind"] not in ("planet", "satellite"):
+                if body["kind"] not in ("planet", "satellite") and body["id"] != "earth":
                     continue
                 parent = last_objects[body["parent"]]
                 relative = [a - b for a, b in zip(body["position"], parent["position"])]

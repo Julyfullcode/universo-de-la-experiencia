@@ -20,6 +20,12 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
 .cosmos-stage canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; }
 .cosmos-labels, .cosmos-constellation-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cosmos-constellation-lines path { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.cosmos-constellation-lines .zodiac-background { opacity: .88; }
+.cosmos-constellation-lines .zodiac-hero { opacity: .94; }
+.cosmos-constellation-lines .zodiac-name { fill: #dfe9ff; font: 800 calc(8 * var(--cosmos-unit))/1 "Nunito Sans", sans-serif; letter-spacing: .16em; text-anchor: middle; paint-order: stroke; stroke: #030819; stroke-width: calc(3 * var(--cosmos-unit)); }
+.cosmos-constellation-lines .zodiac-name-taurus { fill: #ffe2a3; }
+.cosmos-constellation-lines .zodiac-name-gemini { fill: #bdefff; }
 .cosmos-heading { position: absolute; z-index: 2; pointer-events: none; left: 1.4%; top: calc(10 * var(--cosmos-unit)); }
 .cosmos-heading small, .cosmos-inspector small { display: block; color: #b7a9e6; letter-spacing: .16em; font-weight: 700; font-size: calc(10 * var(--cosmos-unit)); text-transform: uppercase; }
 .cosmos-heading h2 { color: #f3f2ff; margin: calc(4 * var(--cosmos-unit)) 0; font-size: calc(18 * var(--cosmos-unit)); line-height: 1.2; }
@@ -34,7 +40,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   text-align: right;
   transform: none;
 }
-.cosmos-heading.constellations small { display: none; }
+.cosmos-heading.constellations small { color: #9ebbd2; font-size: calc(8 * var(--cosmos-unit)); opacity: .82; }
 .cosmos-galaxy-caption {
   position: absolute;
   z-index: 3;
