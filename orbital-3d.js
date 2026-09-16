@@ -333,7 +333,7 @@
     // The upper-right guide reproduces the supplied reference: one restrained
     // white asterism, without labels or a second zodiac atlas behind it.
     const zodiacPatterns=[
-      {id:'reference',hero:true,center:[-.7,-1],scale:2,points:[[-3,-.9],[-2.25,.55],[-.70,.90],[.75,2.15],[2.25,2.90],[2.55,1.95],[1.05,1.30],[0,.55],[-.45,-.75],[-1.45,-1.45],[-2.40,-2.35]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
+      {id:'reference',hero:true,center:[-2,-1.7],scale:1.8,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
@@ -390,7 +390,7 @@
     const observatory=telescope();observatory.scale.setScalar(7.20);
     const launchCraft=rocket();launchCraft.scale.setScalar(1.18);
     const launchAnchor=new T.Group();scene.add(launchAnchor);launchAnchor.add(launchCraft);layer(launchCraft,5);
-    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(27.7,0,30.5);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
+    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(28.35,0,35);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
     const earthVisual=planet(2.45,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
     const waypoints=[['launch','lanzamiento','Centro de lanzamiento',launchCraft,launchAnchor],['observatory','observatorio','Observatorio de señales',observatory,observatoryAnchor],['earth','mision','Misión en la Tierra',earthVisual,earthOrbit.anchor]];
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
