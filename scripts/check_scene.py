@@ -303,12 +303,11 @@ def layout_metrics(cdp):
           views:snapshot.views,fonts,objects:(audit.objects||[]).map(o=>({id:o.id,kind:o.kind,
             view:o.view,bounds:o.bounds,safeRect:o.safeRect,
             pixelRadius:o.pixelRadius??o.pxRadius??((o.bounds.right-o.bounds.left)/2)})),
+          orbitGuideCount:(audit.orbitGuides||[]).length,
           constellationHeading:rect(document.querySelector('.cosmos-heading.constellations')),
           constellationSegments:[...document.querySelectorAll('.cosmos-constellation-lines path')]
             .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
-          constellationHeroSegments:[...document.querySelectorAll('.cosmos-constellation-lines .zodiac-hero')]
-            .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
-          constellationBackgroundSegments:(document.querySelector('.cosmos-constellation-lines .zodiac-background')
+          referenceConstellationSegments:(document.querySelector('.cosmos-constellation-lines .reference-constellation')
             ?.getAttribute('d')?.match(/M/g)||[]).length,
           constellationNames:document.querySelectorAll('.cosmos-constellation-lines text').length};
       } finally {debug.setTime(original.elapsed,false);debug.select(original.selected);}
@@ -558,26 +557,27 @@ def layout_checks(metrics):
             right = (constellation["x"] + constellation["w"]) / stage["w"]
             top = constellation["y"] / stage["h"]
             segments = item.get("constellationSegments", 0)
-            hero_segments = item.get("constellationHeroSegments", 0)
-            background_segments = item.get("constellationBackgroundSegments", 0)
+            reference_segments = item.get("referenceConstellationSegments", 0)
             constellation_names = item.get("constellationNames", 0)
             checks.append({"viewport": [width, height], "check": "constellation-top-right",
                            "leftFraction": left, "rightFraction": right,
                            "centerXFraction": center_x, "topFraction": top,
                            "pass": left >= .64 and center_x >= .78 and right <= 1.01 and 0 <= top <= .24})
-            checks.append({"viewport": [width, height], "check": "constellation-rich-cluster",
-                           "connectedSegments": segments, "pass": segments >= 42})
-            checks.append({"viewport": [width, height], "check": "gemini-taurus-prominent",
-                           "heroSegments": hero_segments, "pass": hero_segments >= 18})
-            checks.append({"viewport": [width, height], "check": "zodiac-background-present",
-                           "backgroundSegments": background_segments, "pass": background_segments >= 50})
+            checks.append({"viewport": [width, height], "check": "reference-constellation-shape",
+                           "connectedSegments": segments, "referenceSegments": reference_segments,
+                           "pass": segments == 12 and reference_segments == 12})
             checks.append({"viewport": [width, height], "check": "constellation-names-removed",
                            "visibleNames": constellation_names, "pass": constellation_names == 0})
         else:
             checks.append({"viewport": [width, height], "check": "constellation-present", "pass": False})
 
-        for object_id, minimum in (("empaticos", 19), ("conectores", 26), ("impulsores", 30),
-                                   ("exploradores", 26), ("earth", 46), ("forjadores", 72)):
+        checks.append({"viewport": [width, height], "check": "orbit-marks-removed",
+                       "visibleGuides": item.get("orbitGuideCount", -1),
+                       "pass": item.get("orbitGuideCount") == 0})
+
+        for object_id, minimum in (("client", 145), ("empaticos", 32), ("conectores", 39),
+                                   ("impulsores", 43), ("exploradores", 38), ("earth", 66),
+                                   ("forjadores", 85)):
             geometry = body_geometry(object_id)
             if geometry:
                 _, _, values = geometry

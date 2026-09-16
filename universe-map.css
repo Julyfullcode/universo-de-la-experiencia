@@ -22,8 +22,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-stage canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; touch-action: manipulation; }
 .cosmos-labels, .cosmos-constellation-lines { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cosmos-constellation-lines path { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
-.cosmos-constellation-lines .zodiac-background { opacity: .38; }
-.cosmos-constellation-lines .zodiac-hero { opacity: .72; }
+.cosmos-constellation-lines .reference-constellation { opacity: .82; }
 .cosmos-heading { position: absolute; z-index: 2; pointer-events: none; left: 1.4%; top: calc(10 * var(--cosmos-unit)); }
 .cosmos-heading small, .cosmos-inspector small { display: block; color: #b7a9e6; letter-spacing: .16em; font-weight: 700; font-size: calc(10 * var(--cosmos-unit)); text-transform: uppercase; }
 .cosmos-heading h2 { color: #f3f2ff; margin: calc(4 * var(--cosmos-unit)) 0; font-size: calc(18 * var(--cosmos-unit)); line-height: 1.2; }

@@ -35,7 +35,7 @@
       <div class="cosmos-heading constellations"><small>Guía en el cielo</small><h2>Constelaciones</h2></div>
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
-      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="zodiac-background-light"><stop stop-color="#7893a8" stop-opacity=".06"/><stop offset=".5" stop-color="#d6e1eb" stop-opacity=".16"/><stop offset="1" stop-color="#8398aa" stop-opacity=".05"/></linearGradient><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".88"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="zodiac-background" fill="none" stroke="url(#zodiac-background-light)"/><path class="zodiac-hero zodiac-gemini" fill="none" stroke="url(#constellation-light)"/><path class="zodiac-hero zodiac-taurus" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>`;
+      <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
     inspector.innerHTML='<button class="cosmos-action"></button>';
@@ -47,7 +47,7 @@
     const materials=[],records=[],moving=[],spinning=[],labels=[],stars=[],solarFlares=[];
     const lightPosition=new T.Vector3(),mainWorld=new T.Vector3(),temp=new T.Vector3();
     let animation,elapsed=0,disposed=false,width=1,height=1,displayScale=1,compact=false,mobileView='system',selected,focusPlanet=null,hovered=null,mousePoint=null;
-    const MAX_HOVER_SCALE=1.14;
+    const MAX_HOVER_SCALE=1.14,SHOW_ORBIT_GUIDES=false;
     const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');let paused=reduced.matches;
     const views={},shaderErrors=[];
     renderer.debug.onShaderError=(gl,program,vertex,fragment)=>{shaderErrors.push([gl.getProgramInfoLog(program),gl.getShaderInfoLog(vertex),gl.getShaderInfoLog(fragment)].join('\n'));};
@@ -158,7 +158,7 @@
       // rotates this frame or the satellites attached to its moving anchor.
       const plane=new T.Group();plane.rotation.set(orientation.pitch||0,orientation.yaw||0,tilt,'YXZ');parent.add(plane);const anchor=new T.Group();plane.add(anchor);
       let line=null;
-      if(showGuide){
+      if(showGuide&&SHOW_ORBIT_GUIDES){
         // A broad, translucent dust wake with a stable, seamless noise field.
         // Its colour and density change along the ellipse, but no animated
         // texture or refreshed particle grid is used. The centre has no stroke.
@@ -268,8 +268,8 @@
     const galaxyPhotoMaterial=new T.SpriteMaterial({map:galaxyTexture,color:0xffffff,transparent:true,opacity:.96,depthTest:false,depthWrite:false});materials.push(galaxyPhotoMaterial);
     const galaxyPhoto=new T.Sprite(galaxyPhotoMaterial);galaxyPhoto.scale.set(204,122,1);galaxyPhoto.material.rotation=-.025;galaxyPhoto.layers.set(1);galaxyPhoto.renderOrder=-10;galaxyRoot.add(galaxyPhoto);
     const galaxyClouds=[galaxyPhoto];
-    const primaryOrbit=orbit(galaxyRoot,57,1500,.18,.025,0x95ccff,.18,true,{pitch:.035,yaw:.28});primaryOrbit.line.layers.set(1);
-    const primary=star(3.45,0xff4f0a,true);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
+    const primaryOrbit=orbit(galaxyRoot,57,1500,.18,.025,0x95ccff,.18,true,{pitch:.035,yaw:.28});primaryOrbit.line?.layers.set(1);
+    const primary=star(5.35,0xff4f0a,true);layer(primary,0);primary.traverse(o=>o.layers.enable(2));primaryOrbit.anchor.add(primary);
     primaryOrbit.body=primary;
     const beacon=halo(primaryOrbit.anchor,0xffb24b,15,.92);beacon.layers.set(0);
     // A sparse shader-driven sky: every point has its own phase and speed, so
@@ -330,26 +330,14 @@
       const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.025*((i%3)-1),0x738caf,.1+(i%3)*.025,false,{pitch:.016*((i%4)-1.5),yaw:i*.41});
       const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);o.anchor.add(s);o.body=s;stars.push({object:s,anchor:o.anchor});
     }
-    // A restrained photographic-style sky: two large foreground asterisms use
-    // sparse white points and hairline links; the remaining zodiac stays far
-    // behind as a barely visible atlas without any written names.
+    // The upper-right guide reproduces the supplied reference: one restrained
+    // white asterism, without labels or a second zodiac atlas behind it.
     const zodiacPatterns=[
-      {id:'gemini',hero:true,center:[-4.1,.02],scale:1.08,points:[[-1.42,-1.78],[-1.92,-.68],[-1.34,.58],[-.22,.82],[.86,1.72],[1.36,1.12],[.35,.36],[-.48,-.18],[.18,-1.08],[1.08,-.58]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[3,6],[6,7],[7,8],[8,9],[6,9]]},
-      {id:'taurus',hero:true,center:[4.25,.02],scale:1.04,points:[[-2.28,1.72],[-1.08,.92],[-.52,.08],[0,-.24],[.58,.08],[1.16,.96],[2.34,1.78],[-.92,-.76],[.88,-.72]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[2,7],[4,8]]},
-      {id:'aries',center:[-8.1,3.65],points:[[-1,.2],[-.35,.65],[.25,.45],[.72,-.05],[1,-.62]],edges:[[0,1],[1,2],[2,3],[3,4]]},
-      {id:'cancer',center:[-4.1,3.75],points:[[-.9,.15],[-.25,.05],[.2,.55],[.25,-.45],[.95,-.12]],edges:[[0,1],[1,2],[1,3],[3,4]]},
-      {id:'leo',center:[0,3.72],points:[[-1,-.4],[-.45,-.08],[-.15,.5],[.35,.78],[.82,.42],[.62,-.08],[1,-.48]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]},
-      {id:'virgo',center:[4.1,3.72],points:[[-1,.55],[-.45,.18],[.05,.42],[.25,-.08],[.82,-.55],[.18,-.72],[1,.35]],edges:[[0,1],[1,2],[2,3],[3,4],[3,5],[2,6]]},
-      {id:'libra',center:[8.05,3.66],points:[[-.9,.45],[.72,.5],[1,-.42],[-.72,-.48],[0,-.08]],edges:[[0,1],[1,2],[2,3],[3,0],[0,4],[4,2]]},
-      {id:'scorpio',center:[-8.1,-3.62],points:[[-1,.52],[-.55,.18],[-.18,.42],[.12,.05],[.45,-.28],[.78,-.62],[1,-.18],[.78,.08]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7]]},
-      {id:'sagittarius',center:[-4.1,-3.68],points:[[-.9,.45],[-.25,.62],[.45,.42],[.85,-.22],[.12,-.48],[-.5,-.38],[.18,.05]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,4]]},
-      {id:'capricorn',center:[0,-3.68],points:[[-1,.42],[-.35,.62],[.35,.35],[.95,.55],[.55,-.52],[-.3,-.38]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[2,5]]},
-      {id:'aquarius',center:[4.1,-3.68],points:[[-1,.45],[-.55,.12],[-.08,.48],[.38,.1],[.85,.45],[1,-.18]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5]]},
-      {id:'pisces',center:[8.05,-3.65],points:[[-1,.42],[-.65,.72],[-.28,.38],[0,0],[.38,-.4],[.78,-.72],[1,-.35],[.72,.02]],edges:[[0,1],[1,2],[2,0],[2,3],[3,4],[4,5],[5,6],[6,7],[7,4]]}
+      {id:'reference',hero:true,center:[0,-.10],scale:2,points:[[-3,-.9],[-2.25,.55],[-.70,.90],[.75,2.15],[2.25,2.90],[2.55,1.95],[1.05,1.30],[0,.55],[-.45,-.75],[-1.45,-1.45],[-2.40,-2.35]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
-      const start=guideSpecs.length,scale=pattern.hero?pattern.scale:.34;zodiacStarIndices[pattern.id]=[];
+      const start=guideSpecs.length,scale=pattern.scale;zodiacStarIndices[pattern.id]=[];
       pattern.points.forEach(([x,y],i)=>{const index=guideSpecs.length;guideSpecs.push({x:pattern.center[0]+x*scale,y:pattern.center[1]+y*scale,z:((index*7)%17)-8,group:pattern.id,hero:!!pattern.hero});zodiacStarIndices[pattern.id].push(index);});
       pattern.edges.forEach(([a,b])=>guideEdges.push([start+a,start+b,pattern.id]));
     });
@@ -370,11 +358,11 @@
     const skyMaterial=new T.PointsMaterial({map:glow,size:1.25,vertexColors:true,transparent:true,opacity:.20,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
     const guideField=new T.Points(skyGeometry,skyMaterial);guideField.layers.set(3);scene.add(guideField);
     const talent=[
-      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,5.6,.68,.6,210],
-      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,.93,2.5,300],
-      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,1.06,4.5,400],
-      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,.91,5.6,520],
-      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,18.2,2.50,2.5,650]
+      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,5.6,1.18,.6,210],
+      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,1.45,2.5,300],
+      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,1.60,4.5,400],
+      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,1.42,5.6,520],
+      ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,18.2,3.15,2.5,650]
     ];
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
@@ -397,10 +385,11 @@
     const observatory=telescope();observatory.scale.setScalar(7.20);
     const launchCraft=rocket();launchCraft.scale.setScalar(1.18);
     const launchAnchor=new T.Group();scene.add(launchAnchor);launchAnchor.add(launchCraft);layer(launchCraft,5);
-    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(25.8,0,25.5);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
-    const earthVisual=planet(1.58,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
+    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(26.65,0,28.2);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
+    const earthVisual=planet(2.45,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
     const waypoints=[['launch','lanzamiento','Centro de lanzamiento',launchCraft,launchAnchor],['observatory','observatorio','Observatorio de señales',observatory,observatoryAnchor],['earth','mision','Misión en la Tierra',earthVisual,earthOrbit.anchor]];
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
+    records.find(record=>record.id==='observatory').framingPosition=new T.Vector3(25.8,0,25.5);
     const launchRecord=records.find(r=>r.id==='launch');
     const constellation={id:'guide',step:'coordenadas',title:'Constelaciones · Nuestra guía',eyebrow:'Agrupación aparente, no estructura física',description:'Los trazos unen estrellas vistas desde aquí, aunque se encuentran a distintas distancias. Representan el modelo de experiencia y la arquitectura empresarial: nos orientan, no son órbitas.',kind:'guide'};records.push(constellation);
     const galaxyRecord={id:'galaxy',step:'lanzamiento',title:'Galaxias · Empresas',eyebrow:'Una red de sistemas de experiencia',description:'La galaxia reúne sus estrellas cliente. Cada estrella tiene planetas empleados y cada planeta puede contar con satélites de otros actores. La vista ampliada sigue el mismo cliente que ves señalado aquí.',kind:'galaxy'};records.push(galaxyRecord);
@@ -528,7 +517,7 @@
           if(motion){const a=motion.radius,b=a*Math.sqrt(1-motion.eccentricity*motion.eccentricity);
             h-=a*motion.eccentricity*screenRight.dot(xAxis);v-=a*motion.eccentricity*screenUp.dot(xAxis);
             rangeH+=Math.hypot(a*screenRight.dot(xAxis),b*screenRight.dot(zAxis));rangeV+=Math.hypot(a*screenUp.dot(xAxis),b*screenUp.dot(zAxis));
-          }else{const offset=node.position.clone().applyMatrix3(new T.Matrix3().setFromMatrix4(parent.matrixWorld));h+=screenRight.dot(offset);v+=screenUp.dot(offset);}
+          }else{const local=!compact&&node===record.object&&record.framingPosition?record.framingPosition:node.position;const offset=local.clone().applyMatrix3(new T.Matrix3().setFromMatrix4(parent.matrixWorld));h+=screenRight.dot(offset);v+=screenUp.dot(offset);}
           node=parent;
         }
         const extent=bodyExtent(record)*MAX_HOVER_SCALE;envelope.left=Math.min(envelope.left,h-rangeH-extent);envelope.right=Math.max(envelope.right,h+rangeH+extent);envelope.bottom=Math.min(envelope.bottom,v-rangeV-extent);envelope.top=Math.max(envelope.top,v+rangeV+extent);
@@ -645,10 +634,9 @@
       if(gv.visible){galaxyCaption.style.left=`${gv.x+gv.w/2}px`;galaxyCaption.style.top=`${gv.y+gv.h-9*displayScale}px`;}
       const zodiacSvg=stage.querySelector('.cosmos-constellation-lines'),pts=guideStars.map(s=>project(s,'constellation'));
       zodiacSvg.querySelector('g').style.display=cv.visible?'':'none';
-      const zodiacPaths={background:zodiacSvg.querySelector('.zodiac-background'),gemini:zodiacSvg.querySelector('.zodiac-gemini'),taurus:zodiacSvg.querySelector('.zodiac-taurus')};
-      const edgePath=group=>guideEdges.filter(edge=>group==='background'?!['gemini','taurus'].includes(edge[2]):edge[2]===group).map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' ');
-      zodiacPaths.background.setAttribute('d',cv.visible?edgePath('background'):'');zodiacPaths.background.setAttribute('stroke-width',String(.42*displayScale));
-      ['gemini','taurus'].forEach(group=>{const path=zodiacPaths[group];path.setAttribute('d',cv.visible?edgePath(group):'');path.setAttribute('stroke-width',String((.68+constellation.hoverAmount*.22)*displayScale));path.style.filter=`drop-shadow(0 0 ${1.1+2*constellation.hoverAmount}px #dcecff)`;});
+      const constellationPath=zodiacSvg.querySelector('.reference-constellation');
+      const edgePath=guideEdges.map(([a,b])=>`M${pts[a].x.toFixed(2)},${pts[a].y.toFixed(2)} L${pts[b].x.toFixed(2)},${pts[b].y.toFixed(2)}`).join(' ');
+      constellationPath.setAttribute('d',cv.visible?edgePath:'');constellationPath.setAttribute('stroke-width',String((.68+constellation.hoverAmount*.22)*displayScale));constellationPath.style.filter=`drop-shadow(0 0 ${1.1+2*constellation.hoverAmount}px #dcecff)`;
     }
     const raycaster=new T.Raycaster(),pointer=new T.Vector2();
     function hitTest(x,y,exact=false){
