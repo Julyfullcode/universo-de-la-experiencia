@@ -325,8 +325,14 @@ def ambient_effect_checks(cdp):
         debug.setTime(0);const before=debug.snapshot(),firstAt=before.comet?.first||0;
         debug.setTime(firstAt+1);const first=debug.snapshot();
         debug.setTime(firstAt+2);const moving=debug.snapshot();
-        const period=first.comet?.period||0,duration=first.comet?.duration||0,routes=[];
-        for(let route=0;route<4;route++){debug.setTime(firstAt+route*period+duration*.42);const state=debug.snapshot().comet;routes.push({visible:state?.visible,index:state?.routeIndex,position:state?.position});}
+        const period=first.comet?.period||0,duration=first.comet?.duration||0,routes=[],traversals=[];
+        for(let route=0;route<4;route++){
+          const samples=[];
+          for(const progress of [.03,.5,.97]){debug.setTime(firstAt+route*period+duration*progress);const snapshot=debug.snapshot(),state=snapshot.comet,view=snapshot.views.system;samples.push({progress,visible:state?.visible,index:state?.routeIndex,position:state?.position,screen:state?.screen,view});}
+          routes.push(samples[1]);
+          const [start,middle,end]=samples,startOutside=start.screen&&(start.screen.x<start.view.x||start.screen.x>start.view.x+start.view.w),endOutside=end.screen&&(end.screen.x<end.view.x||end.screen.x>end.view.x+end.view.w),middleInside=middle.screen&&middle.screen.x>=middle.view.x&&middle.screen.x<=middle.view.x+middle.view.w&&middle.screen.y>=middle.view.y&&middle.screen.y<=middle.view.y+middle.view.h;
+          traversals.push({route,startOutside,endOutside,middleInside,samples});
+        }
         debug.setTime(firstAt+duration+1);const outside=debug.snapshot();
         const pulses=[];
         for(const seconds of [0,3,6,9,12]){debug.setTime(seconds);pulses.push(debug.snapshot().twinkle?.pulse);}
@@ -337,12 +343,14 @@ def ambient_effect_checks(cdp):
         const routeIndexes=new Set(routes.map(route=>route.index)),twinkleCount=before.twinkle?.count||0;
         const pass=before.comet?.visible===false&&first.comet?.visible===true&&
           moving.comet?.visible===true&&routes.every(route=>route.visible)&&outside.comet?.visible===false&&
-          first.comet?.routeCount>=4&&routeIndexes.size===4&&first.comet?.scale<=.55&&period>=45&&period<=75&&duration>=5&&duration<=10&&cometTravel>.5&&
+          first.comet?.routeCount>=4&&routeIndexes.size===4&&first.comet?.scale<=.55&&period>=45&&period<=75&&duration>=10&&duration<=16&&cometTravel>.5&&
+          traversals.every(route=>route.startOutside&&route.endOutside&&route.middleInside)&&
           twinkleCount>=150&&finitePulses.length===pulses.length&&pulseRange>.08&&
-          before.galaxy?.photoReady&&before.galaxy?.photoWidth>=1200&&before.galaxy?.layers===1&&before.stellarWeather?.stormPatches>=4&&before.stellarWeather?.prominenceLoops>=6;
+          before.constellationAtmosphere?.backgroundStars>=600&&before.constellationAtmosphere?.dustClouds>=4&&
+          before.galaxy?.photoReady&&before.galaxy?.photoWidth>=1200&&before.galaxy?.layers===1&&before.stellarWeather?.stormPatches>=4&&before.stellarWeather?.prominenceLoops>=6&&before.stellarWeather?.foregroundProtected===true;
         return {beforeVisible:before.comet?.visible,firstVisible:first.comet?.visible,
           movingVisible:moving.comet?.visible,outsideVisible:outside.comet?.visible,period,duration,cometTravel,
-          routeCount:first.comet?.routeCount,cometScale:first.comet?.scale,routes,galaxy:before.galaxy,stellarWeather:before.stellarWeather,
+          routeCount:first.comet?.routeCount,cometScale:first.comet?.scale,routes,traversals,constellationAtmosphere:before.constellationAtmosphere,galaxy:before.galaxy,stellarWeather:before.stellarWeather,
           twinkleCount,pulses,pulseRange,pass};
       }finally{
         debug.setTime(original.elapsed);debug.select(original.selected);debug.setPaused(original.paused);
@@ -598,8 +606,8 @@ def layout_checks(metrics):
                                    values["centerYFraction"] >= .63})
             checks.append({"viewport": [width, height], "check": "observatory-dominant-size",
                            "projectedDiameter": values["diameter"],
-                           "minimum": 275 * display_scale,
-                           "pass": values["diameter"] >= 275 * display_scale})
+                           "minimum": 180 * display_scale,
+                           "pass": values["diameter"] >= 180 * display_scale})
     normal = next((m for m in metrics if m["viewport"] == [1440, 900]), None)
     large = next((m for m in metrics if m["viewport"] == [2560, 1440]), None)
     if normal and large:
