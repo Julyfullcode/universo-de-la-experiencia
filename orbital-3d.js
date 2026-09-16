@@ -392,8 +392,7 @@
     const observatory=telescope();observatory.scale.setScalar(7.20);
     const launchCraft=rocket();launchCraft.scale.setScalar(1.18);
     const launchAnchor=new T.Group();scene.add(launchAnchor);launchAnchor.add(launchCraft);layer(launchCraft,5);
-    const observatoryDesktopPosition=new T.Vector3(36,0,38.2),observatoryCompactPosition=new T.Vector3(28.35,0,35);
-    const observatoryAnchor=new T.Group();observatoryAnchor.position.copy(observatoryDesktopPosition);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
+    const observatoryAnchor=new T.Group();observatoryAnchor.position.set(28.35,0,35);primaryOrbit.anchor.add(observatoryAnchor);observatoryAnchor.add(observatory);
     const earthVisual=planet(2.45,0x126fa9,0x499555,1,12.7),earthOrbit=orbit(primaryOrbit.anchor,30.4,420,.15,.035,0x66b9d4,.06,true,{pitch:.08,yaw:.22});earthOrbit.anchor.add(earthVisual);earthOrbit.body=earthVisual;
     const waypoints=[['launch','lanzamiento','Centro de lanzamiento',launchCraft,launchAnchor],['observatory','observatorio','Observatorio de señales',observatory,observatoryAnchor],['earth','mision','Misión en la Tierra',earthVisual,earthOrbit.anchor]];
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
@@ -560,8 +559,7 @@
     }
     function resize(){
       const box=stage.getBoundingClientRect();if(width!==box.width||height!==box.height)labels.forEach(label=>label.placement=null);
-      width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;
-      const observatoryEdgeProgress=compact?0:Math.max(0,Math.min(1,(width-1440)/479));observatoryAnchor.position.copy(observatoryCompactPosition).lerp(observatoryDesktopPosition,observatoryEdgeProgress);framingCache.clear();renderer.setSize(width,height,false);
+      width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;renderer.setSize(width,height,false);
       displayScale=compact?1:Math.max(.8,Math.min(3,window.innerWidth/1440,window.innerHeight/900));
       views.galaxy=compact?{x:0,y:35,w:width,h:height*.46-35}:{x:0,y:42*displayScale,w:width*.23,h:height*.39};
       views.constellation=compact?{x:0,y:height*.65,w:width,h:height*.3}:{x:width*.695,y:3*displayScale,w:width*.295,h:height*.42};
