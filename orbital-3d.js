@@ -333,7 +333,7 @@
     // The upper-right guide reproduces the supplied reference: one restrained
     // white asterism, without labels or a second zodiac atlas behind it.
     const zodiacPatterns=[
-      {id:'reference',hero:true,center:[-1,0],scale:1.55,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
+      {id:'reference',hero:true,center:[-.8,-.45],scale:1.72,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
@@ -357,6 +357,8 @@
     const skyGeometry=new T.BufferGeometry();skyGeometry.setAttribute('position',new T.Float32BufferAttribute(skyPositions,3));skyGeometry.setAttribute('color',new T.Float32BufferAttribute(skyColors,3));
     const skyMaterial=new T.PointsMaterial({map:glow,size:1.18,vertexColors:true,transparent:true,opacity:.62,alphaTest:.01,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(skyMaterial);
     const guideField=new T.Points(skyGeometry,skyMaterial);guideField.layers.set(3);scene.add(guideField);
+    const constellationBackdropMaterial=new T.SpriteMaterial({map:glow,color:0x01040a,transparent:true,opacity:.78,blending:T.NormalBlending,depthWrite:false,depthTest:false});materials.push(constellationBackdropMaterial);
+    const constellationBackdrop=new T.Sprite(constellationBackdropMaterial);constellationBackdrop.scale.set(25,14,1);constellationBackdrop.position.set(0,0,-30);constellationBackdrop.layers.set(3);constellationBackdrop.renderOrder=-30;scene.add(constellationBackdrop);
     const constellationDust=new T.Group();
     [[-4,-1.2,13,6.4,0x657b93,.13],[-.4,.2,15,7.2,0x4a627e,.11],[3.6,1.5,11,5.8,0x81798d,.085],[-1.8,-3.1,10,4.6,0x536d82,.075]].forEach(([x,y,w,h,color,opacity],i)=>{
       const cloud=halo(constellationDust,color,1,opacity);cloud.position.set(x,y,-18-i);cloud.scale.set(w,h,1);cloud.material.depthTest=false;cloud.renderOrder=-20+i;
@@ -560,7 +562,7 @@
       width=Math.max(1,box.width);height=Math.max(1,box.height);compact=window.matchMedia('(max-width: 800px)').matches;renderer.setSize(width,height,false);
       displayScale=compact?1:Math.max(.8,Math.min(3,window.innerWidth/1440,window.innerHeight/900));
       views.galaxy=compact?{x:0,y:35,w:width,h:height*.46-35}:{x:0,y:42*displayScale,w:width*.23,h:height*.39};
-      views.constellation=compact?{x:0,y:height*.65,w:width,h:height*.3}:{x:width*.695,y:3*displayScale,w:width*.295,h:height*.275};
+      views.constellation=compact?{x:0,y:height*.65,w:width,h:height*.3}:{x:width*.695,y:3*displayScale,w:width*.295,h:height*.34};
       views.system=compact?{x:0,y:focusPlanet?78:184,w:width,h:height-(focusPlanet?78:184)}:{x:width*.11,y:2*displayScale,w:width*.89,h:height-2*displayScale};
       views.launch=compact?{x:0,y:42,w:width*.46,h:148}:{x:0,y:height*.40,w:width*.23,h:height*.59};
       if(compact&&height<340&&!focusPlanet){views.launch={x:0,y:45,w:width*.29,h:height-55};views.system={x:width*.30,y:70,w:width*.70,h:height-70};}
