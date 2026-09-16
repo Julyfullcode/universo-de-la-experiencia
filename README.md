@@ -26,8 +26,9 @@ la ilustración galáctica anterior ni capas procedurales superpuestas. Las
 constelaciones presentan dos figuras principales con puntos blancos y trazos
 finos, acompañadas por un atlas zodiacal tenue y sin nombres visibles; sus líneas
 unen proyecciones de estrellas a distintas profundidades.
-El fondo conserva un campo de estrellas en la periferia y oscurece únicamente la
-zona central ocupada por el sistema para mantener legibles sus cuerpos y órbitas.
+El fondo espacial aprobado se conserva completo. Una máscara independiente
+oscurece únicamente la zona central ocupada por el sistema para mantener legibles
+sus cuerpos y órbitas sin sustituir ni apagar el cielo exterior.
 
 Las órbitas y las posiciones comparten la misma ecuación. Las guías son bandas
 tenues con transparencia gradual en los bordes, sin un trazo central definido.

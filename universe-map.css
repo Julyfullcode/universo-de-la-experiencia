@@ -3,17 +3,6 @@
 .orbital-realm-view {
   --cosmos-unit: clamp(.8px, min(calc(100vw / 1440), calc(100dvh / 900)), 3px);
   --cosmos-gutter: clamp(6px, .65vw, 18px);
-  background-color: #01030a;
-  background-image:
-    radial-gradient(ellipse 38% 56% at 54% 47%, rgba(0, 1, 7, .99) 0 43%, rgba(1, 3, 11, .92) 66%, rgba(1, 3, 11, .22) 91%, transparent 100%),
-    radial-gradient(circle at 1px 1px, rgba(239, 247, 255, .82) 0 .7px, transparent 1.4px),
-    radial-gradient(circle at 1px 1px, rgba(119, 202, 255, .68) 0 .8px, transparent 1.6px),
-    radial-gradient(circle at 1px 1px, rgba(213, 174, 255, .52) 0 .65px, transparent 1.35px),
-    radial-gradient(ellipse at 10% 32%, rgba(32, 75, 135, .26), transparent 44%),
-    radial-gradient(ellipse at 90% 25%, rgba(65, 34, 107, .20), transparent 40%),
-    linear-gradient(100deg, #01040e 0%, #02040d 48%, #030513 100%) !important;
-  background-position: center, 17px 29px, 73px 91px, 141px 37px, center, center, center;
-  background-size: cover, 67px 89px, 113px 149px, 181px 213px, cover, cover, cover;
 }
 .orbital-realm-view .orbital-realm {
   display: flex;
@@ -29,8 +18,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .orbital-realm-view .epm-logo { width: calc(125 * var(--cosmos-unit)); height: calc(32 * var(--cosmos-unit)); }
 .orbital-realm-view .orbital-realm::before, .orbital-realm-view .orbital-realm::after { content: none !important; }
 .cosmos-stage { position: relative; flex: 1; min-height: 0; isolation: isolate; }
-.cosmos-stage canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; }
-.cosmos-labels, .cosmos-constellation-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cosmos-stage::before { content: ""; position: absolute; z-index: 0; inset: 0; pointer-events: none; background: radial-gradient(ellipse 30% 42% at 54% 48%, rgba(0, 1, 7, .94) 0 38%, rgba(1, 3, 11, .78) 62%, rgba(1, 3, 11, .30) 82%, transparent 100%); }
+.cosmos-stage canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; touch-action: manipulation; }
+.cosmos-labels, .cosmos-constellation-lines { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cosmos-constellation-lines path { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
 .cosmos-constellation-lines .zodiac-background { opacity: .38; }
 .cosmos-constellation-lines .zodiac-hero { opacity: .72; }

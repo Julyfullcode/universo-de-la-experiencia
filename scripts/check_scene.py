@@ -369,8 +369,8 @@ def visual_copy_checks(cdp):
       const pauseControl=stage.querySelector('.cosmos-pause');
       const visiblePauseCopy=/\\b(?:pausar|reanudar)\\b/i.test(document.body.innerText);
       const realmBackground=getComputedStyle(document.querySelector('.orbital-realm-view')).backgroundImage;
-      const oldGalaxyBackground=realmBackground.includes('universo-galaxia-realista.png');
-      const starfieldLayers=(realmBackground.match(/radial-gradient/g)||[]).length;
+      const approvedGalaxyBackground=realmBackground.includes('universo-galaxia-realista.png');
+      const centerMask=getComputedStyle(stage,'::before').backgroundImage.includes('radial-gradient');
       const navigation=document.querySelector('.cosmos-navigation');
       const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
       const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
@@ -391,8 +391,8 @@ def visual_copy_checks(cdp):
         launchLabel={pass:false,reason:'Visible launch object has no visible label'};
       }
       return {viewport:[innerWidth,innerHeight],annotations,forbiddenVisible,bottomStrip,launchLabel,
-        pauseControl:!!pauseControl,visiblePauseCopy,oldGalaxyBackground,starfieldLayers,
-        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&!oldGalaxyBackground&&starfieldLayers>=6&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
+        pauseControl:!!pauseControl,visiblePauseCopy,approvedGalaxyBackground,centerMask,
+        pass:forbiddenVisible.length===0&&!pauseControl&&!visiblePauseCopy&&approvedGalaxyBackground&&centerMask&&bottomStrip.pass&&(!launchLabel||launchLabel.pass)};
     })()""")
 
 
