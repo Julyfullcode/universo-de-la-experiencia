@@ -333,7 +333,7 @@
     // The upper-right guide reproduces the supplied reference: one restrained
     // white asterism, without labels or a second zodiac atlas behind it.
     const zodiacPatterns=[
-      {id:'reference',hero:true,center:[-2,-1.7],scale:1.8,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
+      {id:'reference',hero:true,center:[1,-.2],scale:2.05,points:[[-3.121,-1.343],[-2.279,.15],[-.521,.529],[1.107,1.9],[2.793,2.671],[3.121,1.671],[1.407,1.129],[.264,.157],[-.236,-1.043],[-1.364,-1.743],[-2.464,-2.671]],edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,2],[7,8],[8,9],[9,10],[10,0]]}
     ];
     const guideSpecs=[],guideEdges=[],zodiacStarIndices={};
     zodiacPatterns.forEach(pattern=>{
@@ -363,15 +363,15 @@
     });
     layer(constellationDust,3);scene.add(constellationDust);
     const talent=[
-      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,5.6,1.18,.6,210],
-      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,1.45,2.5,300],
-      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,1.60,4.5,400],
-      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,1.42,5.6,520],
+      ['empaticos','Empáticos','Escucha y comprensión',0x1ba7d5,0x57ce85,1,8,1.18,.6,240],
+      ['conectores','Conectores','Colaboración y conexiones',0x155abe,0x6dc8ff,0,8.5,1.45,2.5,390],
+      ['impulsores','Impulsores','Orientación a resultados',0xb35424,0xffcc78,0,11.6,1.60,1.35,720],
+      ['exploradores','Exploradores','Innovación y adaptación',0x7535a6,0xd9a6ff,0,15,1.42,5.6,1100],
       ['forjadores','Forjadores','Aprendizaje y crecimiento',0x1b807b,0xa8dd49,1,18.2,3.15,2.5,650]
     ];
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
-      const o=orbit(primaryOrbit.anchor,radius,period,phase,[-.095,.06,-.045,.08,-.035][i],[0x4bb5c7,0x789fff,0xd6a776,0xb694e8,0x92cba2][i],[.27,.23,.2,.17,.15][i],true,{pitch:[.11,-.075,.06,-.095,.035][i],yaw:[.32,.91,1.48,2.15,2.75][i],frontDrop:[8,7.5,7,6.5,6][i]});
+      const o=orbit(primaryOrbit.anchor,radius,period,phase,[-.095,.06,-.045,.08,-.035][i],[0x4bb5c7,0x789fff,0xd6a776,0xb694e8,0x92cba2][i],[.27,.23,.2,.17,.15][i],true,{pitch:[.11,-.075,.06,-.095,.035][i],yaw:[.32,.91,1.48,2.15,2.75][i],frontDrop:[8,7.5,12,6.5,6][i]});
       const p=planet(size,c1,c2,mode,i*7.1);o.anchor.add(p);o.body=p;
       if(id==='impulsores'){
         const ringMaterial=new T.MeshStandardMaterial({color:0xdbc1ad,side:T.DoubleSide,roughness:.85,transparent:true,opacity:.66});materials.push(ringMaterial);
