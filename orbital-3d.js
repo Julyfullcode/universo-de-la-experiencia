@@ -386,7 +386,7 @@
     const talentRecords=[];
     talent.forEach(([id,name,competency,c1,c2,mode,radius,size,phase,period],i)=>{
       const orbitYaw=[.32,.91,1.48,2.15,2.75][i],o=orbit(primaryOrbit.anchor,radius,period,phase,[-.095,.06,-.045,.08,-.035][i],[0x4bb5c7,0x789fff,0xd6a776,0xb694e8,0x92cba2][i],[.27,.23,.2,.17,.15][i],true,{pitch:[.11,-.075,.06,-.095,.035][i],yaw:orbitYaw,frontDrop:[8,7.5,12,6.5,6][i]});
-      if(i<4)o.distribution={slot:.32+i*TAU/4+orbitYaw,period:620,wobble:.11,wobblePeriod:137+i*29,wobblePhase:i*1.71};
+      if(i<4)o.distribution={slot:.32+i*TAU/4+orbitYaw,wobble:.11,wobblePeriod:137+i*29,wobblePhase:i*1.71};
       const p=planet(size,c1,c2,mode,i*7.1);o.anchor.add(p);o.body=p;
       if(id==='impulsores'){
         const ringMaterial=new T.MeshStandardMaterial({color:0xdbc1ad,side:T.DoubleSide,roughness:.85,transparent:true,opacity:.66});materials.push(ringMaterial);
@@ -596,7 +596,7 @@
       comet.quaternion.setFromUnitVectors(new T.Vector3(1,0,0),tangent);const pulse=.97+.08*Math.sin(elapsed*3.1);coma.scale.setScalar(pulse);cometState.progress=u;
     }
     function updatePositions(){
-      moving.forEach(o=>{const distributed=o.distribution,mean=((distributed?distributed.slot+elapsed*TAU/distributed.period+Math.sin(elapsed*TAU/distributed.wobblePeriod+distributed.wobblePhase)*distributed.wobble:o.phase+elapsed*TAU/o.period)%TAU+TAU)%TAU;let a=mean;
+      moving.forEach(o=>{const distributed=o.distribution,mean=((distributed?distributed.slot+Math.sin(elapsed*TAU/distributed.wobblePeriod+distributed.wobblePhase)*distributed.wobble:o.phase+elapsed*TAU/o.period)%TAU+TAU)%TAU;let a=mean;
         // Kepler's equation: equal areas in equal times, with the parent at a
         // focus. Newton iteration keeps eccentric trajectories on their guides.
         for(let j=0;j<5;j++)a-=(a-o.eccentricity*Math.sin(a)-mean)/(1-o.eccentricity*Math.cos(a));
