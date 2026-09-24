@@ -108,9 +108,10 @@ window.supabase={createClient:()=>({rpc:async(name,args)=>{
  if(name==='universo_mi_viaje')return fixtureResult(name,fixtureJourney);
  if(name==='universo_ingresar'){
    if(args.p_modo==='recover'&&args.p_palabra_clave==='Incorrecta 2026')
-     return {data:{ok:false,error:'Nombre o palabra clave incorrectos.'},error:null};
-   return fixtureResult(name,
-     {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']},'fixture-registration-session');
+     return {data:{ok:false,error:'Palabra clave incorrecta.'},error:null};
+   const journey=args.p_modo==='recover'?fixtureJourney:
+     {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']};
+   return fixtureResult(name,journey,'fixture-registration-session');
  }
  if(name==='universo_guardar_viaje'){
    if(window.__fixtureSaveFailures>0){window.__fixtureSaveFailures--;
@@ -949,18 +950,18 @@ def main():
                 satelliteWrites:satelliteWrites.length,invalidWrites};
               await logoutParticipant();
               document.querySelector('input[name="access-mode"][value="recover"]').checked=true;updateAccessMode();
-              document.querySelector('#name').value=registrationInput.name;
               document.querySelector('#access-key').value='Incorrecta 2026';
               await loginParticipant({preventDefault(){}});
               const rejectedRecovery={message:document.querySelector('.error')?.innerText||'',
                 noSession:!localStorage.getItem('universo-experiencia.sesion.v3'),
-                modePreserved:document.querySelector('input[name="access-mode"][value="recover"]')?.checked===true};
-              document.querySelector('#name').value=registrationInput.name;
+                modePreserved:document.querySelector('input[name="access-mode"][value="recover"]')?.checked===true,
+                nameHidden:!document.querySelector('#name')};
               document.querySelector('#access-key').value=registrationInput.key;
               await loginParticipant({preventDefault(){}});
               const recoveryWrite=[...window.__fixtureWrites].reverse().find(x=>x.name==='universo_ingresar');
               const recovery={ready:await waitForMap(),rejectedRecovery,
-                rpcMode:recoveryWrite?.args?.p_modo,rpcKey:recoveryWrite?.args?.p_palabra_clave};
+                rpcMode:recoveryWrite?.args?.p_modo,rpcKey:recoveryWrite?.args?.p_palabra_clave,
+                rpcName:recoveryWrite?.args?.p_nombre};
               showMap();const offlineMapReady=await waitForMap();
               const failureWriteStart=window.__fixtureWrites.length;
               window.__fixtureSaveFailures=3;
@@ -1083,9 +1084,11 @@ def main():
             not integration["recovery"].get("ready") or
             integration["recovery"].get("rpcMode") != "recover" or
             integration["recovery"].get("rpcKey") != "Frase segura 2026" or
-            integration["recovery"].get("rejectedRecovery", {}).get("message") != "No pudimos ingresar: Nombre o palabra clave incorrectos." or
+            integration["recovery"].get("rpcName") is not None or
+            integration["recovery"].get("rejectedRecovery", {}).get("message") != "No pudimos ingresar: Palabra clave incorrecta." or
             not integration["recovery"].get("rejectedRecovery", {}).get("noSession") or
             not integration["recovery"].get("rejectedRecovery", {}).get("modePreserved") or
+            not integration["recovery"].get("rejectedRecovery", {}).get("nameHidden") or
             not integration["offlineRecovery"].get("mapReady") or
             not integration["offlineRecovery"].get("actionFound") or
             not integration["offlineRecovery"].get("immediateJourney", {}).get("ready") or

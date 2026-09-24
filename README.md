@@ -2,7 +2,7 @@
 
 Actividad independiente basada en la narrativa de la Guía de la Experiencia. Incluye el recorrido guiado, duelos orbitales, coordenadas de rol, ecosistema, observatorio de señales, misión 70/20/10 y pasaporte final.
 
-Los resultados se almacenan en Supabase. Cada persona crea un acceso con su nombre completo y una palabra clave; con ambos datos puede recuperar su viaje y continuar desde el avance guardado. La palabra clave se verifica con bcrypt y nunca se almacena en texto claro ni en el navegador. El navegador conserva solamente un token de sesión revocable, no permisos directos sobre las tablas.
+Los resultados se almacenan en Supabase. Cada persona crea un acceso con su nombre completo y una palabra clave; para recuperar su viaje solo necesita esa palabra clave. La palabra clave se verifica con bcrypt y nunca se almacena en texto claro ni en el navegador. El navegador conserva solamente un token de sesión revocable, no permisos directos sobre las tablas.
 
 ## Probar localmente
 
@@ -69,11 +69,11 @@ errores de materiales, carga de texturas y los ciclos de entrada/salida del mapa
 4. La migración desactiva el acceso anónimo directo a las tablas. La entrada, el progreso, la evaluación y la administración funcionan exclusivamente mediante RPC protegidas.
 5. Cada avance, el pasaporte y la evaluación quedarán persistidos en Supabase.
 
-Las sesiones vigentes continúan funcionando. Un recorrido legado sin palabra clave puede asociarla una sola vez desde el mismo navegador que conserva su `client_id`; si ese identificador local ya no existe, se necesita un procedimiento administrativo de migración.
+Las sesiones vigentes continúan funcionando. Los accesos creados con el esquema anterior se actualizan automáticamente al recuperarse por primera vez solo con la palabra clave. Si varios recorridos antiguos compartían la misma palabra clave, no se entrega ninguno de forma ambigua y se requiere asistencia administrativa. Un recorrido aún más antiguo, sin palabra clave, puede asociarla una sola vez desde el mismo navegador que conserva su `client_id`; si ese identificador local ya no existe, se necesita un procedimiento administrativo de migración.
 
 ## Acceso y administración
 
-- La portada permite crear un acceso o recuperar un recorrido con nombre y palabra clave. El usuario debe conservar esa palabra clave; no existe un mecanismo para mostrarla o enviarla posteriormente.
+- La portada solicita nombre y palabra clave al crear el acceso. Para recuperar un recorrido solicita únicamente la palabra clave, que debe ser exclusiva; no existe un mecanismo para mostrarla o enviarla posteriormente.
 - La recuperación se bloquea temporalmente después de cinco intentos fallidos en 15 minutos. Las palabras clave deben tener entre 10 y 64 caracteres y un máximo de 72 bytes por la semántica de bcrypt.
 - La opción **Evaluar experiencia** permite guardar o actualizar una calificación de 1 a 5 y una recomendación.
 - El panel está disponible en `/admin.html`. Presenta indicadores, participantes activos, avance por momento, progreso individual y recomendaciones; se actualiza cada ocho segundos mientras la pestaña está visible.

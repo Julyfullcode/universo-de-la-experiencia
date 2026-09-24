@@ -36,6 +36,10 @@ def main():
             "The recovery warning must remain visible on the access screen.")
     require("p_palabra_clave:accessKey" in app and "p_modo:mode" in app,
             "The access RPC contract is incomplete.")
+    require('${recovering?"":`<label class="field">Nombre completo' in app,
+            "Recovery mode must not render the participant name field.")
+    require('p_nombre:mode==="register"?name:null' in app,
+            "Recovery mode must not send a participant name.")
     require("p_correo" not in app and 'id="email"' not in app,
             "Email-based participant access must not return to the UI.")
     require(not re.search(r"localStorage\.setItem\([^\n;]*accessKey", app),
@@ -51,8 +55,14 @@ def main():
     require("universo_participant_login_attempts" in schema and
             "v_failures >= 5" in schema and "interval '15 minutes'" in schema,
             "Recovery attempts must be rate-limited.")
-    require("Nombre o palabra clave incorrectos." in schema,
+    require("Palabra clave incorrecta." in schema,
             "Recovery failures must use a generic response.")
+    require("identificador_acceso_version smallint not null default 1" in schema and
+            "identificador_acceso_version = 2" in schema and "'keyword-v2:'" in schema,
+            "Keyword-only recovery must use a versioned private HMAC lookup.")
+    require("v_match_is_legacy" in schema and "v_match_count > 1" in schema and
+            "No fue posible identificar una sesión única" in schema,
+            "Legacy credentials must migrate without returning an ambiguous session.")
     require("enable row level security" in schema and
             "revoke all privileges on table public.universo_participant_login_attempts" in schema,
             "Credential and attempt tables must not be directly accessible.")
@@ -94,7 +104,7 @@ def main():
             "https://cdn.jsdelivr.net" in csp and "*" not in csp,
             "The CSP must use an explicit allowlist for application dependencies.")
 
-    print("Security checks passed: 25 controls verified.")
+    print("Security checks passed: 29 controls verified.")
 
 
 if __name__ == "__main__":
