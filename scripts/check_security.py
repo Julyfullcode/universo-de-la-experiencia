@@ -5,6 +5,7 @@ guard the security properties that can be established from this repository.
 """
 
 from pathlib import Path
+import json
 import re
 
 
@@ -25,6 +26,7 @@ def main():
     schema = read("supabase/schema.sql")
     admin = read("admin.js") + read("admin.html")
     proxy = read("api/rpc.js")
+    vercel = json.loads(read("vercel.json"))
 
     require('id="access-key" type="password"' in app,
             "The participant secret must use a password input.")
@@ -70,7 +72,29 @@ def main():
     require('"universo_ingresar"' in proxy and '"universo_admin_ingresar"' not in proxy,
             "The public proxy allowlist must not expose administrative RPCs.")
 
-    print("Security checks passed: 18 controls verified.")
+    global_headers = next(
+        (entry["headers"] for entry in vercel.get("headers", []) if entry.get("source") == "/(.*)"),
+        [],
+    )
+    header_values = {item["key"].lower(): item["value"] for item in global_headers}
+    csp = header_values.get("content-security-policy", "")
+    require(header_values.get("x-content-type-options") == "nosniff",
+            "Production responses must disable MIME sniffing.")
+    require(header_values.get("x-frame-options") == "DENY" and "frame-ancestors 'none'" in csp,
+            "Production pages must not be frameable.")
+    require(header_values.get("referrer-policy") == "strict-origin-when-cross-origin",
+            "Production responses must declare a referrer policy.")
+    require("camera=()" in header_values.get("permissions-policy", "") and
+            "microphone=()" in header_values.get("permissions-policy", ""),
+            "Unused sensitive browser capabilities must be disabled.")
+    require("default-src 'self'" in csp and "object-src 'none'" in csp and
+            "base-uri 'self'" in csp,
+            "The production CSP must restrict default, object, and base sources.")
+    require("https://vbrezgsxbfxtfzfcmqce.supabase.co" in csp and
+            "https://cdn.jsdelivr.net" in csp and "*" not in csp,
+            "The CSP must use an explicit allowlist for application dependencies.")
+
+    print("Security checks passed: 25 controls verified.")
 
 
 if __name__ == "__main__":
