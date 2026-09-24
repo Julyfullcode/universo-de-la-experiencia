@@ -97,17 +97,21 @@ window.fetch=url=>{window.__networkAttempts.push(String(url));throw Error('Netwo
 const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
  planeta_explorar:'conectores',rol:'generador',satelites:['personas','comunidad'],observatorio:'CES',mision:{},avance_maximo:7};
 const validSatelliteIds=new Set(['proveedores','dueno','comunidad']);
-const fixtureResult=(name,correo,viaje,token)=>{
- const result={correo,viaje:{...viaje,satelites:[...(viaje.satelites||[])]},feedback:null};
+const fixtureResult=(name,viaje,token)=>{
+ const result={ok:true,viaje:{...viaje,satelites:[...(viaje.satelites||[])]},feedback:null};
  if(token)result.token=token;
  window.__fixtureResponses.push({name,result:JSON.parse(JSON.stringify(result))});
  return {data:result,error:null};
 };
 window.supabase={createClient:()=>({rpc:async(name,args)=>{
  window.__fixtureWrites.push({name,args});
- if(name==='universo_mi_viaje')return fixtureResult(name,'prueba@local.test',fixtureJourney);
- if(name==='universo_ingresar')return fixtureResult(name,args.p_correo,
-   {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']},'fixture-registration-session');
+ if(name==='universo_mi_viaje')return fixtureResult(name,fixtureJourney);
+ if(name==='universo_ingresar'){
+   if(args.p_modo==='recover'&&args.p_palabra_clave==='Incorrecta 2026')
+     return {data:{ok:false,error:'Nombre o palabra clave incorrectos.'},error:null};
+   return fixtureResult(name,
+     {...fixtureJourney,nombre:args.p_nombre,paso:'lanzamiento',satelites:['personas','comunidad']},'fixture-registration-session');
+ }
  if(name==='universo_guardar_viaje'){
    if(window.__fixtureSaveFailures>0){window.__fixtureSaveFailures--;
      return {data:null,error:{message:'TypeError: Failed to fetch'}};}
@@ -115,7 +119,7 @@ window.supabase={createClient:()=>({rpc:async(name,args)=>{
    if(satellites!==undefined&&(!Array.isArray(satellites)||satellites.some(id=>!validSatelliteIds.has(id))))
      return {data:null,error:{message:'El cliente intentó guardar un satélite inválido'}};
    Object.assign(fixtureJourney,args.p_viaje);
-   return fixtureResult(name,'prueba@local.test',fixtureJourney);
+    return fixtureResult(name,fixtureJourney);
  }
  if(name==='universo_guardar_feedback')return {data:{calificacion:args.p_calificacion,recomendacion:args.p_recomendacion},error:null};
  return {data:true,error:null};
@@ -899,17 +903,28 @@ def main():
               await saveFeedback({preventDefault(){},currentTarget:form});
               const evaluation={opened:dialog.open,saved:window.__fixtureWrites.some(x=>x.name==='universo_guardar_feedback')};
               await logoutParticipant();
-              const access={name:!!document.querySelector('#name'),email:!!document.querySelector('#email'),
+              const access={name:!!document.querySelector('#name'),noEmail:!document.querySelector('#email'),
+                keyType:document.querySelector('#access-key')?.type,keyMax:document.querySelector('#access-key')?.maxLength,
+                notice:document.querySelector('#access-key-notice')?.innerText,
+                noticeVisible:(()=>{const node=document.querySelector('#access-key-notice'),rect=node?.getBoundingClientRect();return !!node&&rect.width>0&&rect.height>0&&getComputedStyle(node).visibility!=='hidden';})(),
+                horizontalOverflow:document.documentElement.scrollWidth>window.innerWidth,
+                modes:document.querySelectorAll('input[name="access-mode"]').length,
                 adminLink:document.querySelector('.admin-entry')?.getAttribute('href')};
-              const registrationInput={name:'Registro local',email:'registro@local.test'};
-              const nameInput=document.querySelector('#name'),emailInput=document.querySelector('#email');
-              if(nameInput)nameInput.value=registrationInput.name;if(emailInput)emailInput.value=registrationInput.email;
+              const callsBeforeWeakKey=window.__fixtureWrites.filter(x=>x.name==='universo_ingresar').length;
+              document.querySelector('#name').value='Registro local';document.querySelector('#access-key').value='corta';
+              await loginParticipant({preventDefault(){}});
+              const weakKey={blocked:window.__fixtureWrites.filter(x=>x.name==='universo_ingresar').length===callsBeforeWeakKey,
+                message:document.querySelector('.error')?.innerText||''};
+              const registrationInput={name:'Registro local',key:'Frase segura 2026'};
+              const nameInput=document.querySelector('#name'),keyInput=document.querySelector('#access-key');
+              if(nameInput)nameInput.value=registrationInput.name;if(keyInput)keyInput.value=registrationInput.key;
               await loginParticipant({preventDefault(){}});
               const registrationReady=await waitForMap();
               const loginWrite=[...window.__fixtureWrites].reverse().find(x=>x.name==='universo_ingresar');
               const loginResponse=[...window.__fixtureResponses].reverse().find(x=>x.name==='universo_ingresar');
               const registration={ready:registrationReady,rpcCalls:window.__fixtureWrites.filter(x=>x.name==='universo_ingresar').length,
-                rpcName:loginWrite?.args?.p_nombre,rpcEmail:loginWrite?.args?.p_correo,
+                rpcName:loginWrite?.args?.p_nombre,rpcKey:loginWrite?.args?.p_palabra_clave,
+                rpcMode:loginWrite?.args?.p_modo,noPlaintextStorage:!JSON.stringify(localStorage).includes(registrationInput.key),
                 returnedStep:loginResponse?.result?.viaje?.paso,
                 map:document.querySelectorAll('.orbital-realm-view').length,
                 stage:document.querySelectorAll('.cosmos-stage').length,
@@ -932,6 +947,20 @@ def main():
                   (x.result?.viaje?.satelites||[]).includes('personas')),
                 saveOk:Boolean(postRegistrationSaveOk),mapReadyAfterSave:Boolean(mapReadyAfterSave),
                 satelliteWrites:satelliteWrites.length,invalidWrites};
+              await logoutParticipant();
+              document.querySelector('input[name="access-mode"][value="recover"]').checked=true;updateAccessMode();
+              document.querySelector('#name').value=registrationInput.name;
+              document.querySelector('#access-key').value='Incorrecta 2026';
+              await loginParticipant({preventDefault(){}});
+              const rejectedRecovery={message:document.querySelector('.error')?.innerText||'',
+                noSession:!localStorage.getItem('universo-experiencia.sesion.v3'),
+                modePreserved:document.querySelector('input[name="access-mode"][value="recover"]')?.checked===true};
+              document.querySelector('#name').value=registrationInput.name;
+              document.querySelector('#access-key').value=registrationInput.key;
+              await loginParticipant({preventDefault(){}});
+              const recoveryWrite=[...window.__fixtureWrites].reverse().find(x=>x.name==='universo_ingresar');
+              const recovery={ready:await waitForMap(),rejectedRecovery,
+                rpcMode:recoveryWrite?.args?.p_modo,rpcKey:recoveryWrite?.args?.p_palabra_clave};
               showMap();const offlineMapReady=await waitForMap();
               const failureWriteStart=window.__fixtureWrites.length;
               window.__fixtureSaveFailures=3;
@@ -968,7 +997,7 @@ def main():
                 flushResult:Boolean(flushResult),flushWrites:flushWrites.length,
                 flushedStep:flushWrites.at(-1)?.args?.p_viaje?.paso,
                 serverStep:fixtureJourney.paso,pendingCleared:pendingAfterFlush===null};
-              return {results,header,evaluation,access,registration,legacySatellite,offlineRecovery,
+              return {results,header,evaluation,access,weakKey,registration,legacySatellite,recovery,offlineRecovery,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1018,15 +1047,26 @@ def main():
             any(not r.get("ready") or not r.get("debug") or r.get("canvas") != 1 or
                 r.get("stage") != 1 or r.get("fallback")
                 for r in integration["results"] if r["phase"] == "map") or
-            not integration["header"].get("epmFirst") or "—" not in (integration["header"].get("product") or "") or
+            not integration["header"].get("epmFirst") or
+            (args.width > 800 and "—" not in (integration["header"].get("product") or "")) or
             not integration["header"].get("feedbackButton") or integration["header"].get("forbidden") or
             not integration["evaluation"].get("opened") or not integration["evaluation"].get("saved") or
-            not integration["access"].get("name") or not integration["access"].get("email") or
+            not integration["access"].get("name") or not integration["access"].get("noEmail") or
+            integration["access"].get("keyType") != "password" or
+            integration["access"].get("keyMax") != 64 or
+            integration["access"].get("modes") != 2 or
+            "Guarda tu palabra clave" not in (integration["access"].get("notice") or "") or
+            not integration["access"].get("noticeVisible") or
+            integration["access"].get("horizontalOverflow") or
             integration["access"].get("adminLink") != "admin.html" or
+            not integration["weakKey"].get("blocked") or
+            "10 y 64" not in (integration["weakKey"].get("message") or "") or
             not integration["registration"].get("ready") or
             integration["registration"].get("rpcCalls") != 1 or
             integration["registration"].get("rpcName") != "Registro local" or
-            integration["registration"].get("rpcEmail") != "registro@local.test" or
+            integration["registration"].get("rpcKey") != "Frase segura 2026" or
+            integration["registration"].get("rpcMode") != "register" or
+            not integration["registration"].get("noPlaintextStorage") or
             integration["registration"].get("returnedStep") != "lanzamiento" or
             integration["registration"].get("map") != 1 or
             integration["registration"].get("stage") != 1 or
@@ -1040,6 +1080,12 @@ def main():
             not integration["legacySatellite"].get("mapReadyAfterSave") or
             integration["legacySatellite"].get("satelliteWrites", 0) < 1 or
             integration["legacySatellite"].get("invalidWrites") or
+            not integration["recovery"].get("ready") or
+            integration["recovery"].get("rpcMode") != "recover" or
+            integration["recovery"].get("rpcKey") != "Frase segura 2026" or
+            integration["recovery"].get("rejectedRecovery", {}).get("message") != "No pudimos ingresar: Nombre o palabra clave incorrectos." or
+            not integration["recovery"].get("rejectedRecovery", {}).get("noSession") or
+            not integration["recovery"].get("rejectedRecovery", {}).get("modePreserved") or
             not integration["offlineRecovery"].get("mapReady") or
             not integration["offlineRecovery"].get("actionFound") or
             not integration["offlineRecovery"].get("immediateJourney", {}).get("ready") or

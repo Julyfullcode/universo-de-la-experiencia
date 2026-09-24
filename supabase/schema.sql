@@ -1,10 +1,10 @@
 -- El Universo de la Experiencia
 -- Migración idempotente para ejecutar en Supabase > SQL Editor.
 --
--- LIMITACIÓN DE IDENTIDAD: por requisito funcional, un participante entra solo
--- con correo y nombre, sin demostrar que controla ese correo. Cualquiera que lo
--- conozca puede abrir ese viaje. Los tokens protegen las sesiones y ninguna tabla
--- queda pública, pero solo un OTP/magic link podría eliminar esta suplantación.
+-- ACCESO DE PARTICIPANTES: nombre + palabra clave. La palabra clave nunca se
+-- guarda ni se devuelve en texto claro: se verifica con bcrypt. Un HMAC con una
+-- clave privada permite localizar el recorrido sin exponer un identificador
+-- reutilizable a los roles del navegador.
 --
 -- La credencial administrativa se conserva únicamente como hash bcrypt.
 -- La contraseña en texto claro nunca se guarda aquí ni en el navegador.
@@ -20,6 +20,8 @@ create table if not exists public.universo_viajes (
   client_id uuid not null unique default extensions.gen_random_uuid(),
   nombre text not null check (char_length(nombre) between 2 and 80),
   correo text,
+  identificador_acceso_hash bytea,
+  palabra_clave_hash text,
   paso text not null default 'lanzamiento',
   avance_maximo smallint not null default 1,
   duelos jsonb not null default '{}'::jsonb,
@@ -38,6 +40,8 @@ create table if not exists public.universo_viajes (
 -- Amplía sin borrar los recorridos creados por la versión anónima anterior.
 alter table public.universo_viajes
   add column if not exists correo text,
+  add column if not exists identificador_acceso_hash bytea,
+  add column if not exists palabra_clave_hash text,
   add column if not exists avance_maximo smallint not null default 1,
   add column if not exists completed_at timestamptz,
   add column if not exists last_seen_at timestamptz not null default now();
@@ -48,6 +52,10 @@ alter table public.universo_viajes
 create unique index if not exists universo_viajes_correo_key
   on public.universo_viajes (correo)
   where correo is not null;
+
+create unique index if not exists universo_viajes_identificador_acceso_key
+  on public.universo_viajes (identificador_acceso_hash)
+  where identificador_acceso_hash is not null;
 
 create index if not exists universo_viajes_last_seen_idx
   on public.universo_viajes (last_seen_at desc);
@@ -66,6 +74,22 @@ begin
           correo = pg_catalog.lower(pg_catalog.btrim(correo))
           and pg_catalog.char_length(correo) between 5 and 254
           and correo ~ '^[a-z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
+        )
+      ) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_catalog.pg_constraint
+    where conrelid = 'public.universo_viajes'::pg_catalog.regclass
+      and conname = 'universo_viajes_credencial_check'
+  ) then
+    alter table public.universo_viajes
+      add constraint universo_viajes_credencial_check
+      check (
+        (identificador_acceso_hash is null and palabra_clave_hash is null)
+        or (
+          pg_catalog.octet_length(identificador_acceso_hash) = 32
+          and palabra_clave_hash ~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
         )
       ) not valid;
   end if;
@@ -149,11 +173,12 @@ create table if not exists public.universo_admin_config (
 );
 
 insert into public.universo_admin_config (singleton, usuario, password_hash)
-values (true, 'VPEUC', '$2a$12$HF7nktTbx1Juye0ksYZtNu67cJakdxPofdV0t8n6NM6BLMJrCDXr6')
-on conflict (singleton) do update
-set usuario = excluded.usuario,
-    password_hash = excluded.password_hash,
-    updated_at = now();
+values (
+  true,
+  'VPEUC',
+  extensions.crypt(pg_catalog.encode(extensions.gen_random_bytes(32), 'hex'), extensions.gen_salt('bf', 12))
+)
+on conflict (singleton) do nothing;
 
 create table if not exists public.universo_admin_sessions (
   id uuid primary key default extensions.gen_random_uuid(),
@@ -175,6 +200,15 @@ create table if not exists public.universo_login_attempts (
 create index if not exists universo_login_attempts_window_idx
   on public.universo_login_attempts (identifier_hash, attempted_at desc);
 
+create table if not exists public.universo_participant_login_attempts (
+  id uuid primary key default extensions.gen_random_uuid(),
+  identifier_hash bytea not null,
+  succeeded boolean not null default false,
+  attempted_at timestamptz not null default now()
+);
+create index if not exists universo_participant_login_attempts_window_idx
+  on public.universo_participant_login_attempts (identifier_hash, attempted_at desc);
+
 -- Sin políticas ni privilegios de tabla: todo acceso del navegador pasa por RPC.
 alter table public.universo_viajes enable row level security;
 alter table public.universo_sesiones enable row level security;
@@ -182,6 +216,7 @@ alter table public.universo_feedback enable row level security;
 alter table public.universo_admin_config enable row level security;
 alter table public.universo_admin_sessions enable row level security;
 alter table public.universo_login_attempts enable row level security;
+alter table public.universo_participant_login_attempts enable row level security;
 
 do $policies$
 declare item record;
@@ -193,7 +228,7 @@ begin
       and tablename in (
         'universo_viajes', 'universo_sesiones', 'universo_feedback',
         'universo_admin_config', 'universo_admin_sessions',
-        'universo_login_attempts'
+        'universo_login_attempts', 'universo_participant_login_attempts'
       )
   loop
     execute pg_catalog.format('drop policy if exists %I on %I.%I',
@@ -208,9 +243,39 @@ revoke all privileges on table public.universo_feedback from public, anon, authe
 revoke all privileges on table public.universo_admin_config from public, anon, authenticated;
 revoke all privileges on table public.universo_admin_sessions from public, anon, authenticated;
 revoke all privileges on table public.universo_login_attempts from public, anon, authenticated;
+revoke all privileges on table public.universo_participant_login_attempts from public, anon, authenticated;
 
 create schema if not exists universo_private;
 revoke all on schema universo_private from public, anon, authenticated;
+
+create table if not exists universo_private.configuracion (
+  singleton boolean primary key default true check (singleton),
+  access_pepper bytea not null check (pg_catalog.octet_length(access_pepper) = 32),
+  dummy_password_hash text not null
+);
+revoke all privileges on table universo_private.configuracion from public, anon, authenticated;
+insert into universo_private.configuracion (singleton, access_pepper, dummy_password_hash)
+values (
+  true,
+  extensions.gen_random_bytes(32),
+  extensions.crypt(pg_catalog.encode(extensions.gen_random_bytes(32), 'hex'), extensions.gen_salt('bf', 12))
+)
+on conflict (singleton) do nothing;
+
+create or replace function universo_private.identificador_acceso(p_nombre text, p_palabra_clave text)
+returns bytea language sql stable security definer set search_path = ''
+as $function$
+  select extensions.hmac(
+    pg_catalog.convert_to(
+      pg_catalog.char_length(p_nombre)::text || ':' || p_nombre || p_palabra_clave,
+      'UTF8'
+    ),
+    c.access_pepper,
+    'sha256'
+  )
+  from universo_private.configuracion as c
+  where c.singleton
+$function$;
 
 create or replace function universo_private.token_hash(p_token text)
 returns bytea language sql immutable security definer set search_path = ''
@@ -260,7 +325,6 @@ create or replace function universo_private.payload_viaje(p_viaje_id uuid)
 returns jsonb language sql stable security definer set search_path = ''
 as $function$
   select pg_catalog.jsonb_build_object(
-    'correo', v.correo,
     'viaje', pg_catalog.jsonb_build_object(
       'nombre', v.nombre, 'paso', v.paso, 'duelos', v.duelos,
       'planeta_principal', v.planeta_principal,
@@ -278,47 +342,119 @@ as $function$
   where v.id = p_viaje_id
 $function$;
 
+drop function if exists public.universo_ingresar(text, text, uuid);
+
 create or replace function public.universo_ingresar(
-  p_correo text, p_nombre text, p_legacy_client_id uuid default null
+  p_nombre text,
+  p_palabra_clave text,
+  p_modo text default 'register',
+  p_legacy_client_id uuid default null
 )
 returns jsonb language plpgsql security definer set search_path = ''
 as $function$
 declare
-  v_correo text := pg_catalog.lower(pg_catalog.btrim(coalesce(p_correo, '')));
   v_nombre text := pg_catalog.regexp_replace(pg_catalog.btrim(coalesce(p_nombre, '')), '\s+', ' ', 'g');
+  v_nombre_busqueda text;
+  v_modo text := pg_catalog.lower(pg_catalog.btrim(coalesce(p_modo, '')));
+  v_identifier_hash bytea;
+  v_attempt_hash bytea;
+  v_password_hash text;
+  v_verify_hash text;
+  v_failures integer;
   v_viaje_id uuid;
   v_token text;
 begin
-  if pg_catalog.char_length(v_correo) not between 5 and 254
-     or v_correo !~ '^[a-z0-9.!#$%&''*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$' then
-    raise exception using errcode = '22023', message = 'Ingresa un correo electrónico válido.';
-  end if;
   if pg_catalog.char_length(v_nombre) not between 2 and 80 or v_nombre ~ '[[:cntrl:]]' then
     raise exception using errcode = '22023', message = 'Ingresa un nombre entre 2 y 80 caracteres.';
   end if;
-
-  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_correo, 2026));
-  select v.id into v_viaje_id from public.universo_viajes as v
-  where v.correo = v_correo for update;
-
-  if v_viaje_id is null and p_legacy_client_id is not null then
-    -- El UUID legado es un secreto de portador débil porque la política antigua
-    -- permitió leerlo; se acepta una sola vez y solo para una fila sin correo.
-    select v.id into v_viaje_id from public.universo_viajes as v
-    where v.client_id = p_legacy_client_id and v.correo is null for update;
-    if v_viaje_id is not null then
-      update public.universo_viajes set correo = v_correo, nombre = v_nombre,
-        last_seen_at = pg_catalog.clock_timestamp(), updated_at = pg_catalog.clock_timestamp()
-      where id = v_viaje_id;
-    end if;
+  if p_palabra_clave is null
+     or p_palabra_clave <> pg_catalog.btrim(p_palabra_clave)
+     or pg_catalog.char_length(p_palabra_clave) not between 10 and 64
+     or pg_catalog.octet_length(p_palabra_clave) > 72
+     or p_palabra_clave ~ '[[:cntrl:]]' then
+    raise exception using errcode = '22023',
+      message = 'La palabra clave debe tener entre 10 y 64 caracteres, sin espacios al inicio o al final.';
+  end if;
+  if v_modo not in ('register', 'recover') then
+    raise exception using errcode = '22023', message = 'Modo de acceso no válido.';
   end if;
 
-  if v_viaje_id is null then
-    insert into public.universo_viajes (nombre, correo)
-    values (v_nombre, v_correo) returning id into v_viaje_id;
+  v_nombre_busqueda := pg_catalog.lower(v_nombre);
+  v_identifier_hash := universo_private.identificador_acceso(v_nombre_busqueda, p_palabra_clave);
+  v_attempt_hash := extensions.digest(pg_catalog.convert_to(v_nombre_busqueda, 'UTF8'), 'sha256');
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(pg_catalog.encode(v_identifier_hash, 'hex'), 2028)
+  );
+
+  if v_modo = 'recover' then
+    delete from public.universo_participant_login_attempts
+    where attempted_at < pg_catalog.clock_timestamp() - interval '30 days';
+    select pg_catalog.count(*)::integer into v_failures
+    from public.universo_participant_login_attempts
+    where identifier_hash = v_attempt_hash and succeeded = false
+      and attempted_at >= pg_catalog.clock_timestamp() - interval '15 minutes';
+    if v_failures >= 5 then
+      return pg_catalog.jsonb_build_object('ok', false,
+        'error', 'Demasiados intentos. Espera 15 minutos antes de volver a intentar.');
+    end if;
+
+    select v.id, v.palabra_clave_hash into v_viaje_id, v_password_hash
+    from public.universo_viajes as v
+    where v.identificador_acceso_hash = v_identifier_hash
+    limit 1 for update;
+    select c.dummy_password_hash into v_verify_hash
+    from universo_private.configuracion as c where c.singleton;
+    v_verify_hash := coalesce(v_password_hash, v_verify_hash);
+    if v_viaje_id is null
+       or v_password_hash !~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
+       or extensions.crypt(p_palabra_clave, v_verify_hash) is distinct from v_verify_hash then
+      insert into public.universo_participant_login_attempts (identifier_hash, succeeded)
+      values (v_attempt_hash, false);
+      return pg_catalog.jsonb_build_object('ok', false,
+        'error', 'Nombre o palabra clave incorrectos.');
+    end if;
+    insert into public.universo_participant_login_attempts (identifier_hash, succeeded)
+    values (v_attempt_hash, true);
+    delete from public.universo_participant_login_attempts
+    where identifier_hash = v_attempt_hash and succeeded = false;
+    update public.universo_viajes
+    set last_seen_at = pg_catalog.clock_timestamp(), updated_at = pg_catalog.clock_timestamp()
+    where id = v_viaje_id;
   else
-    update public.universo_viajes set last_seen_at = pg_catalog.clock_timestamp(),
-      updated_at = pg_catalog.clock_timestamp() where id = v_viaje_id;
+    select v.id into v_viaje_id from public.universo_viajes as v
+    where v.identificador_acceso_hash = v_identifier_hash limit 1 for update;
+    if v_viaje_id is not null then
+      return pg_catalog.jsonb_build_object('ok', false,
+        'error', 'Ese acceso ya existe. Selecciona Recuperar mi sesión.');
+    end if;
+
+    if p_legacy_client_id is not null then
+      -- Migración de una sola vez: el navegador que conserva el UUID legado
+      -- puede asignar una palabra clave a un recorrido aún no migrado.
+      select v.id into v_viaje_id from public.universo_viajes as v
+      where v.client_id = p_legacy_client_id
+        and v.identificador_acceso_hash is null
+        and v.palabra_clave_hash is null
+      limit 1 for update;
+    end if;
+
+    if v_viaje_id is null then
+      insert into public.universo_viajes (
+        nombre, correo, identificador_acceso_hash, palabra_clave_hash
+      ) values (
+        v_nombre, null, v_identifier_hash,
+        extensions.crypt(p_palabra_clave, extensions.gen_salt('bf', 12))
+      ) returning id into v_viaje_id;
+    else
+      update public.universo_viajes
+      set nombre = v_nombre,
+          correo = null,
+          identificador_acceso_hash = v_identifier_hash,
+          palabra_clave_hash = extensions.crypt(p_palabra_clave, extensions.gen_salt('bf', 12)),
+          last_seen_at = pg_catalog.clock_timestamp(),
+          updated_at = pg_catalog.clock_timestamp()
+      where id = v_viaje_id;
+    end if;
   end if;
 
   v_token := universo_private.nuevo_token();
@@ -327,7 +463,7 @@ begin
     pg_catalog.clock_timestamp() + interval '30 days');
 
   return universo_private.payload_viaje(v_viaje_id)
-    || pg_catalog.jsonb_build_object('token', v_token);
+    || pg_catalog.jsonb_build_object('ok', true, 'token', v_token);
 end
 $function$;
 
@@ -645,26 +781,26 @@ begin
   select pg_catalog.jsonb_build_object(
     'generated_at', pg_catalog.clock_timestamp(),
     'resumen', pg_catalog.jsonb_build_object(
-      'registrados', (select pg_catalog.count(*) from public.universo_viajes where correo is not null),
+      'registrados', (select pg_catalog.count(*) from public.universo_viajes where palabra_clave_hash is not null),
       'ingresos_hoy', (
         select pg_catalog.count(distinct s.viaje_id)
         from public.universo_sesiones as s join public.universo_viajes as v on v.id = s.viaje_id
-        where v.correo is not null
+        where v.palabra_clave_hash is not null
           and (s.created_at at time zone 'America/Bogota')::date
             = (pg_catalog.clock_timestamp() at time zone 'America/Bogota')::date
       ),
       'activos', (
         select pg_catalog.count(*) from public.universo_viajes
-        where correo is not null and last_seen_at >= pg_catalog.clock_timestamp() - interval '5 minutes'
+        where palabra_clave_hash is not null and last_seen_at >= pg_catalog.clock_timestamp() - interval '5 minutes'
       ),
       'completados', (
         select pg_catalog.count(*) from public.universo_viajes
-        where correo is not null and completed_at is not null
+        where palabra_clave_hash is not null and completed_at is not null
       ),
-      'iniciados', (select pg_catalog.count(*) from public.universo_viajes where correo is not null),
+      'iniciados', (select pg_catalog.count(*) from public.universo_viajes where palabra_clave_hash is not null),
       'avance_promedio', (
         select coalesce(pg_catalog.round(pg_catalog.avg(avance_maximo::numeric) * 100 / 7, 1), 0)
-        from public.universo_viajes where correo is not null
+        from public.universo_viajes where palabra_clave_hash is not null
       ),
       'evaluaciones', (select pg_catalog.count(*) from public.universo_feedback),
       'calificacion_promedio', (
@@ -676,7 +812,7 @@ begin
       select coalesce(pg_catalog.jsonb_agg(
         pg_catalog.jsonb_build_object('numero', etapas.numero, 'paso', etapas.paso,
           'total', (select pg_catalog.count(*) from public.universo_viajes as v
-            where v.correo is not null and v.avance_maximo >= etapas.numero))
+            where v.palabra_clave_hash is not null and v.avance_maximo >= etapas.numero))
         order by etapas.numero), '[]'::jsonb)
       from (values (1, 'Centro de lanzamiento'), (2, 'Estrellas cliente'),
         (3, 'Planetas de talento'), (4, 'Constelación guía'),
@@ -687,7 +823,7 @@ begin
       select coalesce(pg_catalog.jsonb_agg(item order by item ->> 'last_seen_at' desc), '[]'::jsonb)
       from (
         select pg_catalog.jsonb_build_object(
-          'nombre', v.nombre, 'correo', v.correo, 'paso', v.paso,
+          'nombre', v.nombre, 'paso', v.paso,
           'avance_maximo', v.avance_maximo,
           'avance_porcentaje', pg_catalog.round(v.avance_maximo::numeric * 100 / 7, 1),
           'planeta', v.planeta_principal, 'planeta_explorar', v.planeta_explorar,
@@ -698,13 +834,13 @@ begin
         ) as item
         from public.universo_viajes as v
         left join public.universo_feedback as f on f.viaje_id = v.id
-        where v.correo is not null
+        where v.palabra_clave_hash is not null
       ) as participantes_json
     ),
     'feedback', (
       select coalesce(pg_catalog.jsonb_agg(item order by item ->> 'updated_at' desc), '[]'::jsonb)
       from (
-        select pg_catalog.jsonb_build_object('nombre', v.nombre, 'correo', v.correo,
+        select pg_catalog.jsonb_build_object('nombre', v.nombre,
           'calificacion', f.calificacion, 'recomendacion', f.recomendacion,
           'created_at', f.created_at, 'updated_at', f.updated_at) as item
         from public.universo_feedback as f join public.universo_viajes as v on v.id = f.viaje_id
@@ -734,7 +870,7 @@ $function$;
 
 -- PostgreSQL concede EXECUTE a PUBLIC por defecto; se revoca antes de habilitar
 -- para anon exclusivamente los nueve endpoints que usa el sitio estático.
-revoke all on function public.universo_ingresar(text, text, uuid) from public, anon, authenticated;
+revoke all on function public.universo_ingresar(text, text, text, uuid) from public, anon, authenticated;
 revoke all on function public.universo_mi_viaje(text) from public, anon, authenticated;
 revoke all on function public.universo_guardar_viaje(text, jsonb) from public, anon, authenticated;
 revoke all on function public.universo_guardar_feedback(text, integer, text) from public, anon, authenticated;
@@ -744,7 +880,7 @@ revoke all on function public.universo_admin_ingresar(text, text) from public, a
 revoke all on function public.universo_admin_panel(text) from public, anon, authenticated;
 revoke all on function public.universo_admin_salir(text) from public, anon, authenticated;
 
-grant execute on function public.universo_ingresar(text, text, uuid) to anon;
+grant execute on function public.universo_ingresar(text, text, text, uuid) to anon;
 grant execute on function public.universo_mi_viaje(text) to anon;
 grant execute on function public.universo_guardar_viaje(text, jsonb) to anon;
 grant execute on function public.universo_guardar_feedback(text, integer, text) to anon;
@@ -755,6 +891,7 @@ grant execute on function public.universo_admin_panel(text) to anon;
 grant execute on function public.universo_admin_salir(text) to anon;
 
 revoke all on function universo_private.token_hash(text) from public, anon, authenticated;
+revoke all on function universo_private.identificador_acceso(text, text) from public, anon, authenticated;
 revoke all on function universo_private.nuevo_token() from public, anon, authenticated;
 revoke all on function universo_private.validar_token(text) from public, anon, authenticated;
 revoke all on function universo_private.validar_admin_token(text) from public, anon, authenticated;

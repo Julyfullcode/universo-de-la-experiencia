@@ -440,7 +440,7 @@
   }
 
   function searchableText(participant) {
-    return [participant.nombre, participant.correo, participant.paso, participant.planeta, participant.rol]
+    return [participant.nombre, participant.paso, participant.planeta, participant.rol]
       .map((value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es"))
       .join(" ");
   }
@@ -471,7 +471,7 @@
       const row = document.createElement("tr");
       const person = create("td");
       const personContent = create("div", "person-cell");
-      personContent.append(create("strong", "", valueOrDash(participant.nombre)), create("small", "", valueOrDash(participant.correo)));
+      personContent.append(create("strong", "", valueOrDash(participant.nombre)));
       person.append(personContent);
       row.append(person, create("td", "", valueOrDash(participant.paso)));
 
@@ -511,7 +511,7 @@
       header.append(create("h3", "", valueOrDash(item.nombre)), stars);
       const recommendation = String(item.recomendacion || "").trim() || "La persona dejó su calificación sin una recomendación escrita.";
       const footer = document.createElement("footer");
-      footer.append(create("span", "", valueOrDash(item.correo)), create("time", "", formatDate(item.updated_at)));
+      footer.append(create("time", "", formatDate(item.updated_at)));
       card.append(header, create("p", "", recommendation), footer);
       elements.recommendations.append(card);
     });
@@ -563,7 +563,6 @@
   function exportParticipants() {
     const columns = [
       { label: "Nombre completo", value: (row) => row.nombre },
-      { label: "Correo electrónico", value: (row) => row.correo },
       { label: "Momento actual", value: (row) => row.paso },
       { label: "Avance (%)", value: (row) => numeric(row.avance_porcentaje) },
       { label: "Planeta", value: (row) => row.planeta },
@@ -578,7 +577,6 @@
   function exportFeedback() {
     const columns = [
       { label: "Nombre completo", value: (row) => row.nombre },
-      { label: "Correo electrónico", value: (row) => row.correo },
       { label: "Calificación", value: (row) => numeric(row.calificacion) },
       { label: "Recomendación", value: (row) => row.recomendacion },
       { label: "Fecha de actualización", value: (row) => row.updated_at }
