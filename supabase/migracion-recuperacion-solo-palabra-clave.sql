@@ -55,6 +55,7 @@ declare
   v_failures integer;
   v_global_failures integer;
   v_match_count integer := 0;
+  v_name_match_count integer := 0;
   v_match_is_legacy boolean := false;
   v_viaje_id uuid;
   v_candidate record;
@@ -163,12 +164,54 @@ begin
     end if;
 
     if v_match_count > 1 then
-      insert into public.universo_participant_login_attempts (identifier_hash, succeeded)
-      values (v_attempt_hash, false);
-      return pg_catalog.jsonb_build_object(
-        'ok', false,
-        'error', 'No fue posible identificar una sesión única. Solicita ayuda al administrador.'
-      );
+      if pg_catalog.char_length(v_nombre) not between 2 and 80
+         or v_nombre ~ '[[:cntrl:]]' then
+        return pg_catalog.jsonb_build_object(
+          'ok', false,
+          'requires_name', true,
+          'error', 'Encontramos más de un viaje con esa palabra clave. Escribe también tu nombre completo.'
+        );
+      end if;
+
+      -- Las credenciales antiguas podían repetir palabra clave. En ese caso el
+      -- nombre se usa únicamente para distinguir el viaje correcto. El registro
+      -- permanece en versión 1 porque una clave duplicada no puede convertirse
+      -- en el identificador único de versión 2.
+      v_viaje_id := null;
+      v_password_hash := null;
+      v_match_is_legacy := false;
+      for v_candidate in
+        select v.id, v.nombre, v.palabra_clave_hash
+        from public.universo_viajes as v
+        where v.identificador_acceso_hash is not null
+          and v.palabra_clave_hash is not null
+        order by v.id
+        for update
+      loop
+        if pg_catalog.lower(pg_catalog.regexp_replace(pg_catalog.btrim(v_candidate.nombre), '\s+', ' ', 'g'))
+             = pg_catalog.lower(v_nombre)
+           and v_candidate.palabra_clave_hash ~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
+           and extensions.crypt(p_palabra_clave, v_candidate.palabra_clave_hash)
+               = v_candidate.palabra_clave_hash then
+          v_name_match_count := v_name_match_count + 1;
+          if v_name_match_count = 1 then
+            v_viaje_id := v_candidate.id;
+            v_password_hash := v_candidate.palabra_clave_hash;
+          end if;
+          exit when v_name_match_count > 1;
+        end if;
+      end loop;
+
+      if v_name_match_count = 0 then
+        insert into public.universo_participant_login_attempts (identifier_hash, succeeded)
+        values (v_attempt_hash, false);
+        return pg_catalog.jsonb_build_object('ok', false,
+          'error', 'Nombre o palabra clave incorrectos.');
+      end if;
+      if v_name_match_count > 1 then
+        return pg_catalog.jsonb_build_object('ok', false,
+          'error', 'Hay más de un viaje con el mismo nombre y palabra clave. Solicita ayuda al administrador.');
+      end if;
     end if;
 
     if v_match_is_legacy then

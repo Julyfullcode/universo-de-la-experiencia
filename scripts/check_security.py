@@ -36,10 +36,11 @@ def main():
             "The recovery warning must remain visible on the access screen.")
     require("p_palabra_clave:accessKey" in app and "p_modo:mode" in app,
             "The access RPC contract is incomplete.")
-    require('${recovering?"":`<label class="field">Nombre completo' in app,
-            "Recovery mode must not render the participant name field.")
-    require('p_nombre:mode==="register"?name:null' in app,
-            "Recovery mode must not send a participant name.")
+    require("showName=!recovering||recoveryNeedsName" in app and
+            "mode===\"recover\"&&result.requires_name" in app,
+            "Recovery must request a name only when a legacy key is ambiguous.")
+    require("p_nombre:name||null" in app and "recoveryKeyDraft" in app,
+            "The ambiguity retry must send the name without persisting the key.")
     require("p_correo" not in app and 'id="email"' not in app,
             "Email-based participant access must not return to the UI.")
     require(not re.search(r"localStorage\.setItem\([^\n;]*accessKey", app),
@@ -61,8 +62,8 @@ def main():
             "identificador_acceso_version = 2" in schema and "'keyword-v2:'" in schema,
             "Keyword-only recovery must use a versioned private HMAC lookup.")
     require("v_match_is_legacy" in schema and "v_match_count > 1" in schema and
-            "No fue posible identificar una sesión única" in schema,
-            "Legacy credentials must migrate without returning an ambiguous session.")
+            "'requires_name', true" in schema and "v_name_match_count" in schema,
+            "Ambiguous legacy credentials must require a name before returning a session.")
     require("enable row level security" in schema and
             "revoke all privileges on table public.universo_participant_login_attempts" in schema,
             "Credential and attempt tables must not be directly accessible.")
