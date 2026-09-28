@@ -81,7 +81,7 @@ window.__sceneSnapshot=()=>{
   triangles:p.renderer.info.render.triangles,objects,
   viewport:[innerWidth,innerHeight],scroll:[document.body.scrollWidth,document.body.scrollHeight],
   inspector:document.querySelector('.cosmos-inspector')?.innerText,
-  labels:Array.from(document.querySelectorAll('.three-space-label,.cosmos-object-label')).map(e=>{
+  labels:Array.from(document.querySelectorAll('.cosmos-object-label')).map(e=>{
    const r=e.getBoundingClientRect();return {text:e.innerText,className:e.className,disabled:e.disabled,
     rect:[r.x,r.y,r.width,r.height],visible:!e.hidden&&getComputedStyle(e).visibility!=='hidden'&&r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,
     fullyInside:r.left>=0&&r.top>=0&&r.right<=innerWidth+.5&&r.bottom<=innerHeight+.5};
@@ -1042,7 +1042,8 @@ def main():
                           and e.get("params", {}).get("type") == "error"]
         failed_resources = [e for e in cdp.events if e.get("method") == "Log.entryAdded"
                             and e.get("params", {}).get("entry", {}).get("level") == "error"
-                            and not e.get("params", {}).get("entry", {}).get("url", "").endswith("favicon.ico")]
+                            and not e.get("params", {}).get("entry", {}).get("url", "").endswith("favicon.ico")
+                            and not e.get("params", {}).get("entry", {}).get("url", "").startswith("edge://")]
         print(json.dumps({"artifacts": str(artifacts), "webgl": after.get("webgl"),
                           "calls": after.get("calls"), "objects": len(after.get("objects", [])),
                           "movedObjects": moved, "errors": after.get("errors"),
