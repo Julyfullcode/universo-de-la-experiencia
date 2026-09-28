@@ -93,7 +93,19 @@ INTEGRATION_STUB = """<script>
 window.__fixtureWrites=[];window.__fixtureResponses=[];window.__networkAttempts=[];
 window.__fixtureSaveFailures=0;
 localStorage.setItem('universo-experiencia.sesion.v3','fixture-session');
-window.fetch=url=>{window.__networkAttempts.push(String(url));throw Error('Network disabled in isolated integration test');};
+window.fetch=async(url,options={})=>{
+ const target=String(url);
+ if(target!=='/api/rpc'){
+   window.__networkAttempts.push(target);
+   throw Error('Network disabled in isolated integration test');
+ }
+ const request=JSON.parse(String(options.body||'{}'));
+ const outcome=await window.supabase.createClient().rpc(request.name,request.args);
+ if(outcome.error)throw Object.assign(new TypeError(outcome.error.message||'Failed to fetch'),outcome.error);
+ return new Response(JSON.stringify(outcome.data),{status:200,headers:{
+   'content-type':'application/json','x-universe-rpc-proxy':'1'
+ }});
+};
 const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
  planeta_explorar:'conectores',rol:'generador',satelites:['personas','comunidad'],observatorio:'CES',mision:{},avance_maximo:7};
 const validSatelliteIds=new Set(['proveedores','dueno','comunidad']);
@@ -636,8 +648,11 @@ def layout_checks(metrics):
 def set_viewport(cdp, width, height):
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
              "deviceScaleFactor": 1, "mobile": False})
-    cdp.evaluate("""new Promise(resolve=>requestAnimationFrame(()=>
-      requestAnimationFrame(()=>requestAnimationFrame(resolve))))""")
+    cdp.evaluate("""(()=>{
+      window.__sceneFrameControl?.resume();
+      return new Promise(resolve=>requestAnimationFrame(()=>
+        requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    })()""")
 
 
 def capture_scene(cdp, target):
@@ -925,7 +940,7 @@ def main():
               const loginResponse=[...window.__fixtureResponses].reverse().find(x=>x.name==='universo_ingresar');
               const registration={ready:registrationReady,rpcCalls:window.__fixtureWrites.filter(x=>x.name==='universo_ingresar').length,
                 rpcName:loginWrite?.args?.p_nombre,rpcKey:loginWrite?.args?.p_palabra_clave,
-                rpcMode:loginWrite?.args?.p_modo,noPlaintextStorage:!JSON.stringify(localStorage).includes(registrationInput.key),
+                rpcMode:loginWrite?.args?.p_modo,noPlaintextStorage:!JSON.stringify(localStorage).includes(registrationInput.key)&&!JSON.stringify(sessionStorage).includes(registrationInput.key),
                 returnedStep:loginResponse?.result?.viaje?.paso,
                 map:document.querySelectorAll('.orbital-realm-view').length,
                 stage:document.querySelectorAll('.cosmos-stage').length,
@@ -953,7 +968,7 @@ def main():
               document.querySelector('#access-key').value='Incorrecta 2026';
               await loginParticipant({preventDefault(){}});
               const rejectedRecovery={message:document.querySelector('.error')?.innerText||'',
-                noSession:!localStorage.getItem('universo-experiencia.sesion.v3'),
+                noSession:!sessionStorage.getItem('universo-experiencia.sesion.v3'),
                 modePreserved:document.querySelector('input[name="access-mode"][value="recover"]')?.checked===true,
                 nameHidden:!document.querySelector('#name')};
               document.querySelector('#access-key').value=registrationInput.key;
@@ -974,7 +989,7 @@ def main():
                 elapsedMs:performance.now()-clickedAt,
                 lesson:document.querySelector('.journey-view .lesson h1')?.innerText||'',
                 redError:document.querySelector('.journey-view .error')?.innerText||''};
-              const pendingRaw=localStorage.getItem('universo-experiencia.pendiente.v1');
+              const pendingRaw=sessionStorage.getItem('universo-experiencia.pendiente.v1');
               let pending=null;try{pending=JSON.parse(pendingRaw||'null');}catch{}
               const offlineJourneyReady=await waitFor(()=>(
                 document.querySelector('.journey-view .lesson h1')?.innerText||''
@@ -989,7 +1004,7 @@ def main():
               const flushResult=await flushPending();
               const flushWrites=window.__fixtureWrites.slice(flushWriteStart)
                 .filter(x=>x.name==='universo_guardar_viaje');
-              const pendingAfterFlush=localStorage.getItem('universo-experiencia.pendiente.v1');
+              const pendingAfterFlush=sessionStorage.getItem('universo-experiencia.pendiente.v1');
               const offlineRecovery={mapReady:offlineMapReady,actionFound:!!launchAction,
                 immediateJourney,journeyReady:offlineJourneyReady,
                 lesson:document.querySelector('.lesson h1')?.innerText||'',failuresCompleted,

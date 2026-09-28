@@ -1,0 +1,13 @@
+.git
+.tools
+.env*
+dist
+scripts
+supabase
+SECURITY.md
+README.md
+vendor/*-LICENSE.txt
+vendor/README.md
+assets/textures/README.md
+*.log
+*.tmp

@@ -1,8 +1,6 @@
 (() => {
   "use strict";
 
-  const SUPABASE_URL = "https://vbrezgsxbfxtfzfcmqce.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_mwJdpfrhPEZCxzHIrJ-7_w_jze0OPzT";
   const TOKEN_KEY = "universo-experiencia.admin-session.v1";
   const ACTIVITY_KEY = "universo-experiencia.admin-activity.v1";
   const SESSION_STARTED_KEY = "universo-experiencia.admin-started.v1";
@@ -146,18 +144,19 @@
     let response;
     let text;
     try {
-      response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(name)}`, {
+      response = await fetch("/api/rpc", {
         method: "POST",
         headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
           Accept: "application/json",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(parameters),
+        body: JSON.stringify({ name, args: parameters }),
         cache: "no-store",
         signal: controller.signal
       });
+      if (response.headers.get("x-universe-rpc-proxy") !== "1") {
+        throw new Error("El canal seguro de administración no está disponible.");
+      }
       text = await response.text();
     } catch (error) {
       if (error?.name === "AbortError" && signal?.aborted) throw error;
