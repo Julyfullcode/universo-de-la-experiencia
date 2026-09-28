@@ -28,7 +28,7 @@ en `sessionStorage`, por lo que se eliminan al cerrar la pestaña.
 
 Las tablas, índices, políticas, permisos, funciones y límites de uso están en
 [supabase/schema.sql](supabase/schema.sql). Para una base ya creada, aplique
-[supabase/migracion-endurecimiento-seguridad.sql](supabase/migracion-endurecimiento-seguridad.sql).
+[supabase/migrations/20260928103000_endurecimiento_seguridad.sql](supabase/migrations/20260928103000_endurecimiento_seguridad.sql).
 
 ## Ejecución local
 

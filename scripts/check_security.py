@@ -29,7 +29,7 @@ def main():
     app = read("app.js")
     index = read("index.html")
     schema = read("supabase/schema.sql")
-    migration = read("supabase/migracion-endurecimiento-seguridad.sql")
+    migration = read("supabase/migrations/20260928103000_endurecimiento_seguridad.sql")
     admin = read("admin.js") + read("admin.html")
     proxy = read("api/rpc.js")
     styles = read("styles.css") + read("admin.css") + read("universe-map.css")
