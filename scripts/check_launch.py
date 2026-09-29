@@ -30,7 +30,7 @@ window.initClientOrbitalScene=()=>{};
 window.destroyClientOrbitalScene=()=>{};
 </script>"""
 
-MATCH_ROUNDS = [
+SCENARIO_ROUNDS = [
     ["cx", "clientecentrismo", "conocimiento", "promesa"],
     ["arquitectura", "modelo", "diseno", "eficiencias"],
     ["escucha", "medicion", "indicadores", "mejora"],
@@ -45,6 +45,24 @@ GLOSSARY_TERMS = [
 STRATEGY_CHALLENGES = [
     "Calidad de los servicios", "Servicios eficientes", "Cobertura universal sostenible",
     "Protección Hídrica y Carbono Neutralidad", "Generación de valor",
+]
+GLOSSARY_DEFINITION_PARTS = [
+    ["resultado emocional", "interacción"],
+    ["decisiones", "valor", "clientes y usuarios"],
+    ["necesidades", "expectativas", "fricciones", "personalizar"],
+    ["compromiso explícito", "sientan", "valor", "interacción"],
+    ["capacidades organizacionales", "procesos", "personas", "información", "organización", "cultura", "tecnología"],
+    ["estructurado", "consistente", "medible", "sostenible", "diseñar", "ejecutar", "evaluar", "mejorar"],
+    ["creación intencional", "interacciones", "simplifican", "valor"],
+    ["simplificación", "optimización", "reducción de fricciones"],
+    ["mecanismos", "instrumentos", "percepción", "necesidades", "expectativas"],
+    ["evaluación estructurada", "percepciones", "vivencias"],
+    ["métricas", "visible", "gestionable"],
+    ["evolución permanente", "mediciones", "datos", "retroalimentación"],
+    ["clientes y usuarios", "empleados", "proveedores", "contratistas", "dueño", "comunidad", "marca", "reputación"],
+    ["perciben", "viven", "sienten", "organización"],
+    ["etapas", "interacciones", "empleado", "organización"],
+    ["interacciones", "conectan", "orientan", "fortalecen"],
 ]
 
 
@@ -121,21 +139,71 @@ def check_layout(cdp):
 
 def check_content(cdp, panel):
     text = cdp.evaluate("document.querySelector('.launch-panel').innerText")
+    interactions = []
+    if panel == 0:
+        for index in range(5):
+            click(cdp, f'[data-action="launch-kit"][data-value="{index}"]')
+            assert cdp.evaluate(f"document.querySelector('[data-action=launch-kit][data-value=\"{index}\"]').classList.contains('is-active')"), "Kit selection was not reflected"
+            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
+            interactions.append(index)
+    elif panel == 1:
+        decisions = []
+        for decision in ("cerrar", "acompanar"):
+            click(cdp, f'[data-action="launch-decision"][data-value="{decision}"]')
+            feedback = cdp.evaluate("({text:document.querySelector('.launch-decision-feedback')?.innerText,role:document.querySelector('.launch-decision-feedback')?.getAttribute('role')})")
+            assert feedback["text"] and feedback["role"] == "status", "The decision needs accessible explanatory feedback"
+            decisions.append(feedback["text"])
+        assert decisions[0] != decisions[1], "Both decisions produced identical feedback"
+        interactions = decisions
+        text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
+    elif panel == 2:
+        for index in range(5):
+            click(cdp, f'[data-action="launch-challenge"][data-value="{index}"]')
+            assert cdp.evaluate(f"document.querySelector('[data-action=launch-challenge][data-value=\"{index}\"]').classList.contains('is-active')"), "Strategy challenge selection failed"
+            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
+            interactions.append(index)
+    elif panel == 3:
+        labels = cdp.evaluate("Array.from(document.querySelectorAll('[data-action=launch-code]'),node=>node.innerText)")
+        for name in GLOSSARY_TERMS:
+            assert any(name in label for label in labels), f"Glossary is missing its {name} selector"
+        concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
+        for index, concept in enumerate(concepts):
+            click(cdp, f'[data-action="launch-code"][data-value="{concept}"]')
+            assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == concept
+            assert cdp.evaluate("document.querySelector('.launch-code-button.is-active').dataset.value") == concept
+            click(cdp, ".launch-code-detail details.launch-reference summary")
+            assert cdp.evaluate("document.querySelector('.launch-code-detail details.launch-reference').open"), "Official definition cannot be expanded"
+            definition = cdp.evaluate("document.querySelector('.launch-code-detail details.launch-reference').innerText").casefold()
+            missing = [part for part in GLOSSARY_DEFINITION_PARTS[index] if part.casefold() not in definition]
+            assert not missing, f"Official definition for {concept} is incomplete: {missing}"
+            detail = cdp.evaluate("document.querySelector('.launch-code-detail').innerText")
+            assert GLOSSARY_TERMS[index] in detail, f"Selected concept {concept} has the wrong heading"
+            text += "\n" + detail
+            interactions.append(concept)
+        click(cdp, '[data-action="launch-code"][data-value="cx"]')
+    if panel in (0, 1, 2):
+        references = ([f'.launch-strategy-card[data-group="{index}"] details.launch-reference summary' for index in range(3)]
+                      if panel == 2 else ["details.launch-reference summary"])
+        for selector in references:
+            click(cdp, selector)
+            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
+            click(cdp, selector)
     expected = {
-        0: ["confianza y lealtad", "Terminología", "Modelos y esquemas", "Escucha y medición",
-            "Tu rol y participación", "Competencias y comportamientos"],
+        0: ["confianza", "lealtad", "Terminología", "Modelos", "Escucha", "medición",
+            "rol", "Competencias", "comportamientos"],
         1: ["resultado emocional", "Valores", "Emociones", "Experiencias", "Operación", "Cultura", "Estrategia"],
-        2: ["Propósito", "Identidad", "Estrategia", "2035", "entre 52 y 70", "mayor a 70",
-            "según su nivel de madurez", *STRATEGY_CHALLENGES],
+        2: ["Propósito", "Identidad", "Estrategia", "2035", "52", "70", "madurez",
+            "armonía de la vida", "responsabilidad, transparencia y calidez",
+            "desarrollo humano sostenible", *STRATEGY_CHALLENGES],
         3: GLOSSARY_TERMS,
-        4: ["16", "concepto", "definición"],
+        4: ["16"],
     }[panel]
     missing = [item for item in expected if item.casefold() not in text.casefold()]
     assert not missing, f"Panel {panel} is missing required content: {missing}"
-    if panel == 3:
-        labels = cdp.evaluate("Array.from(document.querySelectorAll('.launch-glossary-entry dt'),node=>node.innerText)")
-        assert labels == GLOSSARY_TERMS, "Glossary must contain all 16 named concepts"
-    return {"requiredItems": len(expected), "pass": True}
+    if panel == 2:
+        assert "52–70" in text or "entre 52 y 70" in text, "The high-recommendation NPS range is missing"
+        assert "> 70" in text or "mayor a 70" in text, "The very-high-recommendation NPS threshold is missing"
+    return {"requiredItems": len(expected), "interactions": interactions, "pass": True}
 
 
 def run_checks(cdp, artifacts, screenshots):
@@ -147,20 +215,24 @@ def run_checks(cdp, artifacts, screenshots):
     cdp.evaluate("flushPending()")
     writes_before = cdp.evaluate("window.__fixtureWrites.length")
     assert "Antes de despegar" in cdp.evaluate("document.querySelector('.lesson h1').innerText")
+    assert cdp.evaluate("!document.querySelector('.launch-intro')"), "The redundant introduction was not removed"
+    assert "Tu misión empieza aquí: comprende la experiencia" not in cdp.evaluate("document.querySelector('.launch-station').innerText"), "The removed introduction remains visible"
 
     for panel in range(5):
         click(cdp, f'[data-action="launch-panel"][data-value="{panel}"]')
+        assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
+        content = check_content(cdp, panel)
+        cdp.evaluate("document.querySelector('.launch-scroll').scrollTop=0")
         layout = check_layout(cdp)
         result["desktop"].append({"panel": panel, "layout": layout,
-                                  "content": check_content(cdp, panel),
+                                  "content": content,
                                   "text": cdp.evaluate("document.querySelector('.launch-station').innerText")})
         assert not layout["horizontalOverflow"], f"Desktop panel {panel} overflows horizontally"
         assert not layout["clipped"], f"Desktop panel {panel} clips content: {layout['clipped']}"
         assert all(item["moved"] for item in layout["scrollChecks"]), "Scrollable content is unreachable"
-        assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
         screenshot(cdp, artifacts, f"desktop-panel-{panel + 1}", screenshots)
 
-    result["matching"] = check_matching(cdp, artifacts, screenshots, writes_before)
+    result["scenarios"] = check_scenarios(cdp, artifacts, screenshots, writes_before)
 
     for width, height in [(390, 844)]:
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
@@ -174,26 +246,41 @@ def run_checks(cdp, artifacts, screenshots):
             assert not layout["horizontalOverflow"], f"Mobile panel {panel} overflows horizontally"
             assert not layout["clipped"], f"Mobile panel {panel} clips content: {layout['clipped']}"
             assert all(item["moved"] for item in layout["scrollChecks"]), "Mobile content cannot scroll"
-            if panel in (0, 4):
-                screenshot(cdp, artifacts, f"mobile-panel-{panel + 1}", screenshots)
+            screenshot(cdp, artifacts, f"mobile-panel-{panel + 1}", screenshots)
             if panel == 3:
                 cdp.evaluate("document.querySelector('.launch-scroll').scrollTop=0;document.querySelector('.launch-scroll').focus()")
                 press(cdp, "PageDown", "PageDown", 34)
                 result["keyboardScroll"] = cdp.evaluate("({focused:document.activeElement.matches('.launch-scroll'),top:document.querySelector('.launch-scroll').scrollTop})")
                 assert result["keyboardScroll"]["focused"] and result["keyboardScroll"]["top"] > 0, "Mobile glossary cannot scroll by keyboard"
+                click(cdp, '[data-action="launch-code"][data-value="comunicacion"]')
+                result["mobileCodeFocus"] = cdp.evaluate("""(()=>{
+                  const focus=document.activeElement,box=focus.getBoundingClientRect();
+                  const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
+                  return {id:focus.id,visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,
+                    code:document.querySelector('.launch-code-detail').dataset.code};
+                })()""")
+                assert result["mobileCodeFocus"] == {"id": "launch-code-detail-title", "visible": True, "code": "comunicacion"}, "Mobile glossary selection does not reveal its detail"
+                screenshot(cdp, artifacts, "mobile-glossary-detail", screenshots)
+                click(cdp, '[data-action="launch-code-map"]')
+                result["mobileCodeReturn"] = cdp.evaluate("""(()=>{
+                  const focus=document.activeElement,box=focus.getBoundingClientRect();
+                  const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
+                  return {action:focus.dataset.action,value:focus.dataset.value,
+                    visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1};
+                })()""")
+                assert result["mobileCodeReturn"] == {"action": "launch-code", "value": "comunicacion", "visible": True}, "Mobile glossary return does not restore the selected code"
         assert any(item["layout"]["scrollChecks"] for item in result["mobile"]), "No mobile scroll path was exercised"
-        click(cdp, '[data-action="launch-term"][data-value="cx"]')
-        click(cdp, '[data-action="launch-definition"][data-value="cx"]')
-        result["mobileMatchFocus"] = cdp.evaluate("""(()=>{
+        click(cdp, '[data-action="launch-code-answer"][data-value="cx"]')
+        result["mobileAnswerFocus"] = cdp.evaluate("""(()=>{
           const focus=document.activeElement,box=focus.getBoundingClientRect();
           const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
           return {action:focus.dataset.action,value:focus.dataset.value,
             visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,
             feedback:document.querySelector('.launch-feedback').innerText};
         })()""")
-        assert result["mobileMatchFocus"]["action"] == "launch-term" and result["mobileMatchFocus"]["visible"], "Mobile correct answer moves focus outside visible lesson"
-        assert result["mobileMatchFocus"]["feedback"], "Mobile answer has no feedback"
-        screenshot(cdp, artifacts, "mobile-matching-feedback", screenshots)
+        assert result["mobileAnswerFocus"]["action"] == "launch-signal-next" and result["mobileAnswerFocus"]["visible"], "Mobile correct answer moves focus outside visible lesson"
+        assert result["mobileAnswerFocus"]["feedback"], "Mobile answer has no feedback"
+        screenshot(cdp, artifacts, "mobile-scenario-feedback", screenshots)
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")
@@ -202,44 +289,45 @@ def run_checks(cdp, artifacts, screenshots):
     return result
 
 
-def check_matching(cdp, artifacts, screenshots, writes_before):
-    result = {"rounds": []}
+def check_scenarios(cdp, artifacts, screenshots, writes_before):
+    result = {"signals": []}
     advance = '[data-action="go-step"][data-step="estrellas"]'
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch can finish before matching"
-    click(cdp, '[data-action="launch-term"][data-value="cx"]')
-    click(cdp, '[data-action="launch-definition"][data-value="clientecentrismo"]')
-    wrong = cdp.evaluate("({text:document.querySelector('.launch-feedback')?.innerText||'',matched:document.querySelectorAll('.is-matched').length,live:document.querySelector('.launch-feedback')?.getAttribute('aria-live')})")
-    assert wrong["text"] and wrong["matched"] == 0 and wrong["live"] == "polite", "Wrong matching lacks accessible feedback"
-    result["wrongMatch"] = wrong
-    click(cdp, '[data-action="launch-term"][data-value="cx"]')
-    click(cdp, '[data-action="launch-definition"][data-value="cx"]')
-    completed_before = cdp.evaluate("document.querySelectorAll('.is-matched').length")
-    assert completed_before >= 2, "Correct term/definition pair was not marked"
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch can finish before its scenarios"
+    click(cdp, '[data-action="launch-code-answer"][data-value="clientecentrismo"]')
+    wrong = cdp.evaluate("({text:document.querySelector('.launch-feedback')?.innerText||'',completed:document.querySelectorAll('.launch-node.is-lit').length,live:document.querySelector('.launch-feedback')?.getAttribute('aria-live')})")
+    assert wrong["text"] and wrong["completed"] == 0 and wrong["live"] == "polite", "Wrong answer lacks accessible feedback or incorrectly credits progress"
+    assert cdp.evaluate("!document.querySelector('[data-action=launch-code-answer][data-value=cx]').disabled"), "Wrong answers prevent retry"
+    result["wrongAnswer"] = wrong
+    click(cdp, '[data-action="launch-code-answer"][data-value="cx"]')
+    completed_before = cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length")
+    assert completed_before == 1, "Correct scenario was not credited exactly once"
     click(cdp, '[data-action="launch-panel"][data-value="0"]')
     click(cdp, '[data-action="launch-panel"][data-value="4"]')
-    completed_after = cdp.evaluate("document.querySelectorAll('.is-matched').length")
-    assert completed_after == completed_before, "Matching progress was lost when revisiting a panel"
+    completed_after = cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length")
+    assert completed_after == completed_before, "Scenario progress was lost when revisiting a panel"
+    assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == "0", "Revisiting changed the current scenario"
     result["retainedProgress"] = True
-    for index, group in enumerate(MATCH_ROUNDS):
-        for concept in group:
-            if index == 0 and concept == "cx":
-                continue
-            click(cdp, f'[data-action="launch-term"][data-value="{concept}"]')
-            click(cdp, f'[data-action="launch-definition"][data-value="{concept}"]')
-        round_state = cdp.evaluate("({matched:document.querySelectorAll('.is-matched').length,focus:document.activeElement.dataset.action,feedback:document.querySelector('.launch-feedback')?.innerText})")
-        assert round_state["matched"] >= 8, f"Round {index + 1} is incomplete"
-        result["rounds"].append(round_state)
-        if index < len(MATCH_ROUNDS) - 1:
-            click(cdp, '[data-action="launch-round"]')
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "All pairs failed to unlock launch"
-    screenshot(cdp, artifacts, "desktop-matching-complete", screenshots)
+    concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
+    for index, concept in enumerate(concepts):
+        assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == str(index)
+        if index:
+            click(cdp, f'[data-action="launch-code-answer"][data-value="{concept}"]')
+        signal = cdp.evaluate("({completed:document.querySelectorAll('.launch-node.is-lit').length,feedback:document.querySelector('.launch-feedback')?.innerText,disabled:Array.from(document.querySelectorAll('[data-action=launch-code-answer]')).every(button=>button.disabled)})")
+        assert signal["completed"] == index + 1, f"Scenario {index + 1} did not update progress"
+        assert signal["feedback"] and signal["disabled"], "Correct answer has no explanation or can be repeated"
+        result["signals"].append(signal)
+        if index < len(concepts) - 1:
+            assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch unlocked before all 16 concepts were practiced"
+            click(cdp, '[data-action="launch-signal-next"]')
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "All concepts failed to unlock launch"
+    screenshot(cdp, artifacts, "desktop-scenarios-complete", screenshots)
     cdp.evaluate("document.querySelector('[data-action=launch-prev]').focus()")
     press(cdp, "Enter", "Enter", 13)
     assert cdp.evaluate("document.querySelector('#launch-panel-title').innerText.includes('códigos')"), "Keyboard previous-panel control failed"
     cdp.evaluate("document.querySelector('[data-action=launch-next]').focus()")
     press(cdp, "Enter", "Enter", 13)
     assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Keyboard next-panel control lost focus"
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Completing panel navigation lost matching progress"
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Panel navigation lost scenario progress"
     result["keyboardNavigation"] = True
     assert cdp.evaluate("window.__fixtureWrites.length") == writes_before, "Learning interactions unexpectedly wrote participant data"
     click(cdp, advance)
