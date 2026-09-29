@@ -79,7 +79,8 @@ def click(cdp, selector):
     cdp.evaluate("""(selector=>{
       const node=document.querySelector(selector);
       if(!node||node.disabled)throw Error('Unavailable control: '+selector);
-      node.scrollIntoView({block:'nearest',inline:'nearest'});node.focus();node.click();
+      if(!node.getClientRects().length)throw Error('Hidden control: '+selector);
+      node.focus({preventScroll:true});node.click();
     })(""" + json.dumps(selector) + ")")
     cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
 
@@ -107,232 +108,256 @@ def check_layout(cdp):
     return cdp.evaluate("""(()=>{
       const root=document.querySelector('.launch-station');
       if(!root)throw Error('Launch station missing');
-      const viewport={width:innerWidth,height:innerHeight},rootRect=root.getBoundingClientRect();
-      const nodes=[root,...root.querySelectorAll('*')];
-      const scrollable=nodes.filter(node=>/auto|scroll/.test(getComputedStyle(node).overflowY)&&node.scrollHeight>node.clientHeight+2);
-      const scrollChecks=scrollable.map(node=>{
-        const before=node.scrollTop;node.scrollTop=node.scrollHeight;
-        const moved=node.scrollTop>0;node.scrollTop=before;
-        return {className:node.className,clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,moved};
-      });
-      const clipped=[];
-      for(const node of root.querySelectorAll('h1,h2,h3,p,li,button,label,dt,dd')){
-        if(node.closest('[hidden]')||!node.getClientRects().length)continue;
-        if(getComputedStyle(node).display==='none')continue;
-        let parent=node.parentElement;
-        while(parent&&parent!==document.body){
-          const style=getComputedStyle(parent),box=parent.getBoundingClientRect(),r=node.getBoundingClientRect();
-          if(/hidden|clip/.test(style.overflowY)&&parent.scrollHeight>parent.clientHeight+3){
-            const innerScroller=node.closest('[data-launch-scroll],.launch-scroll');
-            const hasScrollableAncestor=scrollable.some(scroller=>parent.contains(scroller)&&scroller.contains(node));
-            if(!hasScrollableAncestor&&!innerScroller&&(r.top<box.top-3||r.bottom>box.bottom+3))
-              clipped.push({text:node.innerText.slice(0,100),container:parent.className});
+      const stage=root.querySelector('.launch-stage,.launch-scroll'),tolerance=2;
+      const box=r=>({left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height});
+      const outside=(r,b,x=true,y=true)=>(x&&(r.left<b.left-tolerance||r.right>b.right+tolerance))||(y&&(r.top<b.top-tolerance||r.bottom>b.bottom+tolerance));
+      const visible=node=>{
+        if(!node.getClientRects().length||node.closest('[hidden],.sr-only,.visually-hidden'))return false;
+        for(let parent=node;parent;parent=parent.parentElement){
+          const style=getComputedStyle(parent);
+          if(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)return false;
+        }
+        return true;
+      };
+      const label=node=>node.id||node.className||node.tagName;
+      const errors=[],overflow=[];let textFragments=0,controls=0;
+      const rootRect=root.getBoundingClientRect(),viewport={left:0,top:0,right:innerWidth,bottom:innerHeight};
+      if(outside(rootRect,viewport))errors.push({kind:'root-outside-viewport',rect:box(rootRect)});
+      function checkRect(rect,node,kind,text){
+        if(!rect.width||!rect.height)return;
+        const bounds=stage&&stage.contains(node)?stage.getBoundingClientRect():rootRect;
+        if(outside(rect,bounds))errors.push({kind:kind+'-outside-area',node:label(node),text,rect:box(rect),bounds:box(bounds)});
+        if(outside(rect,viewport))errors.push({kind:kind+'-outside-viewport',node:label(node),text,rect:box(rect)});
+        for(let parent=node;parent&&parent!==document.documentElement;parent=parent.parentElement){
+          const style=getComputedStyle(parent),x=/hidden|clip|auto|scroll/.test(style.overflowX),y=/hidden|clip|auto|scroll/.test(style.overflowY);
+          if((x||y)&&outside(rect,parent.getBoundingClientRect(),x,y)){
+            errors.push({kind:kind+'-ancestor-clips',node:label(node),text,ancestor:label(parent),rect:box(rect),bounds:box(parent.getBoundingClientRect())});break;
           }
-          parent=parent.parentElement;
         }
       }
-      return {viewport,root:{left:rootRect.left,right:rootRect.right,top:rootRect.top,bottom:rootRect.bottom},
-        horizontalOverflow:document.documentElement.scrollWidth>innerWidth+1||root.scrollWidth>root.clientWidth+2,
-        scrollChecks,clipped};
+      for(const node of [root,...root.querySelectorAll('*')]){
+        if(!visible(node)||node instanceof SVGElement)continue;
+        const style=getComputedStyle(node);
+        if(node.clientHeight>0&&style.display!=='inline'&&(node.scrollHeight>node.clientHeight+tolerance||((node===root||node===stage)&&node.scrollWidth>node.clientWidth+tolerance)))
+          overflow.push({node:label(node),client:[node.clientWidth,node.clientHeight],scroll:[node.scrollWidth,node.scrollHeight],overflow:[style.overflowX,style.overflowY]});
+      }
+      const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+      while(walker.nextNode()){
+        const text=walker.currentNode,parent=text.parentElement;
+        if(!text.textContent.trim()||!visible(parent))continue;
+        const range=document.createRange();range.selectNodeContents(text);
+        for(const rect of range.getClientRects()){textFragments++;checkRect(rect,parent,'text',text.textContent.trim().slice(0,85));}
+      }
+      for(const node of root.querySelectorAll('button,input,select,textarea,summary,[tabindex]')){
+        if(!visible(node))continue;controls++;checkRect(node.getBoundingClientRect(),node,'control',node.innerText.slice(0,80));
+      }
+      const bodyOverflow={horizontal:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)>innerWidth+tolerance,
+        vertical:Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)>innerHeight+tolerance};
+      const focus=document.activeElement,focusRect=focus.getBoundingClientRect();
+      return {viewport:{width:innerWidth,height:innerHeight},root:box(rootRect),stage:stage?box(stage.getBoundingClientRect()):null,
+        textFragments,controls,overflow,errors,bodyOverflow,focus:{tag:focus.tagName,id:focus.id,action:focus.dataset.action,value:focus.dataset.value,
+        visible:root.contains(focus)&&visible(focus)&&!outside(focusRect,rootRect)&&!outside(focusRect,viewport)},
+        wordCount:(root.querySelector('.launch-panel')?.innerText||'').trim().split(/\\s+/).filter(Boolean).length};
     })()""")
 
 
-def check_content(cdp, panel):
-    text = cdp.evaluate("document.querySelector('.launch-panel').innerText")
-    interactions = []
+def require_content(text, expected, context):
+    missing = [item for item in expected if item.casefold() not in text.casefold()]
+    assert not missing, f"{context} is missing required content: {missing}"
+
+
+def check_content(cdp, panel, record, capture):
+    """Explore every visible subview through its public controls, without scroll."""
+    texts = []
+    def state(name, official=False, photo=False):
+        texts.append(cdp.evaluate("document.querySelector('.launch-panel').innerText"))
+        record(name, panel, official)
+        if photo:
+            capture(name)
+
     if panel == 0:
         for index in range(5):
             click(cdp, f'[data-action="launch-kit"][data-value="{index}"]')
-            assert cdp.evaluate(f"document.querySelector('[data-action=launch-kit][data-value=\"{index}\"]').classList.contains('is-active')"), "Kit selection was not reflected"
-            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
-            interactions.append(index)
+            state(f"kit-{index}", photo=index == 0)
+        click(cdp, '[data-action="launch-reference"][data-value="guide"]')
+        state("guide-original", official=True, photo=True)
+        require_content(texts[-1], ["comprender", "clientes y usuarios", "ecosistema", "confianza", "lealtad", "comportamientos"], "Official Guide")
+        click(cdp, '[data-action="launch-reference"][data-value="close"]')
+        state("guide-return")
+        expected = ["Terminología", "Modelos", "Escucha", "medición", "rol", "Competencias", "comportamientos"]
     elif panel == 1:
-        decisions = []
-        for decision in ("cerrar", "acompanar"):
-            click(cdp, f'[data-action="launch-decision"][data-value="{decision}"]')
-            feedback = cdp.evaluate("({text:document.querySelector('.launch-decision-feedback')?.innerText,role:document.querySelector('.launch-decision-feedback')?.getAttribute('role')})")
-            assert feedback["text"] and feedback["role"] == "status", "The decision needs accessible explanatory feedback"
-            decisions.append(feedback["text"])
-        assert decisions[0] != decisions[1], "Both decisions produced identical feedback"
-        interactions = decisions
-        text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
+        for index in range(3):
+            click(cdp, f'[data-action="launch-experience"][data-value="{index}"]')
+            state(f"experience-{index}", photo=index == 0)
+        click(cdp, '[data-action="launch-reference"][data-value="client"]')
+        state("client-original", official=True, photo=True)
+        require_content(texts[-1], ["valor", "operación", "cultura", "estrategia", "clientecentrismo"], "Official clientecentrism")
+        click(cdp, '[data-action="launch-reference"][data-value="close"]')
+        state("client-return")
+        expected = ["resultado emocional", "Valores", "Emociones", "Experiencias"]
     elif panel == 2:
         for index in range(5):
-            click(cdp, f'[data-action="launch-challenge"][data-value="{index}"]')
-            assert cdp.evaluate(f"document.querySelector('[data-action=launch-challenge][data-value=\"{index}\"]').classList.contains('is-active')"), "Strategy challenge selection failed"
-            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
-            interactions.append(index)
+            click(cdp, f'[data-action="launch-strategy"][data-value="{index}"]')
+            assert cdp.evaluate("document.querySelector('.launch-strategy-detail').dataset.view") == str(index)
+            state(f"strategy-{index}", photo=index in (0, 3, 4))
+        expected = ["Propósito", "Identidad", "Estrategia", "2035", "armonía de la vida",
+                    "responsabilidad, transparencia y calidez", "desarrollo humano sostenible",
+                    "madurez", *STRATEGY_CHALLENGES]
+        combined = "\n".join(texts)
+        assert "52–70" in combined or "entre 52 y 70" in combined, "The high NPS range is missing"
+        assert "> 70" in combined or "mayor a 70" in combined, "The very-high NPS threshold is missing"
     elif panel == 3:
-        labels = cdp.evaluate("Array.from(document.querySelectorAll('[data-action=launch-code]'),node=>node.innerText)")
-        for name in GLOSSARY_TERMS:
-            assert any(name in label for label in labels), f"Glossary is missing its {name} selector"
-        concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
-        for index, concept in enumerate(concepts):
-            click(cdp, f'[data-action="launch-code"][data-value="{concept}"]')
-            assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == concept
-            assert cdp.evaluate("document.querySelector('.launch-code-button.is-active').dataset.value") == concept
-            click(cdp, ".launch-code-detail details.launch-reference summary")
-            assert cdp.evaluate("document.querySelector('.launch-code-detail details.launch-reference').open"), "Official definition cannot be expanded"
-            definition = cdp.evaluate("document.querySelector('.launch-code-detail details.launch-reference').innerText").casefold()
-            missing = [part for part in GLOSSARY_DEFINITION_PARTS[index] if part.casefold() not in definition]
-            assert not missing, f"Official definition for {concept} is incomplete: {missing}"
-            detail = cdp.evaluate("document.querySelector('.launch-code-detail').innerText")
-            assert GLOSSARY_TERMS[index] in detail, f"Selected concept {concept} has the wrong heading"
-            text += "\n" + detail
-            interactions.append(concept)
-        click(cdp, '[data-action="launch-code"][data-value="cx"]')
-    if panel in (0, 1, 2):
-        references = ([f'.launch-strategy-card[data-group="{index}"] details.launch-reference summary' for index in range(3)]
-                      if panel == 2 else ["details.launch-reference summary"])
-        for selector in references:
-            click(cdp, selector)
-            text += "\n" + cdp.evaluate("document.querySelector('.launch-panel').innerText")
-            click(cdp, selector)
-    expected = {
-        0: ["confianza", "lealtad", "Terminología", "Modelos", "Escucha", "medición",
-            "rol", "Competencias", "comportamientos"],
-        1: ["resultado emocional", "Valores", "Emociones", "Experiencias", "Operación", "Cultura", "Estrategia"],
-        2: ["Propósito", "Identidad", "Estrategia", "2035", "52", "70", "madurez",
-            "armonía de la vida", "responsabilidad, transparencia y calidez",
-            "desarrollo humano sostenible", *STRATEGY_CHALLENGES],
-        3: GLOSSARY_TERMS,
-        4: ["16"],
-    }[panel]
-    missing = [item for item in expected if item.casefold() not in text.casefold()]
-    assert not missing, f"Panel {panel} is missing required content: {missing}"
-    if panel == 2:
-        assert "52–70" in text or "entre 52 y 70" in text, "The high-recommendation NPS range is missing"
-        assert "> 70" in text or "mayor a 70" in text, "The very-high-recommendation NPS threshold is missing"
-    return {"requiredItems": len(expected), "interactions": interactions, "pass": True}
+        for group_index, group in enumerate(SCENARIO_ROUNDS):
+            click(cdp, f'[data-action="launch-code-group"][data-value="{group_index}"]')
+            state(f"codes-group-{group_index}")
+            for offset, concept in enumerate(group):
+                index = group_index * 4 + offset
+                if cdp.evaluate("innerWidth<=700"):
+                    if offset:
+                        click(cdp, '[data-action="launch-code-next"]')
+                else:
+                    click(cdp, f'[data-action="launch-code"][data-value="{concept}"]')
+                assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == concept
+                assert cdp.evaluate("document.querySelector('.launch-code-button.is-active').dataset.value") == concept
+                for view in ("definition", "example", "contrast"):
+                    click(cdp, f'[data-action="launch-code-view"][data-value="{view}"]')
+                    state(f"code-{concept}-{view}", photo=(concept in ("cx", "arquitectura", "ecosistema") and view == "definition"))
+                    assert cdp.evaluate("document.querySelector('.launch-code-view.is-active').dataset.value") == view
+                    detail = cdp.evaluate("document.querySelector('.launch-code-detail').innerText")
+                    assert GLOSSARY_TERMS[index] in detail, f"Selected {concept} has the wrong heading"
+                    if view == "definition":
+                        require_content(detail, GLOSSARY_DEFINITION_PARTS[index], f"Official {concept} definition")
+        click(cdp, '[data-action="launch-code-next"]')
+        assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == "cx", "Next code does not wrap across all 16 concepts"
+        state("codes-next-wrap")
+        click(cdp, '[data-action="launch-code-prev"]')
+        assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == "comunicacion", "Previous code does not wrap"
+        state("codes-prev-wrap")
+        expected = GLOSSARY_TERMS
+    else:
+        return
+    require_content("\n".join(texts), expected, f"Panel {panel}")
+
+
+def check_scenarios(cdp, record, capture):
+    """Solve all 16 cases; exercise error, retry and success layouts for each."""
+    result = {"signals": []}
+    advance = '[data-action="go-step"][data-step="estrellas"]'
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch can finish before practicing"
+    concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
+    for index, concept in enumerate(concepts):
+        assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == str(index)
+        assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.state") == "question"
+        record(f"signal-{index}-question", 4)
+        if index == 0:
+            capture("practice-question")
+        group = SCENARIO_ROUNDS[index // 4]
+        wrong = next(item for item in group if item != concept)
+        click(cdp, f'[data-action="launch-code-answer"][data-value="{wrong}"]')
+        error = cdp.evaluate("({text:document.querySelector('.launch-feedback')?.innerText||'',completed:document.querySelectorAll('.launch-node.is-lit').length,live:document.querySelector('.launch-feedback')?.getAttribute('aria-live'),state:document.querySelector('.launch-signal-case').dataset.state})")
+        assert error["text"] and error["completed"] == index and error["live"] == "polite", "Wrong answer incorrectly credits progress or lacks accessible feedback"
+        assert error["state"] == "result", "Wrong-answer explanation did not replace the case"
+        record(f"signal-{index}-wrong", 4)
+        if index == 0:
+            capture("practice-wrong")
+        click(cdp, '[data-action="launch-signal-retry"]')
+        record(f"signal-{index}-retry", 4)
+        assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.state") == "question", "Retry failed to restore the case"
+        click(cdp, f'[data-action="launch-code-answer"][data-value="{concept}"]')
+        success = cdp.evaluate("({completed:document.querySelectorAll('.launch-node.is-lit').length,feedback:document.querySelector('.launch-feedback')?.innerText,state:document.querySelector('.launch-signal-case').dataset.state})")
+        assert success["completed"] == index + 1 and success["feedback"], f"Scenario {index + 1} lacks credited progress/explanation"
+        assert success["state"] in ("result", "complete"), "Success explanation did not replace the case"
+        record(f"signal-{index}-correct", 4)
+        if index in (0, 4, 12, 15):
+            capture(f"practice-correct-{index}")
+        result["signals"].append({"concept": concept, "wrong": error["text"], "success": success["feedback"]})
+        if index == 0:
+            click(cdp, '[data-action="launch-panel"][data-value="0"]')
+            record("progress-detour", 0)
+            click(cdp, '[data-action="launch-panel"][data-value="4"]')
+            record("progress-return", 4)
+            assert cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length") == 1, "Progress was lost while consulting content"
+            assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == "0", "Consulting content changed the current case"
+            result["retainedProgress"] = True
+        if index < len(concepts) - 1:
+            assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Practice unlocked before all concepts"
+            click(cdp, '[data-action="launch-signal-next"]')
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "All concepts failed to unlock launch"
+    cdp.evaluate("document.querySelector('[data-action=launch-prev]').focus({preventScroll:true})")
+    press(cdp, "Enter", "Enter", 13)
+    assert cdp.evaluate("Boolean(document.querySelector('.launch-code-detail'))"), "Keyboard previous-panel control failed"
+    record("keyboard-previous", 3)
+    cdp.evaluate("document.querySelector('[data-action=launch-next]').focus({preventScroll:true})")
+    press(cdp, "Enter", "Enter", 13)
+    assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Keyboard next-panel control lost focus"
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Panel navigation lost completed progress"
+    record("keyboard-next", 4)
+    result["keyboardNavigation"] = True
+    return result
 
 
 def run_checks(cdp, artifacts, screenshots):
-    """Selectors intentionally exercise the delegated public UI controls."""
-    result = {"desktop": [], "mobile": []}
+    result = {"viewports": [], "layoutErrors": []}
     wait_for(cdp, "Boolean(document.querySelector('.orbital-realm-view'))")
     cdp.evaluate("goStep('lanzamiento')")
     wait_for(cdp, "Boolean(document.querySelector('.launch-station'))")
     cdp.evaluate("flushPending()")
-    writes_before = cdp.evaluate("window.__fixtureWrites.length")
-    assert "Antes de despegar" in cdp.evaluate("document.querySelector('.lesson h1').innerText")
-    assert cdp.evaluate("!document.querySelector('.launch-intro')"), "The redundant introduction was not removed"
-    assert "Tu misión empieza aquí: comprende la experiencia" not in cdp.evaluate("document.querySelector('.launch-station').innerText"), "The removed introduction remains visible"
-
-    for panel in range(5):
-        click(cdp, f'[data-action="launch-panel"][data-value="{panel}"]')
-        assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
-        content = check_content(cdp, panel)
-        cdp.evaluate("document.querySelector('.launch-scroll').scrollTop=0")
-        layout = check_layout(cdp)
-        result["desktop"].append({"panel": panel, "layout": layout,
-                                  "content": content,
-                                  "text": cdp.evaluate("document.querySelector('.launch-station').innerText")})
-        assert not layout["horizontalOverflow"], f"Desktop panel {panel} overflows horizontally"
-        assert not layout["clipped"], f"Desktop panel {panel} clips content: {layout['clipped']}"
-        assert all(item["moved"] for item in layout["scrollChecks"]), "Scrollable content is unreachable"
-        screenshot(cdp, artifacts, f"desktop-panel-{panel + 1}", screenshots)
-
-    result["scenarios"] = check_scenarios(cdp, artifacts, screenshots, writes_before)
-
-    for width, height in [(390, 844)]:
+    initial_writes = cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length")
+    for width, height in ((1440, 900), (1366, 768), (1280, 720), (390, 844), (360, 740)):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
                  "deviceScaleFactor": 1, "mobile": False})
-        cdp.evaluate("window.LaunchStation.reset();goStep('lanzamiento')")
+        cdp.evaluate("window.LaunchStation.reset();render()")
         wait_for(cdp, "Boolean(document.querySelector('.launch-station'))")
+        cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
+        viewport = {"width": width, "height": height, "states": []}
+        result["viewports"].append(viewport)
+        assert "Antes de despegar" in cdp.evaluate("document.querySelector('.lesson h1').innerText")
+        assert cdp.evaluate("!document.querySelector('.launch-intro')"), "The removed introduction has returned"
+        assert "Tu misión empieza aquí: comprende la experiencia" not in cdp.evaluate("document.querySelector('.launch-station').innerText")
+
+        def capture(name):
+            screenshot(cdp, artifacts, f"{width}x{height}-{name}", screenshots)
+
+        def record(name, panel, official=False):
+            layout = check_layout(cdp)
+            issues = []
+            if layout["overflow"]:
+                issues.append({"overflow": layout["overflow"]})
+            if layout["errors"]:
+                issues.append({"clipped": layout["errors"]})
+            if any(layout["bodyOverflow"].values()):
+                issues.append({"bodyOverflow": layout["bodyOverflow"]})
+            if not layout["focus"]["visible"]:
+                issues.append({"focus": layout["focus"]})
+            if panel < 4 and layout["wordCount"] > (180 if official else 145):
+                issues.append({"denseCopy": layout["wordCount"]})
+            viewport["states"].append({"name": name, "panel": panel, "layout": layout})
+            if issues:
+                failure = {"viewport": f"{width}x{height}", "state": name, "issues": issues}
+                result["layoutErrors"].append(failure)
+                if len(result["layoutErrors"]) <= 12:
+                    capture("FAIL-" + name)
+
         for panel in range(5):
             click(cdp, f'[data-action="launch-panel"][data-value="{panel}"]')
-            layout = check_layout(cdp)
-            result["mobile"].append({"panel": panel, "layout": layout})
-            assert not layout["horizontalOverflow"], f"Mobile panel {panel} overflows horizontally"
-            assert not layout["clipped"], f"Mobile panel {panel} clips content: {layout['clipped']}"
-            assert all(item["moved"] for item in layout["scrollChecks"]), "Mobile content cannot scroll"
-            screenshot(cdp, artifacts, f"mobile-panel-{panel + 1}", screenshots)
-            if panel == 3:
-                cdp.evaluate("document.querySelector('.launch-scroll').scrollTop=0;document.querySelector('.launch-scroll').focus()")
-                press(cdp, "PageDown", "PageDown", 34)
-                result["keyboardScroll"] = cdp.evaluate("({focused:document.activeElement.matches('.launch-scroll'),top:document.querySelector('.launch-scroll').scrollTop})")
-                assert result["keyboardScroll"]["focused"] and result["keyboardScroll"]["top"] > 0, "Mobile glossary cannot scroll by keyboard"
-                click(cdp, '[data-action="launch-code"][data-value="comunicacion"]')
-                result["mobileCodeFocus"] = cdp.evaluate("""(()=>{
-                  const focus=document.activeElement,box=focus.getBoundingClientRect();
-                  const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
-                  return {id:focus.id,visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,
-                    code:document.querySelector('.launch-code-detail').dataset.code};
-                })()""")
-                assert result["mobileCodeFocus"] == {"id": "launch-code-detail-title", "visible": True, "code": "comunicacion"}, "Mobile glossary selection does not reveal its detail"
-                screenshot(cdp, artifacts, "mobile-glossary-detail", screenshots)
-                click(cdp, '[data-action="launch-code-map"]')
-                result["mobileCodeReturn"] = cdp.evaluate("""(()=>{
-                  const focus=document.activeElement,box=focus.getBoundingClientRect();
-                  const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
-                  return {action:focus.dataset.action,value:focus.dataset.value,
-                    visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1};
-                })()""")
-                assert result["mobileCodeReturn"] == {"action": "launch-code", "value": "comunicacion", "visible": True}, "Mobile glossary return does not restore the selected code"
-        assert any(item["layout"]["scrollChecks"] for item in result["mobile"]), "No mobile scroll path was exercised"
-        click(cdp, '[data-action="launch-code-answer"][data-value="cx"]')
-        result["mobileAnswerFocus"] = cdp.evaluate("""(()=>{
-          const focus=document.activeElement,box=focus.getBoundingClientRect();
-          const scroll=document.querySelector('.launch-scroll').getBoundingClientRect();
-          return {action:focus.dataset.action,value:focus.dataset.value,
-            visible:box.top>=scroll.top-1&&box.bottom<=scroll.bottom+1,
-            feedback:document.querySelector('.launch-feedback').innerText};
-        })()""")
-        assert result["mobileAnswerFocus"]["action"] == "launch-signal-next" and result["mobileAnswerFocus"]["visible"], "Mobile correct answer moves focus outside visible lesson"
-        assert result["mobileAnswerFocus"]["feedback"], "Mobile answer has no feedback"
-        screenshot(cdp, artifacts, "mobile-scenario-feedback", screenshots)
+            assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
+            record(f"panel-{panel}", panel)
+            capture(f"panel-{panel + 1}")
+            check_content(cdp, panel, record, capture)
+        viewport["practice"] = check_scenarios(cdp, record, capture)
+        # Station interactions are local state; completing the route is checked
+        # only after the five viewport matrices so writes remain comparable.
+        assert cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length") == initial_writes, "Learning controls unexpectedly wrote participant data"
+
+    click(cdp, '[data-action="go-step"][data-step="estrellas"]')
+    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Clientes y usuarios orientan el universo.'")
+    result["advancedToStars"] = True
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")
+    result["statesMeasured"] = sum(len(viewport["states"]) for viewport in result["viewports"])
     assert not result["errors"], result["errors"]
     assert not result["network"], result["network"]
-    return result
-
-
-def check_scenarios(cdp, artifacts, screenshots, writes_before):
-    result = {"signals": []}
-    advance = '[data-action="go-step"][data-step="estrellas"]'
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch can finish before its scenarios"
-    click(cdp, '[data-action="launch-code-answer"][data-value="clientecentrismo"]')
-    wrong = cdp.evaluate("({text:document.querySelector('.launch-feedback')?.innerText||'',completed:document.querySelectorAll('.launch-node.is-lit').length,live:document.querySelector('.launch-feedback')?.getAttribute('aria-live')})")
-    assert wrong["text"] and wrong["completed"] == 0 and wrong["live"] == "polite", "Wrong answer lacks accessible feedback or incorrectly credits progress"
-    assert cdp.evaluate("!document.querySelector('[data-action=launch-code-answer][data-value=cx]').disabled"), "Wrong answers prevent retry"
-    result["wrongAnswer"] = wrong
-    click(cdp, '[data-action="launch-code-answer"][data-value="cx"]')
-    completed_before = cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length")
-    assert completed_before == 1, "Correct scenario was not credited exactly once"
-    click(cdp, '[data-action="launch-panel"][data-value="0"]')
-    click(cdp, '[data-action="launch-panel"][data-value="4"]')
-    completed_after = cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length")
-    assert completed_after == completed_before, "Scenario progress was lost when revisiting a panel"
-    assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == "0", "Revisiting changed the current scenario"
-    result["retainedProgress"] = True
-    concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
-    for index, concept in enumerate(concepts):
-        assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == str(index)
-        if index:
-            click(cdp, f'[data-action="launch-code-answer"][data-value="{concept}"]')
-        signal = cdp.evaluate("({completed:document.querySelectorAll('.launch-node.is-lit').length,feedback:document.querySelector('.launch-feedback')?.innerText,disabled:Array.from(document.querySelectorAll('[data-action=launch-code-answer]')).every(button=>button.disabled)})")
-        assert signal["completed"] == index + 1, f"Scenario {index + 1} did not update progress"
-        assert signal["feedback"] and signal["disabled"], "Correct answer has no explanation or can be repeated"
-        result["signals"].append(signal)
-        if index < len(concepts) - 1:
-            assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch unlocked before all 16 concepts were practiced"
-            click(cdp, '[data-action="launch-signal-next"]')
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "All concepts failed to unlock launch"
-    screenshot(cdp, artifacts, "desktop-scenarios-complete", screenshots)
-    cdp.evaluate("document.querySelector('[data-action=launch-prev]').focus()")
-    press(cdp, "Enter", "Enter", 13)
-    assert cdp.evaluate("document.querySelector('#launch-panel-title').innerText.includes('códigos')"), "Keyboard previous-panel control failed"
-    cdp.evaluate("document.querySelector('[data-action=launch-next]').focus()")
-    press(cdp, "Enter", "Enter", 13)
-    assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Keyboard next-panel control lost focus"
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Panel navigation lost scenario progress"
-    result["keyboardNavigation"] = True
-    assert cdp.evaluate("window.__fixtureWrites.length") == writes_before, "Learning interactions unexpectedly wrote participant data"
-    click(cdp, advance)
-    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Clientes y usuarios orientan el universo.'")
-    result["advancedToStars"] = True
     return result
 
 
@@ -399,6 +424,10 @@ def main():
                  "deviceScaleFactor": 1, "mobile": False})
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{server.server_port}/__launch_check__"})
         report["checks"] = run_checks(cdp, artifacts, not args.no_screenshot)
+        if report["checks"]["layoutErrors"]:
+            failures = report["checks"]["layoutErrors"]
+            summary = [f"{item['viewport']} {item['state']}" for item in failures[:12]]
+            raise AssertionError(f"{len(failures)} layout states failed: {', '.join(summary)}")
         external = [event["params"]["request"]["url"] for event in cdp.events
                     if event.get("method") == "Network.requestWillBeSent" and
                     urllib.parse.urlsplit(event["params"]["request"]["url"]).scheme in ("http", "https") and

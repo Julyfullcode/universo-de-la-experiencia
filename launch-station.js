@@ -58,32 +58,47 @@
     comunicacion: { simple: "Es interactuar para conectar, orientar y fortalecer la experiencia de las personas.", example: "Ante un cambio de fecha, el equipo explica lo ocurrido, indica el siguiente paso y comprueba que la persona sepa qué hacer.", contrast: "No consiste solo en enviar un mensaje. La interacción debe ayudar a conectar y orientar a quien lo recibe.", signal: "El equipo explica un cambio de fecha, aclara qué ocurrirá después y comprueba que el usuario entendió cómo continuar. ¿Qué está cuidando con esa interacción?", hint: "observa cómo la interacción conecta y orienta a la persona.", why: "Explicar, orientar y verificar la comprensión fortalece la experiencia a través de la comunicación." }
   };
   const kit = [
-    { name: "Terminología", use: "Distingue lo que una persona siente de las acciones con las que puedes mejorar su experiencia. Un lenguaje común evita que cada área entienda algo distinto.", prompt: "Piensa: ¿resolver una solicitud y generar confianza significan lo mismo?", official: "Los conceptos que nos permiten hablar el mismo idioma." },
-    { name: "Modelos y esquemas", use: "Reconoce cómo se conectan las decisiones, los equipos y los recursos. Una buena interacción necesita coordinación, incluso entre personas que no atienden al cliente.", prompt: "Ubica una tarea tuya: ¿de quién recibes información y quién depende de lo que entregas?", official: "Relacionados con la gestión de Experiencia." },
-    { name: "Escucha y medición", use: "Aprende a recoger lo que viven las personas y a evaluar sus percepciones. Así puedes orientar una mejora con señales y datos, además de intuiciones.", prompt: "Antes de cambiar un trámite, ¿qué te gustaría escuchar de quien lo usa?", official: "Formas de escuchar a nuestros clientes y medir su experiencia." },
-    { name: "Tu rol y participación", use: "Encuentra tu aporte: atender, diseñar una interacción o hacer posible que otros entreguen una buena experiencia. Cada empleado participa en la relación con clientes y usuarios.", prompt: "¿Qué parte de tu trabajo llega al cliente, aunque no hables directamente con él?", official: "El rol y participación de cada empleado como protagonista en la relación con nuestros clientes y usuarios." },
-    { name: "Competencias y comportamientos", use: "Lleva las capacidades a acciones observables: escuchar, coordinar, explicar o buscar una solución. Son tus comportamientos los que vuelven real la experiencia.", prompt: "Elige una acción que alguien pueda ver en tu trabajo, no solo una intención.", official: "Que aportan a la gestión de Experiencia." }
+    { name: "Terminología", action: "Habla el mismo idioma", official: "Los conceptos que nos permiten hablar el mismo idioma." },
+    { name: "Modelos y esquemas", action: "Conecta las piezas", official: "Relacionados con la gestión de Experiencia." },
+    { name: "Escucha y medición", action: "Interpreta las señales", official: "Formas de escuchar a nuestros clientes y medir su experiencia." },
+    { name: "Tu rol y participación", action: "Reconoce tu aporte", official: "El rol y participación de cada empleado como protagonista en la relación con nuestros clientes y usuarios." },
+    { name: "Competencias y comportamientos", action: "Lleva la intención a la acción", official: "Que aportan a la gestión de Experiencia." }
   ];
-  const challenges = [
-    { name: "Calidad de los servicios", action: "Ante una falla, coordina la solución y explica al usuario qué puede esperar. La calidad también se vive en la respuesta que recibe.", question: "¿Cómo comprobarías que la solución realmente respondió a su necesidad?" },
-    { name: "Servicios eficientes", action: "Detecta una gestión repetida y acuerda con el equipo cómo evitarla, aprovechando mejor el tiempo y los recursos.", question: "¿Qué esfuerzo le ahorrarías al usuario sin trasladarle trabajo de otra área?" },
-    { name: "Cobertura universal sostenible", action: "Al pensar una alternativa de servicio, reconoce a quienes enfrentan barreras de acceso y considera su viabilidad en el tiempo.", question: "¿Quién podría quedar por fuera de la solución que estás proponiendo?" },
-    { name: "Protección Hídrica y Carbono Neutralidad", action: "Al evaluar una decisión, considera sus efectos sobre el agua y las emisiones, junto con el valor que genera para las personas.", question: "¿Qué información necesitarías para comprender esos efectos antes de decidir?" },
-    { name: "Generación de valor", action: "Relaciona la mejora que propones con un beneficio concreto para las personas y para la sostenibilidad de la organización.", question: "¿Qué cambiará para el usuario y cómo sabrás si ese cambio le aportó valor?" }
+  const guideDefinition = "Es un recorrido que te invita a comprender el mundo de la experiencia de los clientes y usuarios, en articulación con los demás actores del ecosistema y a contribuir, desde cada rol, a que las interacciones con nuestros clientes y usuarios sean positivas y consistentes para que incrementen su confianza y lealtad hacia las empresas del Grupo EPM.";
+  const guideContribution = "Tus comportamientos y acciones marcan la diferencia en la relación que establecen nuestros clientes y usuarios con las empresas del Grupo EPM.";
+  const clientDefinition = "Poner el cliente y usuario en el centro es tomar decisiones pensando en el valor que les generamos, lo cual nos exige alineación de la operación y la cultura con la estrategia, para sostener en el tiempo una forma de actuar coherente con nuestro enfoque de clientecentrismo.";
+  const cxDefinition = "Es el resultado emocional del cliente y usuario luego de relacionarse con nuestras empresas.";
+  const experienceSteps = [
+    { name: "Valores", heading: "Haz que se note", text: "Responsabilidad: coordina la solución. Transparencia: explica lo ocurrido. Calidez: reconoce cómo lo vive la persona." },
+    { name: "Emociones", heading: "Escucha lo que queda", text: "Una explicación clara puede aportar tranquilidad. Pregunta cómo se sintió la persona; no supongas que resolver fue suficiente." },
+    { name: "Experiencias", heading: "Cuida la relación", text: "La solución atiende una necesidad. Cómo se entrega también deja una huella emocional y puede fortalecer la confianza." }
   ];
-  const panelNames = ["Tu guía", "La experiencia", "La brújula", "Los códigos", "La práctica"];
+  const challenges = ["Calidad de los servicios", "Servicios eficientes", "Cobertura universal sostenible", "Protección Hídrica y Carbono Neutralidad", "Generación de valor"];
+  const strategyViews = [
+    { name: "Propósito", heading: "¿Para qué viajamos?", text: "Contribuimos a la armonía de la vida para un mundo mejor." },
+    { name: "Identidad", heading: "¿Cómo servimos?", text: "Servimos con responsabilidad, transparencia y calidez." },
+    { name: "Estrategia", heading: "¿Hacia dónde avanzamos?", text: "Con servicios públicos eficientes y de calidad para todos, inspirados y guiados por nuestros clientes y usuarios, promovemos el desarrollo humano sostenible." },
+    { name: "Retos 2035", heading: "Cinco retos al 2035" },
+    { name: "Meta NPS", heading: "Horizonte de recomendación · 2035", text: "Lograr que las empresas del Grupo EPM alcancen un nivel de recomendación alto (entre 52 y 70) o muy alto (mayor a 70), según su nivel de madurez de experiencia." }
+  ];
+  const panelNames = ["Guía", "Experiencia", "Rumbo", "Códigos", "Práctica"];
+  const groupLabels = ["Cliente", "Operación", "Señales", "Ecosistema"];
+  const codeViews = [{ id: "definition", name: "Concepto" }, { id: "example", name: "Ejemplo" }, { id: "contrast", name: "Diferencia" }];
   const answerOrders = [[2, 0, 3, 1], [1, 3, 0, 2], [3, 2, 1, 0], [2, 0, 1, 3]];
   const allTerms = glossaryGroups.flatMap((group, groupIndex) => group.terms.map(term => ({ ...term, groupIndex })));
   let panel = 0;
   let visited = new Set([0]);
   let activeKit = 0;
-  let decision = "";
-  let activeChallenge = 0;
+  let activeExperience = 0;
+  let activeStrategy = 0;
+  let referenceView = "";
   let activeCode = "cx";
+  let activeCodeView = "definition";
   let caseIndex = 0;
   let matched = new Set();
   let selectedAnswer = "";
-  let feedback = "Lee la señal y elige el código que mejor la explica.";
+  let showResult = false;
+  let feedback = "";
   let feedbackKind = "";
 
   function escape(value) {
@@ -98,65 +113,43 @@
     return matched.size === 16 && [0, 1, 2, 3].every(index => visited.has(index));
   }
 
+  function reference() {
+    const guide = referenceView === "guide";
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">${guide ? "Tu carta de navegación" : "Clientecentrismo"}</h2><div class="launch-focus-card launch-reference-view" data-reference="${guide ? "guide" : "client"}"><p class="launch-kicker">Texto de la Guía</p><p>${escape(guide ? guideDefinition : clientDefinition)}</p>${guide ? `<p class="launch-reference-contribution">${escape(guideContribution)}</p>` : `<p class="launch-cx-definition"><strong>CX</strong> ${escape(cxDefinition)}</p>`}<button type="button" class="launch-reference-toggle" data-action="launch-reference" data-value="close">← Volver a explorar</button></div>${source(guide ? 4 : 5)}</section>`;
+  }
+
   function briefing() {
+    if (referenceView === "guide") return reference();
     const selected = kit[activeKit];
-    return `<section class="launch-panel" aria-labelledby="launch-panel-title">
-      <h2 id="launch-panel-title" tabindex="-1">Tu primera misión: generar confianza.</h2>
-      <div class="launch-briefing-grid">
-        <div class="launch-feature"><p class="launch-kicker">Tu carta de navegación</p><h3>Tu trabajo también llega al cliente.</h3><p>Esta Guía te ayuda a entender lo que viven clientes y usuarios, conectar tu aporte con los demás actores del ecosistema y convertirlo en interacciones positivas y consistentes. Cuando los equipos actúan con ese rumbo compartido, pueden fortalecer la confianza y la lealtad hacia las empresas del Grupo EPM.</p><div class="launch-briefing-goals"><div><strong>Comprende</strong><span>Reconoce la necesidad y cómo se siente la persona.</span></div><div><strong>Conecta</strong><span>Coordina tu aporte con quienes hacen posible la solución.</span></div><div><strong>Actúa</strong><span>Haz visible el cuidado en una decisión o comportamiento.</span></div></div></div>
-        <aside class="launch-dispatch"><p class="launch-kicker">Señal recibida · caso ficticio</p><blockquote>«Me resolvieron, pero tuve que contar lo mismo tres veces. ¿La próxima vez será igual?»</blockquote><p>La solución llegó; la confianza quedó en duda. La Guía te invita a mirar el recorrido completo y reconocer qué puedes cambiar desde tu rol.</p></aside>
-      </div>
-      <div class="launch-kit"><h3>Abre tu equipo de navegación</h3><div class="launch-kit-tabs" role="group" aria-label="Herramientas de la Guía">${kit.map((item, index) => `<button type="button" class="launch-kit-button${activeKit === index ? " is-active" : ""}" data-action="launch-kit" data-value="${index}" aria-pressed="${activeKit === index}"><span aria-hidden="true">0${index + 1}</span>${escape(item.name)}</button>`).join("")}</div><div class="launch-kit-detail"><h3>${escape(selected.name)}</h3><p>${escape(selected.use)}</p><p class="launch-reflection">${escape(selected.prompt)}</p></div></div>
-      <details class="launch-reference"><summary>Consultar la definición de la Guía y su contenido</summary><p>Es un recorrido que te invita a comprender el mundo de la experiencia de los clientes y usuarios, en articulación con los demás actores del ecosistema y a contribuir, desde cada rol, a que las interacciones con nuestros clientes y usuarios sean positivas y consistentes para que incrementen su confianza y lealtad hacia las empresas del Grupo EPM.</p><ul>${kit.map(item => `<li><strong>${escape(item.name)}:</strong> ${escape(item.official)}</li>`).join("")}</ul><p>Tus comportamientos y acciones marcan la diferencia en la relación que establecen nuestros clientes y usuarios con las empresas del Grupo EPM.</p></details>
-      ${source(4)}
-    </section>`;
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">Prepara tu equipo.</h2><p class="launch-panel-intro">Tu rol conecta el ecosistema y transforma interacciones en confianza. Explora las cinco herramientas de tu Guía.</p><div class="launch-focus-layout"><div class="launch-option-rail" role="group" aria-label="Herramientas de la Guía">${kit.map((item, index) => `<button type="button" class="launch-kit-button${activeKit === index ? " is-active" : ""}" data-action="launch-kit" data-value="${index}" aria-pressed="${activeKit === index}"><span aria-hidden="true">0${index + 1}</span><span>${escape(item.name)}</span></button>`).join("")}</div><div class="launch-focus-card launch-kit-detail" data-group="${activeKit % 4}"><p class="launch-kicker">Herramienta ${activeKit + 1} / 5</p><h3>${escape(selected.action)}</h3><p>${escape(selected.official)}</p><button type="button" class="launch-reference-toggle" data-action="launch-reference" data-value="guide">Ver texto de la Guía ↗</button></div></div>${source(4)}</section>`;
   }
 
   function experience() {
-    const decisionFeedback = decision === "cerrar" ? "Cerrar confirma que hubo una solución funcional, pero deja sin atender el esfuerzo y la duda de Lucía. La experiencia también incluye el resultado emocional: cómo terminó sintiéndose." : decision === "acompanar" ? "Acompañar cuida ambos resultados: confirmar la solución atiende la necesidad funcional; reconocer el esfuerzo, explicar y coordinar puede aportar tranquilidad y confianza. La reacción real de Lucía es la que debemos escuchar." : "Elige una respuesta y observa qué aspecto de la experiencia estás cuidando.";
-    return `<section class="launch-panel" aria-labelledby="launch-panel-title">
-      <h2 id="launch-panel-title" tabindex="-1">¿Resolver también es cuidar?</h2>
-      <div class="launch-experience-grid"><aside class="launch-dispatch"><p class="launch-kicker">Caso ficticio · una decisión de tu misión</p><blockquote>«El cobro ya está corregido, pero tuve que contar mi caso tres veces. Me preocupa que vuelva a pasar».</blockquote><p>La necesidad de Lucía se resolvió. ¿Qué harías al terminar la interacción?</p></aside><div class="launch-decision"><h3>Elige cómo cerrarías el encuentro</h3><div class="launch-decision-options"><button type="button" class="launch-decision-option${decision === "cerrar" ? " is-selected" : ""}" data-action="launch-decision" data-value="cerrar" aria-pressed="${decision === "cerrar"}"><strong>Confirmar y cerrar</strong><span>Indicar que el cobro quedó corregido y dar por finalizada la atención.</span></button><button type="button" class="launch-decision-option${decision === "acompanar" ? " is-selected" : ""}" data-action="launch-decision" data-value="acompanar" aria-pressed="${decision === "acompanar"}"><strong>Confirmar y acompañar</strong><span>Reconocer el esfuerzo, explicar lo ocurrido y coordinar cómo evitar que repita su historia.</span></button></div><p class="launch-decision-feedback" role="status" aria-live="polite">${decisionFeedback}</p></div></div>
-      <p class="launch-statement"><span>Experiencia del cliente y usuario · CX</span>Es el resultado emocional del cliente y usuario luego de relacionarse con nuestras empresas.</p>
-      <div class="launch-flow" role="group" aria-label="Los valores se expresan a través de emociones para generar experiencias"><div class="launch-flow-node"><strong>Valores</strong><span>Responsabilidad: coordinar.<br>Transparencia: explicar.<br>Calidez: reconocer el esfuerzo.</span></div><div class="launch-flow-link"><span aria-hidden="true">→</span>A través de</div><div class="launch-flow-node"><strong>Emociones</strong><span>La persona puede sentir tranquilidad y confianza. Escuchar permite comprobarlo.</span></div><div class="launch-flow-link"><span aria-hidden="true">→</span>Para generar</div><div class="launch-flow-node"><strong>Experiencias</strong><span>Una relación que resuelve la necesidad y cuida cómo se vive.</span></div></div>
-      <h3>Para sostenerlo, alinea tres piezas</h3><div class="launch-alignment"><div class="launch-alignment-item"><strong>Operación</strong><p>Que el siguiente equipo reciba la información del caso.</p></div><div class="launch-alignment-item"><strong>Cultura</strong><p>Que coordinar y escuchar sea una práctica compartida.</p></div><div class="launch-alignment-item"><strong>Estrategia</strong><p>Que la decisión se valore por lo que aporta al cliente.</p></div></div>
-      <details class="launch-reference"><summary>Consultar la declaración de clientecentrismo</summary><p>Poner el cliente y usuario en el centro es tomar decisiones pensando en el valor que les generamos, lo cual nos exige alineación de la operación y la cultura con la estrategia, para sostener en el tiempo una forma de actuar coherente con nuestro enfoque de clientecentrismo.</p></details>
-      ${source(5)}
-    </section>`;
+    if (referenceView === "client") return reference();
+    const selected = experienceSteps[activeExperience];
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">Lo que haces deja una huella.</h2><div class="launch-chain" role="group" aria-label="Valores, a través de emociones, para generar experiencias">${experienceSteps.map((step, index) => `<button type="button" class="launch-chain-step${activeExperience === index ? " is-active" : ""}" data-action="launch-experience" data-value="${index}" aria-pressed="${activeExperience === index}"><span>${escape(step.name)}</span>${index < 2 ? '<span aria-hidden="true">→</span>' : ""}</button>`).join("")}</div><div class="launch-focus-card launch-experience-detail" data-group="${activeExperience}"><h3>${escape(selected.heading)}</h3><p>${escape(selected.text)}</p></div><p class="launch-cx-definition"><strong>Experiencia del cliente · CX</strong>${escape(cxDefinition)}</p><p class="launch-client-line"><strong>Clientecentrismo:</strong> decidir por el valor para el cliente y alinear operación, cultura y estrategia.</p><button type="button" class="launch-reference-toggle" data-action="launch-reference" data-value="client">Ver declaración de la Guía ↗</button>${source(5)}</section>`;
   }
 
   function strategy() {
-    const challenge = challenges[activeChallenge];
-    return `<section class="launch-panel" aria-labelledby="launch-panel-title">
-      <h2 id="launch-panel-title" tabindex="-1">Dale rumbo a una decisión.</h2>
-      <div class="launch-strategy-grid"><div class="launch-strategy-card" data-group="0"><p class="launch-kicker">Propósito · para qué</p><h3>Mira el efecto en la vida de las personas.</h3><p>Conecta una tarea cotidiana con el bienestar al que puede contribuir.</p><details class="launch-reference"><summary>Leer la declaración</summary><p>Contribuimos a la armonía de la vida para un mundo mejor.</p></details></div><div class="launch-strategy-card" data-group="1"><p class="launch-kicker">Identidad · cómo</p><h3>Haz que el cuidado se note.</h3><p>Asume lo que te corresponde, explica con claridad y trata a la persona con cercanía.</p><details class="launch-reference"><summary>Leer la declaración</summary><p>Servimos con responsabilidad, transparencia y calidez.</p></details></div><div class="launch-strategy-card" data-group="2"><p class="launch-kicker">Estrategia · hacia dónde</p><h3>Decide con el cliente como guía.</h3><p>Relaciona calidad, eficiencia y acceso con el desarrollo humano sostenible.</p><details class="launch-reference"><summary>Leer la declaración</summary><p>Con servicios públicos eficientes y de calidad para todos, inspirados y guiados por nuestros clientes y usuarios, promovemos el desarrollo humano sostenible.</p></details></div></div>
-      <h3>Cinco retos, una estrella que orienta: el cliente y usuario</h3><div class="launch-challenge-layout"><div class="launch-challenge-list" role="group" aria-label="Retos 2035">${challenges.map((item, index) => `<button type="button" class="launch-challenge${activeChallenge === index ? " is-active" : ""}" data-action="launch-challenge" data-value="${index}" aria-pressed="${activeChallenge === index}"><span class="launch-challenge-number" aria-hidden="true">0${index + 1}</span><span>${escape(item.name)}</span></button>`).join("")}</div><div class="launch-challenge-detail"><p class="launch-kicker">De la brújula a la acción · ejemplo ilustrativo</p><h3>${escape(challenge.name)}</h3><p>${escape(challenge.action)}</p><p class="launch-reflection">${escape(challenge.question)}</p><p class="launch-caption">Considera la experiencia funcional y emocional del cliente y usuario. Estos ejemplos son ejercicios de aprendizaje, no programas o compromisos adicionales del Grupo.</p></div></div>
-      <div class="launch-target"><div><p class="launch-kicker">NPS · Meta 2035, no resultado actual</p><h3>El horizonte de recomendación</h3><p>Lograr que las empresas del Grupo EPM alcancen un nivel de recomendación alto (entre 52 y 70) o muy alto (mayor a 70), según su nivel de madurez de experiencia.</p></div><div class="launch-target-levels"><span><strong>52–70</strong>Alto</span><span><strong>&gt; 70</strong>Muy alto</span></div></div>
-      ${source(6)}
-    </section>`;
+    const selected = strategyViews[activeStrategy];
+    const content = activeStrategy === 3 ? `<ol class="launch-retos">${challenges.map(challenge => `<li>${escape(challenge)}</li>`).join("")}</ol><p class="launch-caption">El cliente y usuario orienta los retos: experiencia emocional y funcional.</p>` : `${activeStrategy === 4 ? '<div class="launch-target-levels"><span><strong>52–70</strong>Alto</span><span><strong>&gt; 70</strong>Muy alto</span></div>' : ""}<p>${escape(selected.text)}</p>${activeStrategy === 4 ? '<p class="launch-caption">Meta 2035 · no es un resultado actual.</p>' : ""}`;
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">Traza tu rumbo.</h2><div class="launch-selector" role="group" aria-label="Direccionamiento estratégico">${strategyViews.map((item, index) => `<button type="button" class="launch-strategy-choice${activeStrategy === index ? " is-active" : ""}" data-action="launch-strategy" data-value="${index}" aria-pressed="${activeStrategy === index}">${escape(item.name)}</button>`).join("")}</div><div class="launch-focus-card launch-strategy-detail" data-view="${activeStrategy}" data-group="${activeStrategy % 4}"><h3>${escape(selected.heading)}</h3>${content}</div>${source(6)}</section>`;
   }
 
   function glossary() {
     const term = allTerms.find(item => item.id === activeCode);
-    const learning = learningCodes[term.id];
-    return `<section class="launch-panel" aria-labelledby="launch-panel-title">
-      <h2 id="launch-panel-title" tabindex="-1">Descifra los códigos de navegación.</h2><p class="launch-panel-intro">Elige un código. Descubre para qué te sirve, reconoce un ejemplo y aprende a distinguirlo de otros.</p>
-      <div class="launch-code-layout"><div class="launch-code-map">${glossaryGroups.map((group, index) => `<section class="launch-code-group" data-group="${index}"><h3><span aria-hidden="true">0${index + 1}</span> ${escape(group.title)}</h3>${group.terms.map(item => `<button type="button" class="launch-code-button${activeCode === item.id ? " is-active" : ""}" data-action="launch-code" data-value="${item.id}" aria-pressed="${activeCode === item.id}">${escape(item.name)}<span aria-hidden="true">↗</span></button>`).join("")}</section>`).join("")}</div><div class="launch-code-detail" data-group="${term.groupIndex}" data-code="${term.id}"><p class="launch-kicker">Código ${allTerms.indexOf(term) + 1} de 16 · ${escape(glossaryGroups[term.groupIndex].title)}</p><h3 id="launch-code-detail-title" tabindex="-1">${escape(term.name)}</h3><p>${escape(learning.simple)}</p><div class="launch-code-example"><h4>Así se ve · ejemplo ficticio</h4><p>${escape(learning.example)}</p></div><div class="launch-code-contrast"><h4>Para distinguirlo</h4><p>${escape(learning.contrast)}</p></div><details class="launch-reference"><summary>Consultar la definición de la Guía</summary><p>${escape(term.definition)}</p></details><button type="button" class="launch-consult launch-code-return" data-action="launch-code-map">Volver a los 16 códigos <span aria-hidden="true">↑</span></button></div></div>
-      ${source(3)}
-    </section>`;
+    const group = glossaryGroups[term.groupIndex];
+    const copy = activeCodeView === "definition" ? term.definition : learningCodes[term.id][activeCodeView];
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">Descifra un código.</h2><div class="launch-group-tabs" role="group" aria-label="Grupos de códigos">${glossaryGroups.map((item, index) => `<button type="button" class="launch-group-tab${term.groupIndex === index ? " is-active" : ""}" data-action="launch-code-group" data-value="${index}" data-group="${index}" aria-label="${escape(item.title)}" aria-pressed="${term.groupIndex === index}">${escape(groupLabels[index])}</button>`).join("")}</div><div class="launch-code-layout"><div class="launch-code-map" data-group="${term.groupIndex}" role="group" aria-label="${escape(group.title)}">${group.terms.map(item => `<button type="button" class="launch-code-button${activeCode === item.id ? " is-active" : ""}" data-action="launch-code" data-value="${item.id}" aria-pressed="${activeCode === item.id}">${escape(item.name)}</button>`).join("")}</div><div class="launch-code-detail" data-group="${term.groupIndex}" data-code="${term.id}" data-view="${activeCodeView}"><h3 id="launch-code-detail-title" tabindex="-1">${escape(term.name)}</h3><div class="launch-code-views" role="group" aria-label="Explorar el concepto">${codeViews.map(view => `<button type="button" class="launch-code-view${activeCodeView === view.id ? " is-active" : ""}" data-action="launch-code-view" data-value="${view.id}" aria-pressed="${activeCodeView === view.id}">${escape(view.name)}</button>`).join("")}</div><p class="launch-code-copy">${escape(copy)}</p>${activeCodeView === "example" ? '<p class="launch-caption">Ejemplo ficticio de aprendizaje.</p>' : ""}</div></div><div class="launch-code-pagination"><button type="button" data-action="launch-code-prev" aria-label="Código anterior">← Anterior</button><span>${allTerms.indexOf(term) + 1} / 16 códigos</span><button type="button" data-action="launch-code-next" aria-label="Código siguiente">Siguiente →</button></div>${source(3)}</section>`;
   }
 
   function constellation() {
-    const points = [[48, 54], [112, 30], [136, 101], [67, 126], [242, 47], [305, 77], [283, 139], [217, 111], [49, 235], [120, 209], [139, 285], [77, 309], [220, 239], [292, 210], [310, 287], [240, 316]];
-    const links = glossaryGroups.map((group, groupIndex) => {
-      const offset = groupIndex * 4;
-      return `<g data-group="${groupIndex}">${[0, 1, 2, 3].map(index => {
-        const next = (index + 1) % 4;
-        return `<path class="launch-link${matched.has(group.terms[index].id) && matched.has(group.terms[next].id) ? " is-lit" : ""}" d="M ${points[offset + index].join(" ")} L ${points[offset + next].join(" ")}"/>`;
-      }).join("")}</g>`;
-    }).join("");
-    const nodes = allTerms.map((term, index) => `<g class="launch-node${matched.has(term.id) ? " is-lit" : ""}${caseIndex === index && !matched.has(term.id) ? " is-current" : ""}" data-code="${term.id}" data-group="${term.groupIndex}" transform="translate(${points[index].join(" ")})"><circle class="launch-node-halo" r="17"/><circle class="launch-node-core" r="6"/><text y="31" text-anchor="middle">${String(index + 1).padStart(2, "0")}</text></g>`).join("");
-    return `<svg class="launch-constellation" viewBox="0 0 360 360" role="img" aria-label="Constelación de aprendizaje: ${matched.size} de 16 estrellas encendidas"><title>Cada concepto aplicado enciende una estrella</title>${links}${nodes}</svg>`;
+    const points = [[39, 86], [89, 49], [141, 90], [118, 145], [204, 68], [268, 34], [319, 102], [258, 142], [36, 235], [79, 187], [115, 267], [169, 234], [204, 285], [255, 209], [318, 258], [279, 329]];
+    const patterns = [[[0, 1], [1, 2], [2, 3]], [[0, 1], [1, 2], [0, 3]], [[0, 1], [1, 2], [2, 3]], [[0, 1], [1, 2], [1, 3]]];
+    const ambient = Array.from({ length: 64 }, (_, index) => `<circle class="launch-ambient-star" cx="${10 + (index * 83 + 23) % 340}" cy="${10 + (index * index * 17 + index * 31 + 53) % 340}" r="${index % 7 === 0 ? 1.1 : 0.55}" opacity="${index % 3 === 0 ? 0.48 : 0.22}"/>`).join("");
+    const links = glossaryGroups.map((group, groupIndex) => `<g data-group="${groupIndex}">${patterns[groupIndex].map(([start, end]) => `<path class="launch-link${matched.has(group.terms[start].id) && matched.has(group.terms[end].id) ? " is-lit" : ""}" d="M ${points[groupIndex * 4 + start].join(" ")} L ${points[groupIndex * 4 + end].join(" ")}"/>`).join("")}</g>`).join("");
+    const nodes = allTerms.map((term, index) => `<g class="launch-node${matched.has(term.id) ? " is-lit" : ""}${caseIndex === index && !matched.has(term.id) ? " is-current" : ""}" data-code="${term.id}" data-group="${term.groupIndex}" transform="translate(${points[index].join(" ")})"><title>${escape(term.name)}${matched.has(term.id) ? ": estrella encendida" : ""}</title><circle class="launch-node-halo" r="17"/><circle class="launch-node-core" r="${index % 5 === 0 ? 2.8 : index % 3 === 0 ? 2.2 : 1.7}"/></g>`).join("");
+    return `<svg class="launch-constellation" viewBox="0 0 360 360" role="img" aria-label="Constelación de aprendizaje: ${matched.size} de 16 estrellas encendidas"><title>Cada concepto aplicado enciende una estrella</title><g aria-hidden="true">${ambient}</g>${links}${nodes}</svg>`;
   }
 
   function training() {
@@ -166,47 +159,31 @@
     const solved = matched.has(term.id);
     const allDone = matched.size === 16;
     const order = answerOrders[(caseIndex + term.groupIndex) % answerOrders.length];
-    return `<section class="launch-panel" aria-labelledby="launch-panel-title">
-      <h2 id="launch-panel-title" tabindex="-1">Enciende tu constelación.</h2><p class="launch-panel-intro">Interpreta 16 señales de situaciones cotidianas. Cada código que aplicas enciende una estrella de tu equipo de navegación.</p>
-      <div class="launch-training-grid"><aside class="launch-star-board"><div class="launch-match-status"><p class="launch-kicker">Tu constelación de aprendizaje</p><span><strong>${matched.size} / 16</strong> estrellas encendidas</span></div>${constellation()}<div class="launch-group-progress">${glossaryGroups.map((item, index) => `<div data-group="${index}"><span>${escape(item.title)}</span><strong>${item.terms.filter(code => matched.has(code.id)).length}/4</strong></div>`).join("")}</div></aside>
-      <div class="launch-signal-case" data-group="${term.groupIndex}" data-signal="${caseIndex}"><p class="launch-kicker">Señal ${caseIndex + 1} de 16 · caso ficticio</p><h3>${escape(group.title)}</h3><p class="launch-signal-text">${escape(learning.signal)}</p><div class="launch-answer-options" role="group" aria-label="Elige el concepto que explica esta señal">${order.map(index => group.terms[index]).map(option => `<button type="button" class="launch-code-answer${selectedAnswer === option.id ? " is-selected" : ""}${solved && option.id === term.id ? " is-correct" : ""}" data-action="launch-code-answer" data-value="${option.id}"${solved ? " disabled" : ""}><span>${escape(option.name)}</span>${solved && option.id === term.id ? '<span aria-hidden="true">✓</span>' : '<span aria-hidden="true">↗</span>'}</button>`).join("")}</div><p class="launch-feedback${feedbackKind ? ` launch-feedback-${feedbackKind}` : ""}" role="status" aria-live="polite" aria-atomic="true">${escape(feedback)}</p>${solved && !allDone ? '<button type="button" class="launch-signal-next" data-action="launch-signal-next">Recibir siguiente señal <span aria-hidden="true">→</span></button>' : ""}<button type="button" class="launch-consult" data-action="launch-panel" data-value="3">Consultar los códigos de navegación</button></div></div>
-      ${allDone ? '<div class="launch-complete"><span aria-hidden="true">✦</span><div><h3>Tu constelación está encendida</h3><p>Aplicaste los 16 conceptos a situaciones concretas. Lleva estas preguntas a tu trabajo: ¿qué vive la persona, qué puedo coordinar y qué acción puede mejorar su experiencia?</p></div></div>' : ""}
-      ${source(3)}
-    </section>`;
+    let card;
+    if (allDone) {
+      card = `<div class="launch-complete"><span aria-hidden="true">✦</span><h3 id="launch-result-title" tabindex="-1">Tu constelación está encendida</h3><p class="launch-feedback launch-feedback-success" role="status" aria-live="polite">${escape(learning.why)}</p><p>Aplicaste los 16 códigos. Tu equipo de navegación está listo para la estrella principal.</p></div>`;
+    } else if (showResult) {
+      card = `<div class="launch-result"><p class="launch-kicker">${solved ? "✦ Estrella encendida" : "Ajusta la lectura"}</p><h3 id="launch-result-title" tabindex="-1">${escape(solved ? term.name : "Esa señal apunta a otro código")}</h3><p class="launch-feedback launch-feedback-${feedbackKind}" role="status" aria-live="polite" aria-atomic="true">${escape(feedback)}</p><button type="button" class="launch-signal-next" data-action="${solved ? "launch-signal-next" : "launch-signal-retry"}">${solved ? "Recibir siguiente señal →" : "Intentar de nuevo →"}</button></div>`;
+    } else {
+      card = `<p class="launch-kicker">Señal ${caseIndex + 1} / 16 · caso ficticio</p><p class="launch-signal-text">${escape(learning.signal)}</p><div class="launch-answer-options" role="group" aria-label="Elige el concepto que explica esta señal">${order.map(index => group.terms[index]).map(option => `<button type="button" class="launch-code-answer" data-action="launch-code-answer" data-value="${option.id}"><span>${escape(option.name)}</span><span aria-hidden="true">↗</span></button>`).join("")}</div><button type="button" class="launch-consult" data-action="launch-panel" data-value="3">Consultar códigos ↗</button>`;
+    }
+    return `<section class="launch-panel launch-compact-panel" aria-labelledby="launch-panel-title"><h2 id="launch-panel-title" tabindex="-1">Enciende tu constelación.</h2><div class="launch-training-grid"><aside class="launch-star-board"><div class="launch-match-status"><p class="launch-kicker">Tu constelación</p><span><strong>${matched.size} / 16</strong> estrellas encendidas</span></div>${constellation()}<div class="launch-group-progress">${glossaryGroups.map((item, index) => `<div data-group="${index}"><span>${escape(groupLabels[index])}</span><strong>${item.terms.filter(code => matched.has(code.id)).length}/4</strong></div>`).join("")}</div></aside><div class="launch-signal-case" data-group="${term.groupIndex}" data-signal="${caseIndex}" data-state="${allDone ? "complete" : showResult ? "result" : "question"}">${card}</div></div>${source(3)}</section>`;
   }
 
   function render() {
     const panels = [briefing, experience, strategy, glossary, training];
     const visitedContent = [0, 1, 2, 3].filter(index => visited.has(index)).length;
-    return `<article class="lesson launch-station" id="launch-station">
-      <header class="launch-heading"><p class="launch-kicker">01 · Centro de lanzamiento</p><h1>Antes de despegar, hablemos el mismo idioma.</h1></header>
-      <div class="launch-tabs" role="group" aria-label="Preparación para el despegue">${panelNames.map((name, index) => `<button type="button" class="launch-tab${panel === index ? " is-active" : ""}${visited.has(index) ? " is-visited" : ""}" data-action="launch-panel" data-value="${index}"${panel === index ? ' aria-current="step"' : ""}><span class="launch-tab-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span><span>${escape(name)}</span></button>`).join("")}</div>
-      <div class="launch-scroll" tabindex="0" role="region" aria-label="Contenido del centro de lanzamiento">${panels[panel]()}</div>
-      <footer class="launch-footer"><div class="launch-progress"><strong>Preparación ${panel + 1} de 5</strong><span>${visitedContent}/4 contenidos explorados · ${matched.size}/16 códigos aplicados</span></div><div class="launch-footer-actions">${panel > 0 ? '<button type="button" class="launch-back" data-action="launch-prev"><span aria-hidden="true">←</span> Anterior</button>' : ""}${panel < 4 ? '<button type="button" class="launch-forward" data-action="launch-next">Continuar <span aria-hidden="true">→</span></button>' : `<button type="button" class="launch-forward" data-action="go-step" data-step="estrellas"${ready() ? "" : ' disabled aria-describedby="launch-ready-hint"'}>Ir a la estrella principal <span aria-hidden="true">→</span></button>`}</div>${panel === 4 && !ready() ? `<p id="launch-ready-hint" class="launch-ready-hint">${matched.size < 16 ? "Aplica los 16 códigos" : "Códigos completos"}${visitedContent < 4 ? " y explora los cuatro contenidos" : ""} para despegar.</p>` : ""}</footer>
-    </article>`;
+    return `<article class="lesson launch-station" id="launch-station"><header class="launch-heading"><p class="launch-kicker">01 · Centro de lanzamiento</p><h1>Antes de despegar</h1></header><div class="launch-tabs" role="group" aria-label="Preparación para el despegue">${panelNames.map((name, index) => `<button type="button" class="launch-tab${panel === index ? " is-active" : ""}${visited.has(index) ? " is-visited" : ""}" data-action="launch-panel" data-value="${index}"${panel === index ? ' aria-current="step"' : ""}><span class="launch-tab-number" aria-hidden="true">${index + 1}</span><span>${escape(name)}</span></button>`).join("")}</div><div class="launch-scroll" role="region" aria-label="Contenido del centro de lanzamiento">${panels[panel]()}</div><footer class="launch-footer"><div class="launch-progress"><strong>${panel + 1} / 5 etapas</strong><span>${visitedContent}/4 exploradas · ${matched.size}/16 códigos</span></div><div class="launch-footer-actions">${panel > 0 ? '<button type="button" class="launch-back" data-action="launch-prev">← Anterior</button>' : ""}${panel < 4 ? '<button type="button" class="launch-forward" data-action="launch-next">Continuar →</button>' : `<button type="button" class="launch-forward" data-action="go-step" data-step="estrellas"${ready() ? "" : ' disabled aria-describedby="launch-ready-hint"'}>Ir a la estrella →</button>`}</div>${panel === 4 && !ready() ? `<p id="launch-ready-hint" class="launch-ready-hint">${matched.size < 16 ? "Aplica los 16 códigos" : "Códigos completos"}${visitedContent < 4 ? " y explora las cuatro etapas" : ""} para despegar.</p>` : ""}</footer></article>`;
   }
 
-  function update(focusSelector, panelChanged) {
+  function update(focusSelector) {
     const article = document.getElementById("launch-station");
     if (!article) return;
-    const previousScroll = article.querySelector(".launch-scroll").scrollTop;
     article.outerHTML = render();
     const replacement = document.getElementById("launch-station");
-    const scroll = replacement.querySelector(".launch-scroll");
-    scroll.scrollTop = panelChanged ? 0 : previousScroll;
     const target = replacement.querySelector(focusSelector || "#launch-panel-title");
     if (target) target.focus({ preventScroll: true });
-    if (focusSelector === "#launch-code-detail-title" && target) {
-      const detail = target.closest(".launch-code-detail");
-      scroll.scrollTop += detail.getBoundingClientRect().top - scroll.getBoundingClientRect().top;
-    }
-    if (!panelChanged && target && scroll.contains(target)) {
-      const bounds = scroll.getBoundingClientRect();
-      const targetBounds = target.getBoundingClientRect();
-      if (targetBounds.bottom > bounds.bottom) scroll.scrollTop += targetBounds.bottom - bounds.bottom + 12;
-      else if (targetBounds.top < bounds.top) scroll.scrollTop -= bounds.top - targetBounds.top + 12;
-    }
-    const live = replacement.querySelector(".launch-feedback, .launch-decision-feedback");
+    const live = replacement.querySelector(".launch-feedback");
     if (live) {
       const message = live.textContent;
       live.textContent = "";
@@ -217,8 +194,16 @@
   function changePanel(next) {
     if (!Number.isInteger(next) || next < 0 || next >= panelNames.length) return;
     panel = next;
+    referenceView = "";
     visited.add(panel);
-    update("#launch-panel-title", true);
+    update("#launch-panel-title");
+  }
+
+  function chooseCode(id, focusSelector) {
+    if (!allTerms.some(term => term.id === id)) return;
+    activeCode = id;
+    activeCodeView = "definition";
+    update(focusSelector || `[data-action="launch-code"][data-value="${id}"]`);
   }
 
   function handle(action, value) {
@@ -226,41 +211,56 @@
     if (action === "launch-panel") changePanel(Number(value));
     else if (action === "launch-prev") changePanel(Math.max(0, panel - 1));
     else if (action === "launch-next") changePanel(Math.min(4, panel + 1));
-    else if (action === "launch-kit" && panel === 0) {
+    else if (action === "launch-reference" && ((panel === 0 && value === "guide") || (panel === 1 && value === "client") || value === "close")) {
+      referenceView = value === "close" ? "" : value;
+      update("#launch-panel-title");
+    } else if (action === "launch-kit" && panel === 0) {
       const next = Number(value);
       if (Number.isInteger(next) && kit[next]) { activeKit = next; update(`[data-action="launch-kit"][data-value="${next}"]`); }
-    } else if (action === "launch-decision" && panel === 1 && ["cerrar", "acompanar"].includes(value)) {
-      decision = value;
-      update(`[data-action="launch-decision"][data-value="${value}"]`);
-    } else if (action === "launch-challenge" && panel === 2) {
+    } else if (action === "launch-experience" && panel === 1) {
       const next = Number(value);
-      if (Number.isInteger(next) && challenges[next]) { activeChallenge = next; update(`[data-action="launch-challenge"][data-value="${next}"]`); }
-    } else if (action === "launch-code" && panel === 3 && allTerms.some(term => term.id === value)) {
-      activeCode = value;
-      update(window.matchMedia("(max-width: 700px)").matches ? "#launch-code-detail-title" : `[data-action="launch-code"][data-value="${value}"]`);
-    } else if (action === "launch-code-map" && panel === 3) {
-      update(`[data-action="launch-code"][data-value="${activeCode}"]`);
-    } else if (action === "launch-code-answer" && panel === 4) {
+      if (Number.isInteger(next) && experienceSteps[next]) { activeExperience = next; update(`[data-action="launch-experience"][data-value="${next}"]`); }
+    } else if (action === "launch-strategy" && panel === 2) {
+      const next = Number(value);
+      if (Number.isInteger(next) && strategyViews[next]) { activeStrategy = next; update(`[data-action="launch-strategy"][data-value="${next}"]`); }
+    } else if (action === "launch-code-group" && panel === 3) {
+      const next = Number(value);
+      if (Number.isInteger(next) && glossaryGroups[next]) chooseCode(glossaryGroups[next].terms[0].id, `[data-action="launch-code-group"][data-value="${next}"]`);
+    } else if (action === "launch-code" && panel === 3) {
+      chooseCode(value);
+    } else if (action === "launch-code-view" && panel === 3 && codeViews.some(view => view.id === value)) {
+      activeCodeView = value;
+      update(`[data-action="launch-code-view"][data-value="${value}"]`);
+    } else if ((action === "launch-code-prev" || action === "launch-code-next") && panel === 3) {
+      const next = (allTerms.findIndex(term => term.id === activeCode) + (action === "launch-code-next" ? 1 : -1) + allTerms.length) % allTerms.length;
+      chooseCode(allTerms[next].id, `[data-action="${action}"]`);
+    } else if (action === "launch-code-answer" && panel === 4 && !showResult) {
       const term = allTerms[caseIndex];
       const answer = glossaryGroups[term.groupIndex].terms.find(item => item.id === value);
       if (!answer || matched.has(term.id)) return true;
       selectedAnswer = value;
+      showResult = true;
       if (value === term.id) {
         matched.add(term.id);
-        feedback = `Estrella encendida · ${term.name}. ${learningCodes[term.id].why}`;
+        feedback = learningCodes[term.id].why;
         feedbackKind = "success";
         update(matched.size < 16 ? '[data-action="launch-signal-next"]' : ready() ? '[data-action="go-step"][data-step="estrellas"]' : '[data-action="launch-panel"][data-value="0"]');
       } else {
-        feedback = `${answer.name}: ${learningCodes[answer.id].simple} En esta señal, ${learningCodes[term.id].hint} Inténtalo de nuevo.`;
+        const hint = learningCodes[term.id].hint;
+        feedback = `Elegiste ${answer.name}. ${hint.charAt(0).toUpperCase()}${hint.slice(1)}`;
         feedbackKind = "notice";
-        update(`[data-action="launch-code-answer"][data-value="${value}"]`);
+        update('[data-action="launch-signal-retry"]');
       }
+    } else if (action === "launch-signal-retry" && panel === 4 && showResult && !matched.has(allTerms[caseIndex].id)) {
+      showResult = false;
+      update(`[data-action="launch-code-answer"][data-value="${selectedAnswer}"]`);
     } else if (action === "launch-signal-next" && panel === 4 && matched.has(allTerms[caseIndex].id) && caseIndex < allTerms.length - 1) {
       caseIndex += 1;
       selectedAnswer = "";
-      feedback = "Lee la señal y elige el código que mejor la explica.";
+      showResult = false;
+      feedback = "";
       feedbackKind = "";
-      update("#launch-panel-title", true);
+      update("#launch-panel-title");
     }
     return true;
   }
@@ -269,13 +269,16 @@
     panel = 0;
     visited = new Set([0]);
     activeKit = 0;
-    decision = "";
-    activeChallenge = 0;
+    activeExperience = 0;
+    activeStrategy = 0;
+    referenceView = "";
     activeCode = "cx";
+    activeCodeView = "definition";
     caseIndex = 0;
     matched = new Set();
     selectedAnswer = "";
-    feedback = "Lee la señal y elige el código que mejor la explica.";
+    showResult = false;
+    feedback = "";
     feedbackKind = "";
   }
 
