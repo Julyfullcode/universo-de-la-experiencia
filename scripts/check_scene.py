@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 THREE_URL = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"
 HARNESS = """<!doctype html><html lang="es"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/universe-map.css">
+<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/universe-map.css"><link rel="stylesheet" href="/launch-station.css">
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden}
 .orbital-realm-view{width:100vw;height:100vh;display:flex;flex-direction:column}
 .orbital-realm{flex:1;width:100%;min-height:0}</style>
@@ -137,7 +137,7 @@ window.supabase={createClient:()=>({rpc:async(name,args)=>{
  if(name==='universo_guardar_feedback')return {data:{calificacion:args.p_calificacion,recomendacion:args.p_recomendacion},error:null};
  return {data:true,error:null};
 }})};
-</script><script src="/app.js"></script>"""
+</script><script src="/launch-station.js"></script><script src="/app.js"></script>"""
 
 
 class CDP:
