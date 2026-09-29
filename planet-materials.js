@@ -6,10 +6,11 @@
     void main(){vUv=uv;vWorld=(modelMatrix*vec4(position,1.)).xyz;
       vNormal=normalize(mat3(modelMatrix)*normal);
       gl_Position=projectionMatrix*viewMatrix*vec4(vWorld,1.);}`;
-  const fragment = `uniform sampler2D uMap;uniform float uReady,uEarth;
-    uniform vec3 uLight,uFallback;varying vec2 vUv;varying vec3 vWorld,vNormal;
+  const fragment = `uniform sampler2D uMap;uniform float uReady,uEarth,uTintMix;
+    uniform vec3 uLight,uFallback,uTint;varying vec2 vUv;varying vec3 vWorld,vNormal;
     void main(){
       vec3 base=mix(uFallback,texture2D(uMap,vUv).rgb,uReady);
+      base=mix(base,base*(.62+.72*uTint),uTintMix);
       vec3 n=normalize(vNormal),light=normalize(uLight-vWorld),view=normalize(cameraPosition-vWorld);
       float day=max(dot(n,light),0.);
       // Restrained camera fill retains the dark limb without making a glass globe.
@@ -46,10 +47,10 @@
     function addMesh(geometry,value,parent){
       const body=new T.Mesh(geometry,value);body.layers.set(2);parent.add(body);return body;
     }
-    function create({radius,kind}){
+    function create({radius,kind,tint=null}){
       const earth=kind==='earth',group=new T.Group();group.userData.surfaceKind=kind;
       const fallback=new T.Color(({earth:0x1b4976,neptune:0x4266aa,jupiter:0xb29c88,saturn:0xd1b990,mars:0x9e5a3f,uranus:0x7ab8be})[kind]||0x818b9c);
-      const uniforms={uMap:{value:null},uReady:{value:0},uEarth:{value:earth?1:0},uLight:{value:options.lightPosition},uFallback:{value:fallback}};
+      const uniforms={uMap:{value:null},uReady:{value:0},uEarth:{value:earth?1:0},uTintMix:{value:tint===null?0:.34},uLight:{value:options.lightPosition},uFallback:{value:fallback},uTint:{value:new T.Color(tint===null?fallback:tint)}};
       const surfaceMaterial=material(new T.ShaderMaterial({uniforms,vertexShader:vertex,fragmentShader:fragment,transparent:false,depthWrite:true}));
       uniforms.uMap.value=load(earth?'earth-day':kind,true,()=>{uniforms.uReady.value=1;});
       const surface=addMesh(new T.SphereGeometry(radius,80,56),surfaceMaterial,group);

@@ -176,26 +176,11 @@ def check_content(cdp, panel, record, capture):
             capture(name)
 
     if panel == 0:
-        for index in range(5):
-            click(cdp, f'[data-action="launch-kit"][data-value="{index}"]')
-            state(f"kit-{index}", photo=index == 0)
-        click(cdp, '[data-action="launch-reference"][data-value="guide"]')
-        state("guide-original", official=True, photo=True)
-        require_content(texts[-1], ["comprender", "clientes y usuarios", "ecosistema", "confianza", "lealtad", "comportamientos"], "Official Guide")
-        click(cdp, '[data-action="launch-reference"][data-value="close"]')
-        state("guide-return")
-        expected = ["Terminología", "Modelos", "Escucha", "medición", "rol", "Competencias", "comportamientos"]
-    elif panel == 1:
         for index in range(3):
             click(cdp, f'[data-action="launch-experience"][data-value="{index}"]')
             state(f"experience-{index}", photo=index == 0)
-        click(cdp, '[data-action="launch-reference"][data-value="client"]')
-        state("client-original", official=True, photo=True)
-        require_content(texts[-1], ["valor", "operación", "cultura", "estrategia", "clientecentrismo"], "Official clientecentrism")
-        click(cdp, '[data-action="launch-reference"][data-value="close"]')
-        state("client-return")
-        expected = ["resultado emocional", "Valores", "Emociones", "Experiencias"]
-    elif panel == 2:
+        expected = ["La experiencia es el resultado de", "Valores", "Emociones", "Experiencias", "Clientecentrismo"]
+    elif panel == 1:
         for index in range(5):
             click(cdp, f'[data-action="launch-strategy"][data-value="{index}"]')
             assert cdp.evaluate("document.querySelector('.launch-strategy-detail').dataset.view") == str(index)
@@ -204,9 +189,10 @@ def check_content(cdp, panel, record, capture):
                     "responsabilidad, transparencia y calidez", "desarrollo humano sostenible",
                     "madurez", *STRATEGY_CHALLENGES]
         combined = "\n".join(texts)
+        assert not any(question in combined for question in ("¿Para qué viajamos?", "¿Cómo servimos?", "¿Hacia dónde avanzamos?")), "Direction categories still use questions"
         assert "52–70" in combined or "entre 52 y 70" in combined, "The high NPS range is missing"
         assert "> 70" in combined or "mayor a 70" in combined, "The very-high NPS threshold is missing"
-    elif panel == 3:
+    elif panel == 2:
         for group_index, group in enumerate(SCENARIO_ROUNDS):
             click(cdp, f'[data-action="launch-code-group"][data-value="{group_index}"]')
             state(f"codes-group-{group_index}")
@@ -242,13 +228,14 @@ def check_content(cdp, panel, record, capture):
 def check_scenarios(cdp, record, capture):
     """Solve all 16 cases; exercise error, retry and success layouts for each."""
     result = {"signals": []}
-    advance = '[data-action="go-step"][data-step="estrellas"]'
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Launch can finish before practicing"
+    advance = '[data-action="go-step"][data-step="observatorio"]'
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Optional practice still blocks launch"
+    assert "Omitir práctica" in cdp.evaluate("document.querySelector(" + json.dumps(advance) + ").innerText"), "Optional practice is not clearly identified"
     concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
     for index, concept in enumerate(concepts):
         assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == str(index)
         assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.state") == "question"
-        record(f"signal-{index}-question", 4)
+        record(f"signal-{index}-question", 3)
         if index == 0:
             capture("practice-question")
         group = SCENARIO_ROUNDS[index // 4]
@@ -257,41 +244,41 @@ def check_scenarios(cdp, record, capture):
         error = cdp.evaluate("({text:document.querySelector('.launch-feedback')?.innerText||'',completed:document.querySelectorAll('.launch-node.is-lit').length,live:document.querySelector('.launch-feedback')?.getAttribute('aria-live'),state:document.querySelector('.launch-signal-case').dataset.state})")
         assert error["text"] and error["completed"] == index and error["live"] == "polite", "Wrong answer incorrectly credits progress or lacks accessible feedback"
         assert error["state"] == "result", "Wrong-answer explanation did not replace the case"
-        record(f"signal-{index}-wrong", 4)
+        record(f"signal-{index}-wrong", 3)
         if index == 0:
             capture("practice-wrong")
         click(cdp, '[data-action="launch-signal-retry"]')
-        record(f"signal-{index}-retry", 4)
+        record(f"signal-{index}-retry", 3)
         assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.state") == "question", "Retry failed to restore the case"
         click(cdp, f'[data-action="launch-code-answer"][data-value="{concept}"]')
         success = cdp.evaluate("({completed:document.querySelectorAll('.launch-node.is-lit').length,feedback:document.querySelector('.launch-feedback')?.innerText,state:document.querySelector('.launch-signal-case').dataset.state})")
         assert success["completed"] == index + 1 and success["feedback"], f"Scenario {index + 1} lacks credited progress/explanation"
         assert success["state"] in ("result", "complete"), "Success explanation did not replace the case"
-        record(f"signal-{index}-correct", 4)
+        record(f"signal-{index}-correct", 3)
         if index in (0, 4, 12, 15):
             capture(f"practice-correct-{index}")
         result["signals"].append({"concept": concept, "wrong": error["text"], "success": success["feedback"]})
         if index == 0:
             click(cdp, '[data-action="launch-panel"][data-value="0"]')
             record("progress-detour", 0)
-            click(cdp, '[data-action="launch-panel"][data-value="4"]')
-            record("progress-return", 4)
+            click(cdp, '[data-action="launch-panel"][data-value="3"]')
+            record("progress-return", 3)
             assert cdp.evaluate("document.querySelectorAll('.launch-node.is-lit').length") == 1, "Progress was lost while consulting content"
             assert cdp.evaluate("document.querySelector('.launch-signal-case').dataset.signal") == "0", "Consulting content changed the current case"
             result["retainedProgress"] = True
         if index < len(concepts) - 1:
-            assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===true"), "Practice unlocked before all concepts"
+            assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Optional practice became mandatory"
             click(cdp, '[data-action="launch-signal-next"]')
-    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "All concepts failed to unlock launch"
+    assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Completing practice disabled launch"
     cdp.evaluate("document.querySelector('[data-action=launch-prev]').focus({preventScroll:true})")
     press(cdp, "Enter", "Enter", 13)
     assert cdp.evaluate("Boolean(document.querySelector('.launch-code-detail'))"), "Keyboard previous-panel control failed"
-    record("keyboard-previous", 3)
+    record("keyboard-previous", 2)
     cdp.evaluate("document.querySelector('[data-action=launch-next]').focus({preventScroll:true})")
     press(cdp, "Enter", "Enter", 13)
     assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Keyboard next-panel control lost focus"
     assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Panel navigation lost completed progress"
-    record("keyboard-next", 4)
+    record("keyboard-next", 3)
     result["keyboardNavigation"] = True
     return result
 
@@ -314,6 +301,8 @@ def run_checks(cdp, artifacts, screenshots):
         assert "Antes de despegar" in cdp.evaluate("document.querySelector('.lesson h1').innerText")
         assert cdp.evaluate("!document.querySelector('.launch-intro')"), "The removed introduction has returned"
         assert "Tu misión empieza aquí: comprende la experiencia" not in cdp.evaluate("document.querySelector('.launch-station').innerText")
+        assert cdp.evaluate("document.querySelectorAll('.launch-tab').length===4"), "Launch does not have exactly four stages"
+        assert "Guía" not in cdp.evaluate("document.querySelector('.launch-tabs').innerText"), "Removed Guide stage returned"
 
         def capture(name):
             screenshot(cdp, artifacts, f"{width}x{height}-{name}", screenshots)
@@ -329,7 +318,7 @@ def run_checks(cdp, artifacts, screenshots):
                 issues.append({"bodyOverflow": layout["bodyOverflow"]})
             if not layout["focus"]["visible"]:
                 issues.append({"focus": layout["focus"]})
-            if panel < 4 and layout["wordCount"] > (180 if official else 145):
+            if panel < 3 and layout["wordCount"] > (180 if official else 145):
                 issues.append({"denseCopy": layout["wordCount"]})
             viewport["states"].append({"name": name, "panel": panel, "layout": layout})
             if issues:
@@ -338,7 +327,7 @@ def run_checks(cdp, artifacts, screenshots):
                 if len(result["layoutErrors"]) <= 12:
                     capture("FAIL-" + name)
 
-        for panel in range(5):
+        for panel in range(4):
             click(cdp, f'[data-action="launch-panel"][data-value="{panel}"]')
             assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
             record(f"panel-{panel}", panel)
@@ -349,9 +338,9 @@ def run_checks(cdp, artifacts, screenshots):
         # only after the five viewport matrices so writes remain comparable.
         assert cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length") == initial_writes, "Learning controls unexpectedly wrote participant data"
 
-    click(cdp, '[data-action="go-step"][data-step="estrellas"]')
-    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Clientes y usuarios orientan el universo.'")
-    result["advancedToStars"] = True
+    click(cdp, '[data-action="go-step"][data-step="observatorio"]')
+    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Medir hace visible la experiencia.'")
+    result["advancedToObservatory"] = True
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")

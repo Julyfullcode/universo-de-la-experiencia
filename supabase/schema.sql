@@ -132,15 +132,13 @@ end
 $constraints$;
 
 update public.universo_viajes
-set avance_maximo = greatest(
-      avance_maximo,
-      case paso
-        when 'lanzamiento' then 1 when 'estrellas' then 2
-        when 'planetas' then 3 when 'coordenadas' then 4
-        when 'satelites' then 5 when 'observatorio' then 6
-        when 'mision' then 7 else 1
-      end::smallint
-    ),
+set avance_maximo = (case paso
+      when 'lanzamiento' then 1
+      when 'estrellas' then 2 when 'observatorio' then 2
+      when 'satelites' then 3 when 'coordenadas' then 3
+      when 'planetas' then 4
+      when 'mision' then 5 else 1
+    end)::smallint,
     last_seen_at = coalesce(last_seen_at, updated_at, created_at, now()),
     completed_at = case
       when completed_at is not null then completed_at
@@ -678,10 +676,11 @@ begin
     end if;
     v_paso := p_cambios ->> 'paso';
     v_avance := (case v_paso
-      when 'lanzamiento' then 1 when 'estrellas' then 2
-      when 'planetas' then 3 when 'coordenadas' then 4
-      when 'satelites' then 5 when 'observatorio' then 6
-      when 'mision' then 7 else null
+      when 'lanzamiento' then 1
+      when 'estrellas' then 2 when 'observatorio' then 2
+      when 'satelites' then 3 when 'coordenadas' then 3
+      when 'planetas' then 4
+      when 'mision' then 5 else null
     end)::smallint;
     if v_avance is null then
       raise exception using errcode = '22023', message = 'El paso no es válido.';
@@ -968,7 +967,7 @@ begin
       ),
       'iniciados', (select pg_catalog.count(*) from public.universo_viajes where palabra_clave_hash is not null),
       'avance_promedio', (
-        select coalesce(pg_catalog.round(pg_catalog.avg(avance_maximo::numeric) * 100 / 7, 1), 0)
+        select coalesce(pg_catalog.round(pg_catalog.avg(pg_catalog.least(avance_maximo, 5)::numeric) * 100 / 5, 1), 0)
         from public.universo_viajes where palabra_clave_hash is not null
       ),
       'evaluaciones', (select pg_catalog.count(*) from public.universo_feedback),
@@ -983,10 +982,9 @@ begin
           'total', (select pg_catalog.count(*) from public.universo_viajes as v
             where v.palabra_clave_hash is not null and v.avance_maximo >= etapas.numero))
         order by etapas.numero), '[]'::jsonb)
-      from (values (1, 'Centro de lanzamiento'), (2, 'Estrellas cliente'),
-        (3, 'Planetas de talento'), (4, 'Constelación guía'),
-        (5, 'Satélites del ecosistema'), (6, 'Observatorio de señales'),
-        (7, 'Misión en la Tierra')) as etapas(numero, paso)
+      from (values (1, 'Centro de lanzamiento'), (2, 'Observatorio'),
+        (3, 'Constelaciones'), (4, 'Planetas'),
+        (5, 'Mi misión')) as etapas(numero, paso)
     ),
     'participantes', (
       select coalesce(pg_catalog.jsonb_agg(item order by item ->> 'last_seen_at' desc), '[]'::jsonb)
@@ -994,7 +992,7 @@ begin
         select pg_catalog.jsonb_build_object(
           'nombre', v.nombre, 'paso', v.paso,
           'avance_maximo', v.avance_maximo,
-          'avance_porcentaje', pg_catalog.round(v.avance_maximo::numeric * 100 / 7, 1),
+          'avance_porcentaje', pg_catalog.round(pg_catalog.least(v.avance_maximo, 5)::numeric * 100 / 5, 1),
           'planeta', v.planeta_principal, 'planeta_explorar', v.planeta_explorar,
           'rol', v.rol, 'satelites', v.satelites, 'observatorio', v.observatorio,
           'mision', v.mision, 'created_at', v.created_at, 'updated_at', v.updated_at,

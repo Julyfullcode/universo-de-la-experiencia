@@ -9,7 +9,7 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 .launch-station .launch-kicker{font-size:10px;font-weight:900;line-height:1.4;letter-spacing:.1em;text-transform:uppercase;color:var(--launch-accent);margin:0}
 .launch-station .launch-heading>.launch-kicker{padding-right:24px;border-right:1px solid var(--launch-line)}
 .journey-view .launch-station h1{font-size:26px;line-height:1.4;letter-spacing:-.025em;margin:0;max-width:none}
-.launch-station .launch-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;flex:none}
+.launch-station .launch-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:none}
 .launch-station .launch-tab{display:flex;align-items:center;justify-content:center;gap:9px;min-height:40px;padding:7px 10px;border:1px solid var(--launch-line);border-radius:10px;background:#ffffff04;color:#d3d0d8;font-size:12px;font-weight:800;line-height:1.3}
 .launch-station .launch-tab-number{display:grid;place-items:center;flex:none;width:21px;height:21px;border:1px solid #d3d0d84a;border-radius:50%;font-size:9px}
 .launch-station .launch-tab.is-active{background:#d4ed83;border-color:#d4ed83;color:#253121}
@@ -42,6 +42,9 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 .launch-station .launch-reference-view .launch-reference-contribution{font-size:15px;color:#c9c1d3}
 .launch-station .launch-reference-view .launch-reference-toggle{color:#e6d6f5}
 .launch-station .launch-chain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.launch-station .launch-experience-definition{display:grid;grid-template-columns:minmax(150px,.42fr) minmax(0,1.58fr);align-items:center;gap:22px;padding:15px 22px;border:1px solid #d4ed835c;border-radius:16px;background:linear-gradient(115deg,#d4ed8324,#c9b5f516 58%,#efbd9412);box-shadow:inset 3px 0 #d4ed83}
+.launch-station .launch-experience-definition>.launch-kicker{color:#d7ed8c}
+.launch-station .launch-experience-definition>p:last-child{font-size:clamp(19px,1.65vw,24px);font-weight:760;line-height:1.3;letter-spacing:-.015em;color:#f4f0e6}
 .launch-station .launch-chain-step{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;padding:17px 12px;border:1px solid #d4ed8355;border-radius:13px;background:#d4ed8314;color:#d4ed83;font-size:17px;font-weight:800;line-height:1.3}
 .launch-station .launch-chain-step:nth-child(2){color:#ddc6ff;border-color:#c9b5f555;background:#c9b5f514}
 .launch-station .launch-chain-step:nth-child(3){color:#f1c6a4;border-color:#efbd9455;background:#efbd9414}
@@ -156,6 +159,8 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
   .launch-station .launch-reference-view{padding:18px;gap:16px}
   .launch-station .launch-reference-view p{font-size:15px;line-height:1.5}
   .launch-station .launch-chain{gap:14px}
+  .launch-station .launch-experience-definition{grid-template-columns:1fr;gap:4px;padding:11px 14px}
+  .launch-station .launch-experience-definition>p:last-child{font-size:16px;line-height:1.3}
   .launch-station .launch-chain-step{font-size:12px;padding:15px 5px;gap:4px}
   .launch-station .launch-chain-step:not(:last-child):after{right:-13px;font-size:13px}
   .launch-station .launch-chain+.launch-focus-card{max-height:185px}

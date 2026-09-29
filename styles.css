@@ -174,3 +174,29 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 .access-hero>.error{width:min(1180px,100%)}
 @media(max-width:800px){.access-mode{align-items:stretch;flex-direction:column}.access-mode label{justify-content:center;width:100%}.access-key-notice{font-size:.78rem}}
 @media(max-height:680px){.access-mode label{padding:.4rem .62rem}.access-key-notice{padding:.55rem .7rem;font-size:.72rem;line-height:1.3}}
+
+/* Estación Planetas: dos rutas de afinidad, sin alterar el universo 3D. */
+.planet-journey{max-width:1180px}
+.planet-journey .assessment-note{max-width:900px;margin:1.1rem 0;padding:.85rem 1rem;border-left:3px solid #9dd8ef;background:#9dd8ef13;color:#dce9f4;font-size:.86rem;line-height:1.5}
+.planet-journey .route-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin:1.7rem 0}
+.planet-journey .route-choice .choice{min-height:170px;justify-content:center;background:linear-gradient(145deg,#ffffff0d,#8b6ec90c)}
+.planet-journey .route-choice .choice b{font-size:1.35rem;color:#d6f37f}
+.planet-question-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem}
+.planet-question-head h1{margin-bottom:.65rem}
+.planet-question-head>strong{display:grid;place-items:center;flex:none;width:74px;height:74px;border:1px solid #c3e05a80;border-radius:50%;color:#d9f28b;background:#c3e05a12;font-size:1.05rem}
+.planet-question-progress{height:5px;margin:1rem 0 1.6rem;border-radius:99px;background:#ffffff16;overflow:hidden}
+.planet-question-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#3fd6a8,#c3e05a);transition:width .25s ease}
+.planet-question .scenario{max-width:900px;margin:0 auto 1.35rem;border-left:0;border:1px solid #a2c3e73b;border-radius:1rem;background:#071832c9;text-align:center}
+.planet-question .duel-cards{margin:0}
+.planet-question .orbital{min-height:230px;justify-content:center}
+.planet-question .orbital small{line-height:1.4}
+.planet-result .result-card{display:grid;gap:.85rem;max-width:900px;margin:1.2rem 0}
+.planet-result .result-card blockquote{margin:.2rem 0;color:#e7f7bd;font-size:1.18rem;font-weight:700;line-height:1.45}
+.planet-result .result-card div{line-height:1.5}
+.planet-development{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;max-width:900px}
+.planet-development>div{padding:1.15rem;border:1px solid #ffffff20;border-radius:1rem;background:#ffffff09}
+.planet-development h2{margin:.5rem 0;font-size:1.35rem;line-height:1.3}
+.planet-development p,.planet-development li{color:#d8e2ef;line-height:1.45}
+.planet-development ul{margin:.7rem 0 0;padding-left:1.25rem}
+.planet-result-actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem}
+@media(max-width:720px){.planet-journey .route-choice,.planet-development{grid-template-columns:1fr}.planet-question-head{align-items:center}.planet-question-head>strong{width:58px;height:58px}.planet-question .orbital{min-height:150px}.planet-result-actions>*{width:100%}}
