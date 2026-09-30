@@ -63,18 +63,8 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-company-close { flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #a9bddc55; border-radius: 50%; background: #ffffff0b; color: #f2f6ff; font: 300 1.8rem/1 sans-serif; cursor: pointer; }
 .cosmos-company-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .cosmos-company-mark { display: grid; place-items: center; min-height: 82px; padding: 10px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
-.cosmos-company-logo { display: grid; place-items: center; width: 100%; height: 60px; overflow: hidden; }
-.cosmos-company-logo img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
-.cosmos-company-logo.crop-afinia,
-.cosmos-company-logo.crop-delsur,
-.cosmos-company-logo.crop-emvarias,
-.cosmos-company-logo.crop-energica,
-.cosmos-company-logo.crop-edeq { align-items: start; }
-.cosmos-company-logo.crop-afinia img { width: 100%; height: auto; }
-.cosmos-company-logo.crop-delsur img { width: 100%; height: auto; }
-.cosmos-company-logo.crop-emvarias img { width: 100%; height: auto; }
-.cosmos-company-logo.crop-energica img { width: 100%; height: auto; }
-.cosmos-company-logo.crop-edeq img { width: 96%; height: auto; }
+.cosmos-company-logo { position: relative; display: block; width: 100%; height: 60px; overflow: hidden; }
+.cosmos-company-logo img { position: absolute; inset: 3px; display: block; width: calc(100% - 6px); height: calc(100% - 6px); min-width: 0; max-width: none; max-height: none; object-fit: contain; object-position: center; }
 .cosmos-tools { position: absolute; top: 8px; left: 50%; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); }
 .cosmos-pause { display: none !important; }
 .cosmos-tools:empty { display: none; }

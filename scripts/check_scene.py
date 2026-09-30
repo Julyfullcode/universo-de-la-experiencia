@@ -914,6 +914,18 @@ def main():
                 anchored:!!guideRect&&(innerWidth<=800?guideRect.top>=guideStageRect.top+guideStageRect.height*.5:
                   guideRect.left>=guideStageRect.left+guideStageRect.width*.6),
                 noEyebrow:!guideNode?.querySelector('small')};
+              document.querySelector('.cosmos-galaxy-tooltip')?.click();
+              await waitFor(()=>[...document.querySelectorAll('.cosmos-company-logo img')].every(img=>img.complete&&img.naturalWidth>0));
+              const companyLogos=[...document.querySelectorAll('.cosmos-company-logo img')].map(img=>{
+                const image=img.getBoundingClientRect(),frame=img.parentElement.getBoundingClientRect();
+                return{name:img.alt,fit:getComputedStyle(img).objectFit,loaded:img.naturalWidth>0,
+                  image:[image.left,image.top,image.right,image.bottom],frame:[frame.left,frame.top,frame.right,frame.bottom],
+                  contained:image.left>=frame.left-.5&&image.top>=frame.top-.5&&image.right<=frame.right+.5&&image.bottom<=frame.bottom+.5};
+              });
+              const companyGallery={count:companyLogos.length,allLoaded:companyLogos.every(item=>item.loaded),
+                allContained:companyLogos.every(item=>item.contained&&item.fit==='contain'),
+                problems:companyLogos.filter(item=>!item.contained||item.fit!=='contain')};
+              document.querySelector('.cosmos-company-dialog')?.close();
               guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
               window.__universeDebug?.select('client');await wait(180);
               const satelliteProbes=[];
@@ -1092,7 +1104,7 @@ def main():
                   revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
               const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
-              return {results,guideTooltip,satelliteTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
+              return {results,guideTooltip,companyGallery,satelliteTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1148,6 +1160,9 @@ def main():
              not integration["guideTooltip"].get("fullyInside") or
              not integration["guideTooltip"].get("anchored") or
              not integration["guideTooltip"].get("noEyebrow"))) or
+            integration["companyGallery"].get("count") != 17 or
+            not integration["companyGallery"].get("allLoaded") or
+            not integration["companyGallery"].get("allContained") or
             (args.width > 800 and (not integration["satelliteTooltip"].get("visible") or
              integration["satelliteTooltip"].get("title") != "Satélite" or
              "Proveedores y Contratistas" not in integration["satelliteTooltip"].get("definition", "") or

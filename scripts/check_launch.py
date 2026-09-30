@@ -338,6 +338,11 @@ def run_checks(cdp, artifacts, screenshots):
         # only after the five viewport matrices so writes remain comparable.
         assert cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length") == initial_writes, "Learning controls unexpectedly wrote participant data"
 
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
+             "deviceScaleFactor": 1, "mobile": False})
+    launch_title_size = cdp.evaluate("parseFloat(getComputedStyle(document.querySelector('.launch-heading h1')).fontSize)")
+    assert launch_title_size >= 36, f"Launch station title is still too small: {launch_title_size}px"
+    result["launchTitleSize"] = launch_title_size
     click(cdp, '[data-action="go-step"][data-step="estrella"]')
     wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='¿Por qué gestionar la experiencia?'")
     result["advancedToMainStar"] = True
@@ -355,7 +360,7 @@ def run_checks(cdp, artifacts, screenshots):
             horizontal:(lesson?.scrollWidth||0)>(lesson?.clientWidth||0)+1};
           if(lesson)lesson.scrollTop=lesson.scrollHeight;
           const box=lesson?.getBoundingClientRect(),buttons=[...(actions?.querySelectorAll('button')||[])];
-          return {...before,buttons:buttons.length,actionsReachable:!!box&&buttons.length>0&&buttons.every(button=>{
+          return {...before,titleSize:parseFloat(getComputedStyle(lesson?.querySelector('h1')).fontSize),buttons:buttons.length,actionsReachable:!!box&&buttons.length>0&&buttons.every(button=>{
             const rect=button.getBoundingClientRect();return rect.top>=box.top-.5&&rect.bottom<=box.bottom+.5;
           })};
         })()""")
@@ -363,7 +368,9 @@ def run_checks(cdp, artifacts, screenshots):
             screenshot(cdp, artifacts, f"1440x900-journey-{name}-bottom", True)
         result["journeyLayouts"].append({"name": name, **layout})
         assert not layout["horizontal"], f"{name} has horizontal overflow"
+        assert layout["titleSize"] >= 38, f"{name} title is still too small: {layout['titleSize']}px"
         assert layout["buttons"] >= 2 and layout["actionsReachable"], f"{name} actions are not reachable"
+        return layout
 
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
              "deviceScaleFactor": 1, "mobile": False})
@@ -371,8 +378,9 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelectorAll('.stellar-expectations>span').length") == 9
     journey_state("satellites", "trip.step='satelites';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.actor-wheel>span').length") == 5
-    journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
+    planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.planet-result-actions>button').length") == 3
+    assert planet_layout["clientHeight"] < 820, "Planet result still wastes most of the viewport below its content"
     journey_state("observatory", "trip.step='observatorio';localAnswer='ces';view='journey';render()")
     journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
