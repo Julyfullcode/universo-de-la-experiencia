@@ -403,7 +403,7 @@ def visual_copy_checks(cdp):
       const descriptiveText=(copyOnly?.textContent||'').replace(/\\s+/g,' ').trim();
       const bottomStrip={momentButtons:momentButtons.length,availabilityButtons:availabilityButtons.length,
         allButtons:allButtons.length,descriptiveText,
-        pass:momentButtons.length===5&&availabilityButtons.length===1&&allButtons.length===6&&!descriptiveText};
+        pass:momentButtons.length===8&&availabilityButtons.length===1&&allButtons.length===9&&!descriptiveText};
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
       let launchLabel=null;

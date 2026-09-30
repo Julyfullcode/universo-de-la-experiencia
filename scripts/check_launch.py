@@ -229,7 +229,7 @@ def check_content(cdp, panel, record, capture):
 def check_scenarios(cdp, record, capture):
     """Solve all 16 cases; exercise error, retry and success layouts for each."""
     result = {"signals": []}
-    advance = '[data-action="go-step"][data-step="observatorio"]'
+    advance = '[data-action="go-step"][data-step="estrella"]'
     assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Optional practice still blocks launch"
     assert "Omitir práctica" in cdp.evaluate("document.querySelector(" + json.dumps(advance) + ").innerText"), "Optional practice is not clearly identified"
     concepts = [concept for group in SCENARIO_ROUNDS for concept in group]
@@ -339,9 +339,9 @@ def run_checks(cdp, artifacts, screenshots):
         # only after the five viewport matrices so writes remain comparable.
         assert cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length") == initial_writes, "Learning controls unexpectedly wrote participant data"
 
-    click(cdp, '[data-action="go-step"][data-step="observatorio"]')
-    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Medir hace visible la experiencia.'")
-    result["advancedToObservatory"] = True
+    click(cdp, '[data-action="go-step"][data-step="estrella"]')
+    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Clientes y usuarios orientan el universo.'")
+    result["advancedToMainStar"] = True
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")

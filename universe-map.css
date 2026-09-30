@@ -63,24 +63,18 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-company-close { flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #a9bddc55; border-radius: 50%; background: #ffffff0b; color: #f2f6ff; font: 300 1.8rem/1 sans-serif; cursor: pointer; }
 .cosmos-company-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .cosmos-company-mark { display: grid; place-items: center; min-height: 82px; padding: 10px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
-.cosmos-company-mark>span { display: block; max-width: 100%; color: #087f48; font-family: Arial, Helvetica, sans-serif; font-size: clamp(.86rem, 1.45vw, 1.22rem); font-weight: 850; line-height: 1; text-align: center; }
-.cosmos-company-mark.brand-epm>span { color: #00a55a; font-size: 2rem; font-weight: 700; letter-spacing: -.12em; text-transform: lowercase; }
-.cosmos-company-mark.brand-ensa>span { color: #006a45; font-size: 1.75rem; font-weight: 900; letter-spacing: -.08em; }
-.cosmos-company-mark.brand-somos>span { color: #555; font-size: 1.8rem; font-style: italic; font-weight: 650; letter-spacing: -.08em; text-transform: lowercase; }
-.cosmos-company-mark.brand-essa>span { color: #198ece; font-size: 2rem; font-weight: 950; letter-spacing: -.1em; }
-.cosmos-company-mark.brand-malambo>span { color: #ee8200; font-size: 1.12rem; font-style: italic; font-weight: 700; }
-.cosmos-company-mark.brand-oriente>span { color: #009eca; font-size: 1.1rem; font-style: italic; font-weight: 700; }
-.cosmos-company-mark.brand-afinia>span { color: #2178bb; font-size: 1.8rem; font-weight: 700; letter-spacing: -.08em; text-transform: lowercase; }
-.cosmos-company-mark.brand-delsur>span { color: #1f5dab; font-size: 1.45rem; font-style: italic; letter-spacing: .08em; }
-.cosmos-company-mark.brand-emvarias>span { color: #ef7914; font-size: 1.55rem; font-weight: 650; letter-spacing: -.08em; text-transform: lowercase; }
-.cosmos-company-mark.brand-regionales>span { color: #00853c; font-size: 1.28rem; font-weight: 650; letter-spacing: -.055em; text-transform: lowercase; }
-.cosmos-company-mark.brand-chec>span { color: #008d4a; font-size: 1.8rem; font-weight: 700; letter-spacing: -.08em; text-transform: lowercase; }
-.cosmos-company-mark.brand-antofagasta>span { color: #0d65ac; font-size: 1rem; font-weight: 850; text-transform: lowercase; }
-.cosmos-company-mark.brand-eegsa>span { color: #54a1d7; font-size: 1.75rem; font-style: italic; font-weight: 900; }
-.cosmos-company-mark.brand-energica>span { color: #4d9bd0; font-size: 1.42rem; font-style: italic; font-weight: 900; }
-.cosmos-company-mark.brand-cens>span { color: #00642f; font-size: 1.7rem; font-weight: 800; letter-spacing: .12em; }
-.cosmos-company-mark.brand-edeq>span { color: #3995aa; font-size: 1.9rem; font-weight: 700; letter-spacing: -.08em; text-transform: lowercase; }
-.cosmos-company-mark.brand-comegsa>span { color: #56a0d3; font-size: 1.35rem; font-style: italic; font-weight: 900; }
+.cosmos-company-logo { display: grid; place-items: center; width: 100%; height: 60px; overflow: hidden; }
+.cosmos-company-logo img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.cosmos-company-logo.crop-afinia,
+.cosmos-company-logo.crop-delsur,
+.cosmos-company-logo.crop-emvarias,
+.cosmos-company-logo.crop-energica,
+.cosmos-company-logo.crop-edeq { align-items: start; }
+.cosmos-company-logo.crop-afinia img { width: 100%; height: auto; }
+.cosmos-company-logo.crop-delsur img { width: 100%; height: auto; }
+.cosmos-company-logo.crop-emvarias img { width: 100%; height: auto; }
+.cosmos-company-logo.crop-energica img { width: 100%; height: auto; }
+.cosmos-company-logo.crop-edeq img { width: 96%; height: auto; }
 .cosmos-tools { position: absolute; top: 8px; left: 50%; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); }
 .cosmos-pause { display: none !important; }
 .cosmos-tools:empty { display: none; }
@@ -99,6 +93,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-object-label.cosmos-tooltip { width: min(calc(310 * var(--cosmos-unit)), 26vw); padding: calc(12 * var(--cosmos-unit)) calc(14 * var(--cosmos-unit)); border: 1px solid #b9d6ef66; border-radius: calc(12 * var(--cosmos-unit)); background: linear-gradient(135deg, #071329f2, #191436f2); box-shadow: 0 12px 34px #000a; white-space: normal; text-align: left; }
 .cosmos-object-label.cosmos-tooltip b { display: block; margin-bottom: calc(5 * var(--cosmos-unit)); color: #e6ffae; font-size: calc(16 * var(--cosmos-unit)); }
 .cosmos-object-label.cosmos-tooltip .cosmos-tooltip-definition { display: block; color: #d2dced; font-size: calc(12 * var(--cosmos-unit)); font-weight: 500; letter-spacing: 0; line-height: 1.42; text-transform: none; }
+.cosmos-object-label.guide-tooltip { width:min(calc(245 * var(--cosmos-unit)),20vw);pointer-events:none; }
+.cosmos-object-label.guide-tooltip b { font-size:calc(14 * var(--cosmos-unit)); }
+.cosmos-object-label.guide-tooltip .cosmos-tooltip-definition { font-size:calc(10.5 * var(--cosmos-unit));line-height:1.35; }
 .cosmos-object-label.client-tooltip { width: min(calc(385 * var(--cosmos-unit)), 31vw); padding: calc(17 * var(--cosmos-unit)) calc(18 * var(--cosmos-unit)); border-color: #d8ff8199; background: radial-gradient(circle at 12% 10%,#d8ff8123,transparent 42%),linear-gradient(135deg,#071329f7,#21163df5);box-shadow:0 14px 42px #000c,0 0 calc(28 * var(--cosmos-unit)) #d8ff8138; }
 .cosmos-object-label.client-tooltip b { color:#f2ffc9;font-size:calc(23 * var(--cosmos-unit));letter-spacing:-.02em; }
 .cosmos-object-label.client-tooltip>small:first-child { color:#d8ff81;font-size:calc(9 * var(--cosmos-unit));font-weight:850;letter-spacing:.17em; }
@@ -140,7 +137,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-company-dialog { width: min(94vw, 680px); max-height: 88dvh; border-radius: 17px; }
   .cosmos-company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .cosmos-company-mark { min-height: 62px; padding: 8px; }
-  .cosmos-company-mark>span { font-size: .82rem; }
+  .cosmos-company-logo { height: 46px; }
   .cosmos-company-shell>header { gap: 12px; margin-bottom: 14px; }
   .cosmos-heading h2 { font-size: .9rem; }
   .cosmos-heading p { font-size: .65rem; }
@@ -182,7 +179,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-route button { font-size: .5rem; white-space: normal; }
 }
 
-/* Navegación inferior: siete momentos y una única acción de disponibilidad. */
+/* Navegación inferior: ocho momentos y una única acción de disponibilidad. */
 .cosmos-navigation{
   position:relative;
   z-index:7;
@@ -200,7 +197,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-navigation .cosmos-route{
   min-width:0;
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(8,minmax(0,1fr));
   align-items:stretch;
   gap:clamp(3px,.45vw,8px);
   padding:0;
@@ -217,7 +214,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   border-radius:.75rem;
   background:rgba(7,17,48,.42);
   color:#d8e3f5;
-  font-size:clamp(.78rem,.86vw,1rem);
+  font-size:clamp(.67rem,.73vw,.86rem);
   font-weight:720;
   line-height:1.08;
   text-align:center;
@@ -273,7 +270,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
     min-height:0;
     padding:5px 2vw 6px;
   }
-  .cosmos-navigation .cosmos-route{grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+  .cosmos-navigation .cosmos-route{grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
   .cosmos-navigation .cosmos-route button{
     min-height:36px;
     padding:4px 2px;

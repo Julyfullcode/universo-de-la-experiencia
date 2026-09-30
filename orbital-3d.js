@@ -5,14 +5,25 @@
   'use strict';
   let active;
   const TAU=Math.PI*2;
-  const chapters=[['lanzamiento','Centro de lanzamiento'],['observatorio','Observatorio'],['coordenadas','Constelaciones'],['planetas','Planetas'],['mision','Mi misión']];
+  const chapters=[['lanzamiento','Centro de lanzamiento'],['estrella','Estrella principal'],['satelites','Satélites'],['coordenadas','Coordenadas'],['constelaciones','Constelaciones'],['planetas','Planetas'],['observatorio','Observatorio'],['mision','Mi misión']];
   const companyMarks=[
-    ['epm','epm','EPM'],['ensa','ENSA','ENSA'],['somos','somos','Somos'],['essa','ESSA','ESSA'],
-    ['malambo','Aguas de Malambo','Aguas de Malambo'],['oriente','Aguas del Oriente','Aguas del Oriente'],
-    ['afinia','afinia','Afinia'],['delsur','DELSUR','DELSUR'],['emvarias','emvarias','Emvarias'],
-    ['regionales','aguas regionales','Aguas Regionales'],['chec','chec','CHEC'],
-    ['antofagasta','aguas antofagasta','Aguas de Antofagasta'],['eegsa','EEGSA','EEGSA'],
-    ['energica','ENÉRGICA','ENÉRGICA'],['cens','CENS','CENS'],['edeq','edeq','EDEQ'],['comegsa','COMEGSA','COMEGSA']
+    {brand:'epm',name:'EPM',src:'assets/company-logos/epm.svg'},
+    {brand:'oriente',name:'Aguas del Oriente',src:'assets/company-logos/aguas-del-oriente.png'},
+    {brand:'delsur',name:'DELSUR',src:'assets/company-logos/delsur-directory.jpeg',crop:'crop-delsur'},
+    {brand:'malambo',name:'Aguas de Malambo',src:'assets/company-logos/aguas-de-malambo.png'},
+    {brand:'ensa',name:'ENSA',src:'assets/company-logos/ensa-directory.jpeg'},
+    {brand:'somos',name:'Somos',src:'assets/company-logos/somos.svg'},
+    {brand:'chec',name:'CHEC',src:'assets/company-logos/chec-group.jpeg'},
+    {brand:'essa',name:'ESSA',src:'assets/company-logos/essa-group.png'},
+    {brand:'afinia',name:'Afinia',src:'assets/company-logos/afinia-group.jpeg',crop:'crop-afinia'},
+    {brand:'cens',name:'CENS',src:'assets/company-logos/cens-group.jpeg'},
+    {brand:'regionales',name:'Aguas Regionales',src:'assets/company-logos/aguas-regionales.svg'},
+    {brand:'antofagasta',name:'Aguas de Antofagasta',src:'assets/company-logos/aguas-antofagasta.svg'},
+    {brand:'emvarias',name:'Emvarias',src:'assets/company-logos/emvarias-group.jpeg',crop:'crop-emvarias'},
+    {brand:'edeq',name:'EDEQ',src:'assets/company-logos/edeq-group.jpeg',crop:'crop-edeq'},
+    {brand:'energica',name:'ENÉRGICA',src:'assets/company-logos/energica-primary.png',crop:'crop-energica'},
+    {brand:'comegsa',name:'COMEGSA',src:'assets/company-logos/comegsa-directory.png'},
+    {brand:'eegsa',name:'EEGSA',src:'assets/company-logos/eegsa-directory.png'}
   ];
   const noiseGLSL=`
     float hash(vec3 p){p=fract(p*.3183099+vec3(.13,.27,.51));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -43,13 +54,13 @@
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>
-      <dialog class="cosmos-company-dialog" aria-labelledby="cosmos-company-title"><div class="cosmos-company-shell"><header><div><small>Nuestra galaxia empresarial</small><h2 id="cosmos-company-title">Empresas del Grupo EPM</h2><p>Una red de empresas que conecta capacidades, territorios y servicios.</p></div><button type="button" class="cosmos-company-close" aria-label="Cerrar empresas">×</button></header><div class="cosmos-company-grid" role="list">${companyMarks.map(([brand,mark,name])=>`<div class="cosmos-company-mark brand-${brand}" role="listitem" aria-label="Logo ${name}"><span role="img" aria-hidden="true">${mark}</span></div>`).join('')}</div></div></dialog>`;
+      <dialog class="cosmos-company-dialog" aria-labelledby="cosmos-company-title"><div class="cosmos-company-shell"><header><div><small>Nuestra galaxia empresarial</small><h2 id="cosmos-company-title">Empresas del Grupo EPM</h2><p>Una red de empresas que conecta capacidades, territorios y servicios.</p></div><button type="button" class="cosmos-company-close" aria-label="Cerrar empresas">×</button></header><div class="cosmos-company-grid" role="list">${companyMarks.map(({brand,name,src,crop=''})=>`<div class="cosmos-company-mark brand-${brand}" role="listitem"><span class="cosmos-company-logo ${crop}"><img src="${src}" alt="Logo ${name}" loading="lazy" decoding="async" draggable="false"></span></div>`).join('')}</div></div></dialog>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
     inspector.innerHTML='<button class="cosmos-action"></button>';
     const route=document.createElement('div');route.className='cosmos-route';route.setAttribute('role','group');route.setAttribute('aria-label','Explorar el recorrido');
     route.innerHTML=chapters.map(([id,name],i)=>`<button data-step="${id}" aria-pressed="false"><span>0${i+1}</span>${name}</button>`).join('');
-    const navigation=document.createElement('div');navigation.className='cosmos-navigation';navigation.setAttribute('aria-label','Navegación por los siete momentos');navigation.append(route,inspector);
+    const navigation=document.createElement('div');navigation.className='cosmos-navigation';navigation.setAttribute('aria-label','Navegación por los ocho momentos');navigation.append(route,inspector);
     realm.append(tabs,stage,navigation);if(fallback)fallback.hidden=true;
     const galaxyTooltip=stage.querySelector('.cosmos-galaxy-tooltip');
     const companyDialog=stage.querySelector('.cosmos-company-dialog');
@@ -339,7 +350,7 @@
     const ionMaterial=tailRibbonMaterial.clone();ionMaterial.uniforms={uTime:{value:0},uWarm:{value:0}};materials.push(ionMaterial);const ionRibbon=mesh(tailRibbonGeometry.clone(),ionMaterial,comet);ionRibbon.rotation.x=Math.PI/2;ionRibbon.scale.y=.72;ionRibbon.renderOrder=-1;
     comet.scale.setScalar(.48);layer(comet,2);comet.visible=false;primaryOrbit.anchor.add(comet);
     const cometState={visible:false,phase:-1,progress:0,routeIndex:-1,routeCount:cometRoutes.length};
-    const clientRecord={id:'client',step:'observatorio',title:'Estrellas · Clientes',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella es un cliente. Orbita el centro de su galaxia, la empresa. Este acercamiento sigue a la estrella seleccionada: sus empleados orbitan a su alrededor.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
+    const clientRecord={id:'client',step:'estrella',title:'Estrella principal',eyebrow:'El sentido de nuestro sistema',description:'Cada estrella representa a clientes y usuarios: sus necesidades, expectativas y emociones orientan nuestro universo de experiencia.',object:primaryOrbit.anchor,visual:primary,kind:'client'};records.push(clientRecord);
     for(let i=0;i<10;i++){
       const o=orbit(galaxyRoot,28+i*5.8,1200+i*93,.9+i*2.37,.025*((i%3)-1),0x738caf,.1+(i%3)*.025,false,{pitch:.016*((i%4)-1.5),yaw:i*.41});
       const s=star(1.2+(i%4)*.7,[0x77baff,0xffcd8d,0xb28aff,0xe9f5ff][i%4]);layer(s,0);o.anchor.add(s);o.body=s;stars.push({object:s,anchor:o.anchor});
@@ -421,7 +432,7 @@
     ['Proveedores y contratistas','Dueño','Comunidad'].forEach((name,i)=>{
       const o=orbit(parentPlanet.object,3.65+i*.88,48+i*23,.8+i*2.1,[-.18,.16,.27][i],0xbeadf4,[.13,.17,.12][i],true,{pitch:[.16,-.12,.09][i],yaw:[.4,1.45,2.3][i]});
       const s=satellite();s.scale.setScalar(1.30);o.anchor.add(s);o.body=s;spinning.push({object:s,speed:.025});
-      records.push({id:`satellite-${i}`,step:'coordenadas',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
+      records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
     const observatory=telescope();observatory.scale.setScalar(7.20);
@@ -433,7 +444,7 @@
     waypoints.forEach(([id,step,title,visual,anchor])=>{records.push({id,step,title,eyebrow:id==='launch'?'01 · Aquí comienza tu viaje':'Bitácora de la experiencia',description:step==='observatorio'?'Observa las señales de la experiencia y descubre qué medir para aprender y decidir.':step==='mision'?'Lleva tu aprendizaje a la Tierra: define una acción, con quién aprender y qué capacidad desarrollar.':'Entra al Universo de la Experiencia y conoce cómo se conectan empresas, clientes, empleados y otros actores.',object:anchor,visual,kind:'waypoint',view:id==='launch'?'launch':'system'});});
     records.find(record=>record.id==='observatory').framingPosition=new T.Vector3(25.8,0,25.5);
     const launchRecord=records.find(r=>r.id==='launch');
-    const constellation={id:'guide',step:'coordenadas',title:'Constelaciones',eyebrow:'Guía en el cielo',description:'Representan el modelo de experiencia y la arquitectura empresarial: trazan una guía para orientarnos en el recorrido.',kind:'guide',view:'constellation'};records.push(constellation);
+    const constellation={id:'guide',step:'constelaciones',title:'Constelaciones',eyebrow:'Guía en el cielo',description:'Representan el modelo de gestión de experiencia y la arquitectura empresarial: conectan capacidades para orientarnos en el recorrido.',kind:'guide',view:'constellation'};records.push(constellation);
     const galaxyRecord={id:'galaxy',step:'lanzamiento',title:'Galaxias · Empresas',eyebrow:'Una red de sistemas de experiencia',description:'La galaxia reúne sus estrellas cliente. Cada estrella tiene planetas empleados y cada planeta puede contar con satélites de otros actores. La vista ampliada sigue el mismo cliente que ves señalado aquí.',kind:'galaxy'};records.push(galaxyRecord);
     // Enlarge only the artwork, never the translation anchors: hovering a
     // planet must not drag its satellites out of their orbits or move the camera.
@@ -478,22 +489,22 @@
         });
       });
     }
-    const recordForStep=id=>records.find(r=>r.step===id&&r.kind==='waypoint')||records.find(r=>r.step===id&&r.kind==='guide')||records.find(r=>r.step===id&&r.kind!=='satellite')||records.find(r=>r.step===id);
+    const recordForStep=id=>id==='estrella'?clientRecord:id==='satelites'?records.find(r=>r.id==='satellite-0'):id==='coordenadas'?talentRecords[0]:id==='constelaciones'?constellation:records.find(r=>r.step===id&&r.kind==='waypoint')||records.find(r=>r.step===id&&r.kind==='guide')||records.find(r=>r.step===id&&r.kind!=='satellite')||records.find(r=>r.step===id);
     const motionByAnchor=new Map(moving.map(o=>[o.anchor,o]));
     const cameraOffset=new T.Vector3(0,23,37),screenRight=new T.Vector3(1,0,0),screenUp=new T.Vector3(0,37,-23).normalize(),orbitCameraLocal=new T.Vector3(),orbitQuaternion=new T.Quaternion(),framingCache=new Map();
     const systemRecords=()=>records.filter(r=>r.visual&&r!==launchRecord&&(!focusPlanet||r===focusPlanet||(r.kind==='satellite'&&focusPlanet===parentPlanet)));
-    function select(record,zoom=false){
+    function select(record,zoom=false,stepOverride=''){
       setHover(null);mousePoint=null;
       labels.forEach(label=>label.placement=null);
       selected=record;if(zoom&&record.kind==='satellite')focusPlanet=parentPlanet;
       else if(compact&&record.kind==='planet')focusPlanet=record;
       else if(record.kind!=='satellite')focusPlanet=null;
       if(compact)mobileView=['guide','galaxy'].includes(record.kind)?'galaxy':'system';resize();
-      const index=chapters.findIndex(c=>c[0]===record.step),allowed=index<=progress;
+      const activeStep=stepOverride||record.step,index=chapters.findIndex(c=>c[0]===activeStep),allowed=index<=progress;
       const action=inspector.querySelector('button');action.disabled=!allowed;action.textContent=allowed?'Abrir actividad →':`Disponible en el momento ${index+1}`;
       action.setAttribute('aria-label',allowed?`Abrir ${record.title}`:`${record.title}. Disponible en el momento ${index+1}`);
-      action.onclick=()=>{if(allowed&&typeof window.goStep==='function')window.goStep(record.step);};
-      route.querySelectorAll('button').forEach(b=>{const activeStep=b.dataset.step===record.step;b.setAttribute('aria-pressed',String(activeStep));b.classList.toggle('is-start-cue',progress===0&&record===launchRecord&&b.dataset.step==='lanzamiento');});
+      action.onclick=()=>{if(allowed&&typeof window.goStep==='function')window.goStep(activeStep);};
+      route.querySelectorAll('button').forEach(b=>{const isActive=b.dataset.step===activeStep;b.setAttribute('aria-pressed',String(isActive));b.classList.toggle('is-start-cue',progress===0&&record===launchRecord&&b.dataset.step==='lanzamiento');});
       labels.forEach(l=>{l.button.setAttribute('aria-pressed',String(l.record===record));l.button.classList.toggle('is-start-cue',progress===0&&record===launchRecord&&l.record===launchRecord);});
       stage.querySelector('.cosmos-reset').hidden=!focusPlanet;
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet;
@@ -516,14 +527,14 @@
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','client-tooltip');}
     talentRecords.filter(r=>r.id!=='forjadores').forEach(r=>{addLabel(r,`<b>${r.name}</b><span class="cosmos-tooltip-definition">${r.definition}</span>`,'system',23);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','planet-tooltip');});
     records.filter(r=>r.kind==='waypoint'&&r.id!=='observatory').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
-    {const observatoryRecord=records.find(r=>r.id==='observatory');addLabel(observatoryRecord,`<small>Señales para aprender</small><b>${observatoryRecord.title}</b><span class="cosmos-tooltip-definition">${observatoryRecord.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','waypoint-tooltip');}
+    {const observatoryRecord=records.find(r=>r.id==='observatory');addLabel(observatoryRecord,`<b>${observatoryRecord.title}</b><span class="cosmos-tooltip-definition">${observatoryRecord.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','waypoint-tooltip');}
     labels.find(l=>l.record===launchRecord).button.classList.add('launch');
     addLabel(records.find(r=>r.id==='satellite-0'),'<b>Satélites ↗</b>','system',48);
     [1,2].forEach(i=>{const r=records.find(r=>r.id===`satellite-${i}`);addLabel(r,`<b>${r.title}</b>`,'system',25);labels[labels.length-1].focusOnly=true;});
     constellation.object=guideStars[5];
     addLabel(constellation,`<small>${constellation.eyebrow}</small><b>${constellation.title}</b><span class="cosmos-tooltip-definition">${constellation.description}</span>`,'constellation',22);
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','guide-tooltip');}
-    route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>{hoverGroup=null;select(record,false);};b.onpointerenter=b.onfocus=()=>{hoverGroup=b.dataset.step==='planetas'?'planets':null;setHover(hoverGroup?null:record);};b.onpointerleave=b.onblur=()=>{hoverGroup=null;setHover(null);};});
+    route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>{hoverGroup=null;select(record,false,b.dataset.step);};b.onpointerenter=b.onfocus=()=>{hoverGroup=b.dataset.step==='planetas'?'planets':null;setHover(hoverGroup?null:record);};b.onpointerleave=b.onblur=()=>{hoverGroup=null;setHover(null);};});
     tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{mobileView=b.dataset.view;resize();});
     stage.querySelectorAll('[data-actor]').forEach(b=>b.onclick=()=>select(records.find(r=>r.id===`satellite-${b.dataset.actor}`),true));
     stage.querySelector('.cosmos-reset').onclick=()=>select(clientRecord);
@@ -657,7 +668,7 @@
       const placed=[];const priority=l=>l.record===hovered?-1:l.record===selected?0:l.record.kind==='client'?1:l.record.kind==='planet'?2:3;
       [...labels].sort((a,b)=>priority(a)-priority(b)).forEach(l=>{
         const satelliteGroup=l.record.id==='satellite-0'&&!focusPlanet;
-        const v=views[l.view],p=project(satelliteGroup?parentPlanet.object:l.record.object,l.view),inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
+        const v=views[l.view],projected=project(satelliteGroup?parentPlanet.object:l.record.object,l.view),p=l.record===constellation?{x:v.x+v.w*.58,y:v.y+v.h*.55,z:projected.z}:projected,inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
         const hoverReveal=!l.hoverOnly||hovered===l.record||(!l.strictHoverOnly&&selected===l.record);
         const show=v.visible&&inFocus&&hoverReveal&&!(compact&&focusPlanet&&l.view==='system')&&(!l.focusOnly||focusPlanet===parentPlanet)&&p.z>=-1&&p.z<=1;
         l.button.hidden=!show;if(show){
