@@ -93,7 +93,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-object-label.cosmos-tooltip { width: min(calc(310 * var(--cosmos-unit)), 26vw); padding: calc(12 * var(--cosmos-unit)) calc(14 * var(--cosmos-unit)); border: 1px solid #b9d6ef66; border-radius: calc(12 * var(--cosmos-unit)); background: linear-gradient(135deg, #071329f2, #191436f2); box-shadow: 0 12px 34px #000a; white-space: normal; text-align: left; }
 .cosmos-object-label.cosmos-tooltip b { display: block; margin-bottom: calc(5 * var(--cosmos-unit)); color: #e6ffae; font-size: calc(16 * var(--cosmos-unit)); }
 .cosmos-object-label.cosmos-tooltip .cosmos-tooltip-definition { display: block; color: #d2dced; font-size: calc(12 * var(--cosmos-unit)); font-weight: 500; letter-spacing: 0; line-height: 1.42; text-transform: none; }
-.cosmos-object-label.guide-tooltip { width:min(calc(245 * var(--cosmos-unit)),20vw);pointer-events:none; }
+.cosmos-object-label.guide-tooltip { width:min(230px,18vw);max-width:calc(100% - 24px);padding:8px 10px;pointer-events:none; }
 .cosmos-object-label.guide-tooltip b { font-size:calc(14 * var(--cosmos-unit)); }
 .cosmos-object-label.guide-tooltip .cosmos-tooltip-definition { font-size:calc(10.5 * var(--cosmos-unit));line-height:1.35; }
 .cosmos-object-label.client-tooltip { width: min(calc(385 * var(--cosmos-unit)), 31vw); padding: calc(17 * var(--cosmos-unit)) calc(18 * var(--cosmos-unit)); border-color: #d8ff8199; background: radial-gradient(circle at 12% 10%,#d8ff8123,transparent 42%),linear-gradient(135deg,#071329f7,#21163df5);box-shadow:0 14px 42px #000c,0 0 calc(28 * var(--cosmos-unit)) #d8ff8138; }
@@ -149,6 +149,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-actors button[aria-pressed=true] { color: #d3ff72; border-bottom-color: #d3ff72; }
   .cosmos-object-label { font-size: .61rem; }
   .cosmos-object-label.cosmos-tooltip { width: min(72vw, 290px); padding: 10px 12px; }
+  .cosmos-object-label.guide-tooltip { width:min(68vw,230px); }
   .cosmos-object-label.cosmos-tooltip b { font-size: .82rem; }
   .cosmos-object-label.cosmos-tooltip .cosmos-tooltip-definition { font-size: .68rem; }
   .cosmos-object-label.client-tooltip { width:min(78vw,330px);padding:13px 14px; }

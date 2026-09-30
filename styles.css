@@ -179,16 +179,17 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 .nav-guide-title{position:relative;display:inline-flex;align-items:center;cursor:help}
 .nav-guide-tooltip{position:absolute;z-index:80;left:50%;top:calc(100% + 14px);width:min(480px,70vw);padding:.9rem 1rem;border:1px solid #d9ff6a70;border-radius:1rem;background:linear-gradient(145deg,#07152cf7,#21163df7);box-shadow:0 18px 46px #000b,0 0 28px #c3e05a24;color:#e6eef9;font-size:.78rem;font-weight:560;letter-spacing:0;line-height:1.48;text-align:left;text-shadow:none;white-space:normal;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,7px);transition:.16s ease}
 .nav-guide-title:hover .nav-guide-tooltip,.nav-product:focus .nav-guide-tooltip,.nav-product:focus-visible .nav-guide-tooltip{opacity:1;visibility:visible;transform:translate(-50%,0)}
-.journey-moment{gap:clamp(.65rem,1.6vh,1.15rem)}
-.moment-heading{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(340px,1.1fr);align-items:end;gap:clamp(1rem,2.8vw,2.6rem)}
-.moment-heading h1{margin:.35rem 0 0!important;font-size:clamp(2rem,4.4vw,4.2rem)!important}
+.journey-moment{gap:clamp(.45rem,1vh,.75rem)}
+.moment-heading{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(340px,1.2fr);align-items:center;gap:clamp(1rem,2.2vw,2rem)}
+.moment-heading h1{margin:.25rem 0 0!important;font-size:clamp(1.8rem,3.2vw,3rem)!important;line-height:1!important}
 .moment-heading>.intro{max-width:none!important}
-.moment-actions{display:flex;justify-content:flex-end;gap:.65rem;margin-top:auto}
-.stellar-expectations{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:.45rem;margin:.3rem 0}
-.stellar-expectations span{display:flex;flex-direction:column;justify-content:center;gap:.45rem;min-height:78px;padding:.65rem .55rem;border:1px solid #bfe8ff2f;border-radius:1rem;background:radial-gradient(circle at 50% 0,#d9ff6a1f,transparent 56%),#ffffff08;color:#dce8f6;font-size:.72rem;font-weight:750;line-height:1.2;text-align:center}
+.moment-actions{display:flex;justify-content:flex-end;gap:.65rem;margin-top:.25rem}
+.star-moment{justify-content:flex-start!important;overflow-y:auto!important}
+.stellar-expectations{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:.35rem;margin:.1rem 0}
+.stellar-expectations span{display:flex;flex-direction:column;justify-content:center;gap:.3rem;min-height:58px;padding:.45rem .4rem;border:1px solid #bfe8ff2f;border-radius:.85rem;background:radial-gradient(circle at 50% 0,#d9ff6a1f,transparent 56%),#ffffff08;color:#dce8f6;font-size:.68rem;font-weight:750;line-height:1.16;text-align:center}
 .stellar-expectations i{color:#d9ff6a;font-style:normal;text-shadow:0 0 14px #d9ff6a}
-.compact-story{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:.48rem;max-width:none!important;margin:.25rem 0!important}
-.compact-story>small,.compact-story>h2,.compact-story>p{grid-column:1/-1}.compact-story>h2{margin:.15rem 0!important}.compact-story>button{height:100%;margin:0!important}
+.compact-story{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem;max-width:none!important;margin:.1rem 0!important;padding:.85rem!important}
+.compact-story>small,.compact-story>h2,.compact-story>p{grid-column:1/-1}.compact-story>h2{margin:.1rem 0!important;font-size:clamp(1.1rem,1.55vw,1.4rem);line-height:1.15}.compact-story>p{margin:.05rem 0 .15rem}.compact-story>button{height:100%;min-height:0!important;margin:0!important;padding:.65rem .75rem!important;font-size:.78rem}
 .ecosystem-orbit{position:absolute!important;right:5%;top:18%;width:170px;height:170px;border:1px solid #a7dbff42;border-radius:50%;box-shadow:0 0 50px #7ab6ff20;pointer-events:none}
 .ecosystem-core{position:absolute;inset:43px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f4ffc4,#b8dc54 45%,#536e25);box-shadow:0 0 25px #d9ff6a80;color:#17231a;font-size:.72rem;font-weight:900}
 .ecosystem-orbit>i{position:absolute;width:18px;height:18px;border-radius:50%;background:#81d5ff;box-shadow:0 0 14px #81d5ff}.ecosystem-orbit>i:nth-of-type(1){left:18px;top:70px}.ecosystem-orbit>i:nth-of-type(2){right:22px;top:22px;background:#d69aff}.ecosystem-orbit>i:nth-of-type(3){right:10px;bottom:20px;background:#ffbb72}

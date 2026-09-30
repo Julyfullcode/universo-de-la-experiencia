@@ -109,6 +109,7 @@ window.fetch=async(url,options={})=>{
 const fixtureJourney={nombre:'Prueba local',paso:'mision',duelos:{},planeta_principal:'empaticos',
  planeta_explorar:'conectores',rol:'generador',satelites:['personas','comunidad'],observatorio:'CES',mision:{},avance_maximo:7};
 const validSatelliteIds=new Set(['proveedores','dueno','comunidad']);
+const validServerSteps=new Set(['lanzamiento','estrellas','satelites','coordenadas','planetas','observatorio','mision']);
 const fixtureResult=(name,viaje,token)=>{
  const result={ok:true,viaje:{...viaje,satelites:[...(viaje.satelites||[])]},feedback:null};
  if(token)result.token=token;
@@ -129,6 +130,8 @@ window.supabase={createClient:()=>({rpc:async(name,args)=>{
    if(window.__fixtureSaveFailures>0){window.__fixtureSaveFailures--;
      return {data:null,error:{message:'TypeError: Failed to fetch'}};}
    const satellites=args?.p_viaje?.satelites;
+   const step=args?.p_viaje?.paso;
+   if(step!==undefined&&!validServerSteps.has(step))return {data:null,error:{message:'El paso no es válido.'}};
    if(satellites!==undefined&&(!Array.isArray(satellites)||satellites.some(id=>!validSatelliteIds.has(id))))
      return {data:null,error:{message:'El cliente intentó guardar un satélite inválido'}};
    Object.assign(fixtureJourney,args.p_viaje);
@@ -896,6 +899,21 @@ def main():
                 document.querySelectorAll('.cosmos-stage').length===1&&
                 document.querySelectorAll('.cosmos-stage canvas').length===1&&
                 !!window.__universeDebug);
+              if(innerWidth<=800){document.querySelector('.cosmos-tabs [data-view="galaxy"]')?.click();await wait(180);}
+              const guidePoint=window.__universeDebug?.project('guide'),guideStage=document.querySelector('.cosmos-stage');
+              const guideStageRect=guideStage?.getBoundingClientRect();
+              if(guidePoint&&guideStageRect){
+                guideStage.querySelector('canvas')?.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',
+                  clientX:guideStageRect.left+guidePoint.x,clientY:guideStageRect.top+guidePoint.y}));
+                await wait(240);
+              }
+              const guideNode=document.querySelector('.guide-tooltip'),guideRect=guideNode?.getBoundingClientRect();
+              const guideTooltip={visible:!!guideNode&&!guideNode.hidden&&guideRect?.width>0,
+                width:guideRect?.width||0,fullyInside:!!guideRect&&guideRect.left>=guideStageRect.left&&
+                  guideRect.top>=guideStageRect.top&&guideRect.right<=guideStageRect.right+.5&&guideRect.bottom<=guideStageRect.bottom+.5,
+                anchored:!!guideRect&&(innerWidth<=800?guideRect.top>=guideStageRect.top+guideStageRect.height*.5:
+                  guideRect.left>=guideStageRect.left+guideStageRect.width*.6)};
+              guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
               for(let n=0;n<2;n++){
                 window.__universeDebug?.select('client');document.querySelector('.cosmos-action')?.click();
                 const ready=await waitFor(()=>!!document.querySelector('.journey-view .lesson h1'));
@@ -964,6 +982,20 @@ def main():
                   (x.result?.viaje?.satelites||[]).includes('personas')),
                 saveOk:Boolean(postRegistrationSaveOk),mapReadyAfterSave:Boolean(mapReadyAfterSave),
                 satelliteWrites:satelliteWrites.length,invalidWrites};
+              const compatibilityWriteStart=window.__fixtureWrites.length;
+              const starSaved=await persist({step:'estrella'},'journey');
+              const starUiStep=trip.step;
+              const starNode=document.querySelector('.star-moment'),starRect=starNode?.getBoundingClientRect();
+              const starActions=document.querySelector('.star-moment .moment-actions')?.getBoundingClientRect();
+              const starLayout={fits:!!starNode&&starNode.scrollHeight<=starNode.clientHeight+1,
+                topVisible:!!starRect&&starRect.top>=0,bottomVisible:!!starRect&&starRect.bottom<=innerHeight+.5,
+                actionsVisible:!!starActions&&starActions.top>=starRect.top&&starActions.bottom<=starRect.bottom+.5};
+              const constellationSaved=await persist({role:'generador',step:'constelaciones'},'journey');
+              const constellationUiStep=trip.step;
+              const compatibilityWrites=window.__fixtureWrites.slice(compatibilityWriteStart)
+                .filter(x=>x.name==='universo_guardar_viaje').map(x=>x.args?.p_viaje?.paso).filter(Boolean);
+              const stepCompatibility={starSaved:Boolean(starSaved),starUiStep,
+                starLayout,constellationSaved:Boolean(constellationSaved),constellationUiStep,compatibilityWrites};
               await logoutParticipant();
               document.querySelector('input[name="access-mode"][value="recover"]').checked=true;updateAccessMode();
               document.querySelector('#access-key').value='Incorrecta 2026';
@@ -1035,7 +1067,7 @@ def main():
                   revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
               const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
-              return {results,header,evaluation,access,weakKey,registration,legacySatellite,recovery,offlineRecovery,planetAssessment,
+              return {results,guideTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1086,6 +1118,10 @@ def main():
             any(not r.get("ready") or not r.get("debug") or r.get("canvas") != 1 or
                 r.get("stage") != 1 or r.get("fallback")
                 for r in integration["results"] if r["phase"] == "map") or
+            (args.width > 800 and (not integration["guideTooltip"].get("visible") or
+             integration["guideTooltip"].get("width", 999) > 300 or
+             not integration["guideTooltip"].get("fullyInside") or
+             not integration["guideTooltip"].get("anchored"))) or
             not integration["header"].get("epmFirst") or
             (args.width > 800 and "—" not in (integration["header"].get("product") or "")) or
             not integration["header"].get("feedbackButton") or integration["header"].get("forbidden") or
@@ -1119,6 +1155,15 @@ def main():
             not integration["legacySatellite"].get("mapReadyAfterSave") or
             integration["legacySatellite"].get("satelliteWrites", 0) < 1 or
             integration["legacySatellite"].get("invalidWrites") or
+            not integration["stepCompatibility"].get("starSaved") or
+            integration["stepCompatibility"].get("starUiStep") != "estrella" or
+            not integration["stepCompatibility"].get("starLayout", {}).get("fits") or
+            not integration["stepCompatibility"].get("starLayout", {}).get("topVisible") or
+            not integration["stepCompatibility"].get("starLayout", {}).get("bottomVisible") or
+            not integration["stepCompatibility"].get("starLayout", {}).get("actionsVisible") or
+            not integration["stepCompatibility"].get("constellationSaved") or
+            integration["stepCompatibility"].get("constellationUiStep") != "constelaciones" or
+            integration["stepCompatibility"].get("compatibilityWrites") != ["estrellas", "planetas"] or
             not integration["recovery"].get("ready") or
             integration["recovery"].get("rpcMode") != "recover" or
             integration["recovery"].get("rpcKey") != "Frase segura 2026" or

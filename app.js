@@ -1,6 +1,7 @@
 const ID_KEY = "universo-experiencia.identidad.v2";
 const SESSION_KEY = "universo-experiencia.sesion.v3";
 const PENDING_KEY = "universo-experiencia.pendiente.v1";
+const UI_STEP_KEY = "universo-experiencia.paso-ui.v1";
 const steps = [["lanzamiento", "Centro de lanzamiento", "Puerta de entrada al cúmulo Grupo EPM"], ["estrella", "Estrella principal", "Clientes y usuarios orientan nuestro universo"], ["satelites", "Satélites", "Actores que se articulan para crear valor"], ["coordenadas", "Coordenadas", "El rol desde el que aportamos a la experiencia"], ["constelaciones", "Constelaciones", "Capacidades que conectan el modelo de gestión"], ["planetas", "Planetas", "Competencias visibles en nuestras decisiones"], ["observatorio", "Observatorio", "Señales para aprender y actuar"], ["mision", "Mi misión", "Convertir aprendizaje en acción"]];
 const planets = { empaticos:{name:"Planeta de los Empáticos",color:"#3fd6a8"}, conectores:{name:"Planeta de los Conectores",color:"#6fb6ff"}, impulsores:{name:"Planeta de los Impulsores",color:"#ffc15e"}, exploradores:{name:"Planeta de los Exploradores",color:"#c77bff"}, forjadores:{name:"Planeta de los Forjadores",color:"#b7e05a"} };
 const competencyProfiles = {
@@ -126,6 +127,18 @@ function queuedEntry() {
   }catch{return null;}
 }
 function queuedChanges() { return queuedEntry()?.changes||{}; }
+function backendStep(step) { return ({estrella:"estrellas",constelaciones:"planetas"})[step]||step; }
+function rememberUiStep(step) {
+  if(!sessionToken||!steps.some(([id])=>id===step))return;
+  sessionStorage.setItem(UI_STEP_KEY,JSON.stringify({token:sessionToken,step}));
+}
+function restoredUiStep(serverStep) {
+  const normalized=({estrellas:"estrella"})[serverStep]||serverStep||"lanzamiento";
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(UI_STEP_KEY)||"null");
+    return saved?.token===sessionToken&&backendStep(saved.step)===serverStep&&steps.some(([id])=>id===saved.step)?saved.step:normalized;
+  }catch{return normalized;}
+}
 function queueChanges(changes) {
   const current=queuedEntry(),merged={...(current?.changes||{}),...changes};
   if(Object.prototype.hasOwnProperty.call(merged,"satellites"))merged.satellites=normalizeSatellites(merged.satellites);
@@ -168,7 +181,7 @@ function schedulePendingSync(delay=5000) {
 window.addEventListener("online",()=>{if(sessionToken)schedulePendingSync(0);});
 function hydrate(payload) {
   const result=rpcPayload(payload)||{},row=result.viaje||result;
-  const normalizedStep=({estrellas:"estrella"})[row.paso]||row.paso||"lanzamiento";
+  const normalizedStep=restoredUiStep(row.paso);
   trip={name:row.nombre||trip.name||"",step:normalizedStep,duels:row.duelos||{},mainPlanet:row.planeta_principal||undefined,explorePlanet:row.planeta_explorar||undefined,role:row.rol||undefined,satellites:normalizeSatellites(row.satelites),observatory:row.observatorio||undefined,mission:row.mision||{}};
   competencyRoute=inferCompetencyRoute(trip.duels);const routeDuels=competencyDuels[competencyRoute]||[];const next=nextCompetencyQuestion(competencyRoute,trip.duels);duelIndex=next<0?routeDuels.length:next;
   const saved=result.feedback||null;feedback=saved?{rating:Number(saved.calificacion)||0,recommendation:saved.recomendacion||""}:{rating:0,recommendation:""};
@@ -177,7 +190,7 @@ function hydrate(payload) {
 function tripPayload(changes) {
   const payload={},has=(key)=>Object.prototype.hasOwnProperty.call(changes,key);
   if(has("name"))payload.nombre=String(changes.name||"").trim();
-  if(has("step"))payload.paso=changes.step;
+  if(has("step"))payload.paso=backendStep(changes.step);
   if(has("duels"))payload.duelos=Object.fromEntries(Object.entries(changes.duels||{}).filter(([key])=>/^\d$/.test(key)));
   if(has("mainPlanet"))payload.planeta_principal=changes.mainPlanet||null;
   if(has("explorePlanet"))payload.planeta_explorar=changes.explorePlanet||null;
@@ -207,6 +220,7 @@ async function persist(changes, nextView) {
   const next={...trip,...changes};
   if(!sessionToken){view="start";render("Crea un acceso o recupera tu sesión para guardar el viaje.");return false;}
   if(!next.name||next.name.trim().length<2){render("Escribe tu nombre completo para continuar.");return false;}
+  if(Object.prototype.hasOwnProperty.call(changes,"step"))rememberUiStep(changes.step);
   const tokenAtStart=sessionToken,epochAtStart=sessionEpoch,version=queueChanges(changes);
   trip=next;if(nextView)view=nextView;render();
   const saved=await flushPending();
@@ -268,7 +282,7 @@ async function saveFeedback(event){
   const status=document.querySelector("#feedback-status"),button=form.querySelector("button[type=submit]");button.disabled=true;status.textContent="Guardando tu evaluación…";
   try{const {data,error:err}=await rpcWithRetry("universo_guardar_feedback",{p_token:sessionToken,p_calificacion:rating,p_recomendacion:recommendation},1);if(err)throw err;const saved=rpcPayload(data)||{};feedback={rating:Number(saved.calificacion)||rating,recommendation:saved.recomendacion??recommendation};status.textContent="Gracias. Tu evaluación quedó guardada.";setTimeout(closeFeedback,900);}catch(err){status.textContent=`No pudimos guardar: ${err.message||"intenta nuevamente."}`;}finally{button.disabled=false;}
 }
-async function logoutParticipant(){const token=sessionToken;sessionEpoch++;sessionToken="";clearInterval(heartbeatTimer);clearTimeout(pendingSyncTimer);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(PENDING_KEY);trip={name:"",step:"lanzamiento",duels:{},satellites:[],mission:{}};feedback={rating:0,recommendation:""};competencyRoute="";duelIndex=0;window.LaunchStation.reset();view="start";render();try{if(token)await rpcWithRetry("universo_salir",{p_token:token},0);}catch{}}
+async function logoutParticipant(){const token=sessionToken;sessionEpoch++;sessionToken="";clearInterval(heartbeatTimer);clearTimeout(pendingSyncTimer);sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(PENDING_KEY);sessionStorage.removeItem(UI_STEP_KEY);trip={name:"",step:"lanzamiento",duels:{},satellites:[],mission:{}};feedback={rating:0,recommendation:""};competencyRoute="";duelIndex=0;window.LaunchStation.reset();view="start";render();try{if(token)await rpcWithRetry("universo_salir",{p_token:token},0);}catch{}}
 function showMap(){if(!sessionToken){view="start";return render();}view="map";render();}
 function showPassport(){if(!sessionToken)return;view="passport";render();}
 function goStep(step){localAnswer="";persist({step},"journey");}

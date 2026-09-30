@@ -674,6 +674,13 @@
         l.button.hidden=!show;if(show){
           if(l.record.id==='satellite-0')l.button.querySelector('b').textContent=focusPlanet===parentPlanet?'Proveedores y contratistas':'Satélites ↗';
           const half=l.button.offsetWidth/2+4,halfHeight=l.button.offsetHeight/2+5;
+          if(l.record===constellation){
+            const x=compact?v.x+v.w/2:v.x+v.w-half-12*displayScale;
+            const y=compact?v.y+halfHeight+10:v.y+halfHeight+12*displayScale;
+            const rect={left:x-half,right:x+half,top:y-halfHeight,bottom:y+halfHeight};
+            l.placement='fixed';l.button.style.visibility='';l.button.setAttribute('aria-hidden','false');
+            l.button.style.left=`${x}px`;l.button.style.top=`${y}px`;placed.push(rect);return;
+          }
           const anchor=satelliteGroup?parentPlanet:l.record,pixelsPerUnit=v.w/(cameras[l.view].right-cameras[l.view].left),disk=bodyDisks.find(body=>body.record===anchor),radius=disk?.radius??bodyExtent(anchor)*MAX_HOVER_SCALE*pixelsPerUnit;
           // Label positions reserve the largest hover size, so they do not
           // jump when artwork grows. The launch has its own caption strip.
