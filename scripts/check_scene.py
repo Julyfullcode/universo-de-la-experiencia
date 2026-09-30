@@ -308,7 +308,7 @@ def layout_metrics(cdp):
       try {
         const audit=debug.auditVisibility(),snapshot=debug.snapshot();
         const stage=document.querySelector('.cosmos-stage').getBoundingClientRect();
-        const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x-stage.x,y:r.y-stage.y,w:r.width,h:r.height};};
+        const rect=e=>{if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x-stage.x,y:r.y-stage.y,w:r.width,h:r.height};};
         const fonts={};
         for(const [key,selector] of Object.entries({title:'.nav-product strong',
           object:'.cosmos-object-label.planet',heading:'.cosmos-heading h2',
@@ -321,7 +321,7 @@ def layout_metrics(cdp):
             view:o.view,bounds:o.bounds,safeRect:o.safeRect,
             pixelRadius:o.pixelRadius??o.pxRadius??((o.bounds.right-o.bounds.left)/2)})),
           orbitGuideCount:(audit.orbitGuides||[]).length,
-          constellationHeading:rect(document.querySelector('.cosmos-heading.constellations')),
+          constellationHeading:rect(document.querySelector('.cosmos-object-label.guide-tooltip')),
           constellationSegments:[...document.querySelectorAll('.cosmos-constellation-lines path')]
             .reduce((sum,path)=>sum+(path.getAttribute('d')?.match(/M/g)||[]).length,0),
           referenceConstellationSegments:(document.querySelector('.cosmos-constellation-lines .reference-constellation')

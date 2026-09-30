@@ -51,7 +51,17 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 .launch-station .launch-chain-connector small{font-size:10px;font-weight:750;white-space:nowrap}
 .launch-station .launch-chain-connector b{font-size:22px;font-weight:400;color:#d4ed83}
 .launch-station .launch-chain-step.is-active{box-shadow:inset 0 0 0 2px currentColor,0 8px 24px #0003;background:#ffffff12}
-.launch-station .launch-chain+.launch-focus-card{flex:1;max-height:250px;background:#e6ddef}
+.launch-station .launch-chain+.launch-focus-card{flex:0 0 auto;max-height:none;background:#e6ddef}
+.launch-station .launch-experience-detail{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;justify-content:initial;gap:30px;min-height:150px;padding:20px 34px;background:linear-gradient(115deg,#f1eadc,#e7dff0 58%,#dce9e2)}
+.launch-station .launch-experience-copy{display:flex;flex-direction:column;justify-content:center;gap:10px;min-width:0}
+.launch-station .launch-experience-copy h3{font-size:clamp(25px,2.25vw,34px)}
+.launch-station .launch-experience-copy p{max-width:920px;font-size:17px;line-height:1.45}
+.launch-station .launch-experience-visual{position:relative;display:grid;place-items:center;width:128px;height:128px;border-radius:50%;background:radial-gradient(circle,#fff 0 8%,var(--launch-accent) 9% 20%,#34313e 21% 24%,transparent 25%);box-shadow:0 0 0 1px #51495724,0 18px 30px #322d3830;overflow:hidden}
+.launch-station .launch-experience-visual:before,.launch-station .launch-experience-visual:after{content:"";position:absolute;border:1px solid #62556f58;border-radius:50%;inset:30px 18px;transform:rotate(24deg)}
+.launch-station .launch-experience-visual:after{inset:16px 24px;transform:rotate(-30deg)}
+.launch-station .launch-experience-visual>span{position:relative;z-index:2;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#35303d;color:var(--launch-accent);font-size:24px;box-shadow:0 0 23px color-mix(in srgb,var(--launch-accent) 55%,transparent)}
+.launch-station .launch-experience-visual>i{position:absolute;z-index:3;width:10px;height:10px;border-radius:50%;background:var(--launch-accent);box-shadow:0 0 10px var(--launch-accent)}
+.launch-station .launch-experience-visual>i:nth-child(1){left:3px;top:45px}.launch-station .launch-experience-visual>i:nth-child(2){right:16px;top:7px;width:7px;height:7px}.launch-station .launch-experience-visual>i:nth-child(3){right:0;bottom:30px;width:8px;height:8px}
 .launch-station .launch-cx-definition{font-size:18px;line-height:1.45;color:#e2edc3}
 .launch-station .launch-cx-definition>strong{display:block;font-size:11px;letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
 .launch-station .launch-selector{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
@@ -164,7 +174,15 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
   .launch-station .launch-chain-connector{display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;height:14px}
   .launch-station .launch-chain-connector small{font-size:8px}
   .launch-station .launch-chain-connector b{font-size:13px;transform:rotate(90deg)}
-  .launch-station .launch-chain+.launch-focus-card{max-height:185px}
+  .launch-station .launch-chain+.launch-focus-card{max-height:none}
+  .launch-station .launch-experience-detail{grid-template-columns:78px minmax(0,1fr);gap:14px;min-height:104px;padding:13px 16px}
+  .launch-station .launch-experience-visual{width:72px;height:72px}
+  .launch-station .launch-experience-visual:before{inset:18px 8px}.launch-station .launch-experience-visual:after{inset:10px 13px}
+  .launch-station .launch-experience-visual>span{width:34px;height:34px;font-size:15px}
+  .launch-station .launch-experience-visual>i{width:6px;height:6px}
+  .launch-station .launch-experience-copy{gap:5px}
+  .launch-station .launch-experience-copy h3{font-size:18px}
+  .launch-station .launch-experience-copy p{font-size:13px;line-height:1.35}
   .launch-station .launch-cx-definition{font-size:15px}
   .launch-station .launch-selector{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
   .launch-station .launch-strategy-choice{font-size:12px;padding:10px 5px}
