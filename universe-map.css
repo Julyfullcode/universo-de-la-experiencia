@@ -12,7 +12,7 @@
 }
 .orbital-realm-view nav { flex-basis: calc(58 * var(--cosmos-unit)); min-height: calc(58 * var(--cosmos-unit)); }
 body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); padding-bottom: calc(9 * var(--cosmos-unit)); }
-.orbital-realm-view .nav-product > span { font-size: calc(13 * var(--cosmos-unit)); }
+.orbital-realm-view .nav-product > span { font-size: calc(17 * var(--cosmos-unit)); }
 .orbital-realm-view .nav-product > strong { font-size: calc(17 * var(--cosmos-unit)); }
 .orbital-realm-view .nav-actions button { font-size: calc(13 * var(--cosmos-unit)); }
 .orbital-realm-view .epm-logo { width: calc(125 * var(--cosmos-unit)); height: calc(32 * var(--cosmos-unit)); }
@@ -35,14 +35,17 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   left: auto;
   max-width: min(28vw, 25rem);
   text-align: right;
-  transform: none;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity .16s ease, transform .16s ease;
 }
+.cosmos-heading.constellations.is-visible { opacity: 1; transform: translateY(0); }
 .cosmos-heading.constellations small { color: #9ebbd2; font-size: calc(8 * var(--cosmos-unit)); opacity: .82; }
 .cosmos-galaxy-tooltip {
   position: absolute;
   z-index: 5;
-  width: min(calc(250 * var(--cosmos-unit)), 22vw);
-  padding: calc(11 * var(--cosmos-unit)) calc(13 * var(--cosmos-unit));
+  width: min(calc(310 * var(--cosmos-unit)), 27vw);
+  padding: calc(14 * var(--cosmos-unit)) calc(16 * var(--cosmos-unit));
   border: 1px solid rgba(191, 222, 255, .4);
   border-radius: calc(13 * var(--cosmos-unit));
   background: linear-gradient(135deg, rgba(8, 17, 43, .94), rgba(28, 18, 63, .9));
@@ -59,9 +62,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 }
 .cosmos-galaxy-tooltip.is-visible,
 .cosmos-galaxy-tooltip:focus-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
-.cosmos-galaxy-tooltip strong { display: block; margin-bottom: calc(4 * var(--cosmos-unit)); color: #d8ff81; font-size: calc(14 * var(--cosmos-unit)); }
-.cosmos-galaxy-tooltip span { display: block; color: #d4deef; font-size: calc(10 * var(--cosmos-unit)); }
-.cosmos-galaxy-tooltip small { display: block; margin-top: calc(7 * var(--cosmos-unit)); color: #a9c8e5; font-size: calc(9 * var(--cosmos-unit)); font-weight: 750; }
+.cosmos-galaxy-tooltip strong { display: block; margin-bottom: calc(5 * var(--cosmos-unit)); color: #d8ff81; font-size: calc(17 * var(--cosmos-unit)); }
+.cosmos-galaxy-tooltip span { display: block; color: #d4deef; font-size: calc(13 * var(--cosmos-unit)); }
+.cosmos-galaxy-tooltip small { display: block; margin-top: calc(8 * var(--cosmos-unit)); color: #a9c8e5; font-size: calc(11 * var(--cosmos-unit)); font-weight: 750; }
 .cosmos-company-dialog { width: min(1040px, calc(100vw - 34px)); max-height: min(84dvh, 760px); padding: 0; border: 1px solid #c9d8f04f; border-radius: 22px; background: #071127; color: #eef5ff; box-shadow: 0 28px 90px #000c; overflow: auto; }
 .cosmos-company-dialog::backdrop { background: rgba(0, 3, 13, .76); backdrop-filter: blur(5px); }
 .cosmos-company-shell { padding: clamp(18px, 2.4vw, 32px); background: radial-gradient(circle at 82% 0, #34225a70, transparent 33%), radial-gradient(circle at 9% 20%, #124e6f52, transparent 34%), #071127; }
@@ -105,9 +108,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-object-label.is-hovered b { text-shadow: 0 0 12px #b9e4ff99, 0 2px 5px #020612; }
 .cosmos-object-label.client { color: #f1fdff; }
 .cosmos-object-label.client b { font-size: calc(16 * var(--cosmos-unit)); }
-.cosmos-object-label.planet-tooltip { width: min(calc(230 * var(--cosmos-unit)), 19vw); padding: calc(8 * var(--cosmos-unit)) calc(10 * var(--cosmos-unit)); border: 1px solid #b9d6ef4a; border-radius: calc(10 * var(--cosmos-unit)); background: linear-gradient(135deg, #071329e8, #191436e8); box-shadow: 0 10px 28px #0008; white-space: normal; text-align: left; }
-.cosmos-object-label.planet-tooltip b { display: block; margin-bottom: calc(3 * var(--cosmos-unit)); color: #e6ffae; font-size: calc(12 * var(--cosmos-unit)); }
-.cosmos-object-label.planet-tooltip .cosmos-planet-definition { display: block; color: #d2dced; font-size: calc(9 * var(--cosmos-unit)); font-weight: 500; letter-spacing: 0; line-height: 1.35; text-transform: none; }
+.cosmos-object-label.planet-tooltip { width: min(calc(300 * var(--cosmos-unit)), 25vw); padding: calc(12 * var(--cosmos-unit)) calc(14 * var(--cosmos-unit)); border: 1px solid #b9d6ef66; border-radius: calc(12 * var(--cosmos-unit)); background: linear-gradient(135deg, #071329f2, #191436f2); box-shadow: 0 12px 34px #000a; white-space: normal; text-align: left; }
+.cosmos-object-label.planet-tooltip b { display: block; margin-bottom: calc(5 * var(--cosmos-unit)); color: #e6ffae; font-size: calc(16 * var(--cosmos-unit)); }
+.cosmos-object-label.planet-tooltip .cosmos-planet-definition { display: block; color: #d2dced; font-size: calc(12 * var(--cosmos-unit)); font-weight: 500; letter-spacing: 0; line-height: 1.42; text-transform: none; }
 .cosmos-object-label.launch { font-size: calc(16 * var(--cosmos-unit)); }
 .cosmos-object-label.launch small { color: #d2f669; margin-bottom: .3em; letter-spacing: .18em; }
 .cosmos-object-label.launch.is-start-cue { padding: calc(5 * var(--cosmos-unit)) calc(10 * var(--cosmos-unit)); border-radius: calc(10 * var(--cosmos-unit)); background: #17224299; box-shadow: 0 0 calc(24 * var(--cosmos-unit)) #d2f6695c; }
@@ -129,7 +132,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 @media (max-width: 800px) {
   .orbital-realm-view { --cosmos-unit: 1px; }
   .orbital-realm-view nav { flex-basis: 50px; padding: 8px 3vw; }
-  .orbital-realm-view .nav-product > span { font-size: .48rem; }
+  .orbital-realm-view .nav-product > span { font-size: .63rem; }
   .orbital-realm-view .nav-product > strong { font-size: .63rem; }
   .orbital-realm-view .nav-actions { gap: 4px; }
   .orbital-realm-view .nav-actions button { font-size: .73rem; }
@@ -145,11 +148,11 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
     left: auto;
     max-width: 42vw;
     text-align: right;
-    transform: none;
+    transform: translateY(-5px);
   }
-  .cosmos-galaxy-tooltip { width: min(74vw, 260px); padding: 10px 12px; border-radius: 12px; }
-  .cosmos-galaxy-tooltip strong { font-size: .8rem; }
-  .cosmos-galaxy-tooltip span { font-size: .65rem; }
+  .cosmos-galaxy-tooltip { width: min(80vw, 315px); padding: 12px 14px; border-radius: 12px; }
+  .cosmos-galaxy-tooltip strong { font-size: .94rem; }
+  .cosmos-galaxy-tooltip span { font-size: .76rem; }
   .cosmos-company-dialog { width: min(94vw, 680px); max-height: 88dvh; border-radius: 17px; }
   .cosmos-company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .cosmos-company-mark { min-height: 62px; padding: 8px; }
@@ -164,9 +167,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-actors button { border: 0; border-bottom: 1px solid #abc7ff50; padding: 6px 0; background: #050b20a0; color: #d2e0f4; font: inherit; font-size: .62rem; cursor: pointer; }
   .cosmos-actors button[aria-pressed=true] { color: #d3ff72; border-bottom-color: #d3ff72; }
   .cosmos-object-label { font-size: .61rem; }
-  .cosmos-object-label.planet-tooltip { width: min(54vw, 205px); padding: 7px 9px; }
-  .cosmos-object-label.planet-tooltip b { font-size: .66rem; }
-  .cosmos-object-label.planet-tooltip .cosmos-planet-definition { font-size: .55rem; }
+  .cosmos-object-label.planet-tooltip { width: min(68vw, 270px); padding: 10px 12px; }
+  .cosmos-object-label.planet-tooltip b { font-size: .82rem; }
+  .cosmos-object-label.planet-tooltip .cosmos-planet-definition { font-size: .68rem; }
   .cosmos-object-label.launch { font-size: .62rem; }
   .cosmos-inspector { grid-template-columns: 1fr auto; gap: 6px 12px; padding: 9px 2vw; }
   .cosmos-inspector > p { grid-row: 2; grid-column: 1 / -1; font-size: .72rem; line-height: 1.3; }
@@ -176,7 +179,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-route button { font-size: .58rem; padding: 5px 1px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cosmos-object-label b, .cosmos-galaxy-tooltip { transition: none; }
+  .cosmos-object-label b, .cosmos-galaxy-tooltip, .cosmos-heading.constellations { transition: none; }
 }
 @media (max-height: 640px) and (min-width: 801px) {
   .orbital-realm-view nav { flex-basis: 46px; padding-top: 5px; padding-bottom: 5px; }

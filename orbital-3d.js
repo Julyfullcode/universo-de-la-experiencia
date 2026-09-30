@@ -45,6 +45,7 @@
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>
       <dialog class="cosmos-company-dialog" aria-labelledby="cosmos-company-title"><div class="cosmos-company-shell"><header><div><small>Nuestra galaxia empresarial</small><h2 id="cosmos-company-title">Empresas del Grupo EPM</h2><p>Una red de empresas que conecta capacidades, territorios y servicios.</p></div><button type="button" class="cosmos-company-close" aria-label="Cerrar empresas">×</button></header><div class="cosmos-company-grid" role="list">${companyMarks.map(([brand,mark,name])=>`<div class="cosmos-company-mark brand-${brand}" role="listitem" aria-label="Logo ${name}"><span role="img" aria-hidden="true">${mark}</span></div>`).join('')}</div></div></dialog>`;
+    const constellationHeading=stage.querySelector('.cosmos-heading.constellations');
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
     const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
     inspector.innerHTML='<button class="cosmos-action"></button>';
@@ -461,6 +462,7 @@
       stage.style.cursor=record?'pointer':'';
       labels.forEach(label=>label.button.classList.toggle('is-hovered',label.record===record));
       galaxyTooltip.classList.toggle('is-visible',record===galaxyRecord);
+      constellationHeading.classList.toggle('is-visible',record===constellation);
     }
     function updateHover(dt){
       const blend=reduced.matches?1:1-Math.exp(-18*Math.max(0,dt));
@@ -585,7 +587,7 @@
       r.safeRect={left:r.x+sidePad,right:r.x+r.w-sidePad,top:r.y+topPad,bottom:r.y+r.h-bottomPad};
     }
     function fitLaunch(){
-      const r=views.launch,camera=cameras.launch,pad=6*displayScale,labelSpace=(compact?40:62)*displayScale;
+      const r=views.launch,camera=cameras.launch,pad=6*displayScale,labelSpace=(compact?40:52)*displayScale;
       // A dedicated, left-hand launch station stays readable without forcing
       // the solar-system camera to zoom out or pretending the rocket is a planet.
       const usableW=Math.max(1,r.w-2*pad),usableH=Math.max(1,r.h-pad-labelSpace),extent=bodyExtent(launchRecord)*MAX_HOVER_SCALE;
@@ -603,11 +605,11 @@
       views.galaxy=compact?{x:0,y:35,w:width,h:height*.46-35}:{x:0,y:42*displayScale,w:width*.23,h:height*.39};
       views.constellation=compact?{x:0,y:height*.65,w:width,h:height*.3}:{x:width*.695,y:3*displayScale,w:width*.295,h:height*.42};
       views.system=compact?{x:0,y:focusPlanet?78:184,w:width,h:height-(focusPlanet?78:184)}:{x:width*.11,y:2*displayScale,w:width*.89,h:height-2*displayScale};
-      views.launch=compact?{x:0,y:42,w:width*.46,h:148}:{x:0,y:height*.40,w:width*.23,h:height*.59};
+      views.launch=compact?{x:0,y:42,w:width*.46,h:148}:{x:0,y:height*.38,w:width*.28,h:height*.62};
       if(compact&&height<340&&!focusPlanet){views.launch={x:0,y:45,w:width*.29,h:height-55};views.system={x:width*.30,y:70,w:width*.70,h:height-70};}
       views.galaxy.visible=views.constellation.visible=!compact||mobileView==='galaxy';views.system.visible=!compact||mobileView==='system';
       views.launch.visible=views.system.visible&&!focusPlanet;
-      galaxyTooltip.tabIndex=views.galaxy.visible?0:-1;stage.querySelector('.cosmos-heading.constellations').hidden=!views.constellation.visible;
+      galaxyTooltip.tabIndex=views.galaxy.visible?0:-1;constellationHeading.hidden=!views.constellation.visible;
       stage.querySelector('.cosmos-actors').hidden=focusPlanet!==parentPlanet||!views.system.visible;
       tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===mobileView)));stage.querySelector('svg').setAttribute('viewBox',`0 0 ${width} ${height}`);
       const clip=stage.querySelector('clipPath rect'),cv=views.constellation;['x','y'].forEach(k=>clip.setAttribute(k,cv[k]));clip.setAttribute('width',cv.w);clip.setAttribute('height',cv.h);
@@ -666,7 +668,7 @@
           const offset=Math.max((satelliteGroup?77:l.offset)*displayScale,radius+halfHeight+7*displayScale);
           const positions={below:{x:p.x,y:p.y+offset},above:{x:p.x,y:p.y-offset},right:{x:p.x+radius+half+9*displayScale,y:p.y},left:{x:p.x-radius-half-9*displayScale,y:p.y}};
           const preferred=['client','earth'].includes(l.record.id)?['above','below','right','left']:['below','above','right','left'];
-          const options=l.view==='launch'?['launch']:l.placement?[l.placement]:preferred;
+          const options=l.view==='launch'?['launch']:l.record===hovered?preferred:l.placement?[l.placement]:preferred;
           let chosen=null,rect;
           for(const side of options){
             const point=side==='launch'?{x:p.x,y:v.labelTop+l.button.offsetHeight/2}:positions[side];
@@ -675,6 +677,10 @@
             const overlapsBody=bodyDisks.some(body=>body.view===l.view&&Math.hypot(body.x-Math.max(rect.left,Math.min(rect.right,body.x)),body.y-Math.max(rect.top,Math.min(rect.bottom,body.y)))<body.radius+2*displayScale);
             const overlapsLabel=placed.some(r=>rect.left<r.right+3&&rect.right>r.left-3&&rect.top<r.bottom+3&&rect.bottom>r.top-3);
             if(!overlapsBody&&!overlapsLabel){chosen={side,x,y};break;}
+          }
+          if(!chosen&&l.record===hovered){
+            const side=preferred[0],point=positions[side],x=Math.max(v.x+half,Math.min(v.x+v.w-half,point.x)),y=Math.max(v.y+halfHeight,Math.min(v.y+v.h-halfHeight,point.y));
+            chosen={side,x,y};rect={left:x-half,right:x+half,top:y-halfHeight,bottom:y+halfHeight};
           }
           // Keep each caption on its chosen side during an orbit. A caption
           // briefly yields to a passing body instead of jumping across the sky.

@@ -179,7 +179,8 @@ def check_content(cdp, panel, record, capture):
         for index in range(3):
             click(cdp, f'[data-action="launch-experience"][data-value="{index}"]')
             state(f"experience-{index}", photo=index == 0)
-        expected = ["La experiencia es el resultado de", "Valores", "Emociones", "Experiencias", "Clientecentrismo"]
+        expected = ["La experiencia es el resultado de", "Valores", "A través de", "Emociones", "para generar", "Experiencias"]
+        assert "Clientecentrismo:" not in "\n".join(texts), "The removed clientecentrism definition returned"
     elif panel == 1:
         for index in range(5):
             click(cdp, f'[data-action="launch-strategy"][data-value="{index}"]')
@@ -276,7 +277,7 @@ def check_scenarios(cdp, record, capture):
     record("keyboard-previous", 2)
     cdp.evaluate("document.querySelector('[data-action=launch-next]').focus({preventScroll:true})")
     press(cdp, "Enter", "Enter", 13)
-    assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Keyboard next-panel control lost focus"
+    assert cdp.evaluate("document.activeElement.classList.contains('launch-tab')&&document.activeElement.classList.contains('is-active')"), "Keyboard next-panel control lost focus"
     assert cdp.evaluate("document.querySelector(" + json.dumps(advance) + ")?.disabled===false"), "Panel navigation lost completed progress"
     record("keyboard-next", 3)
     result["keyboardNavigation"] = True
@@ -329,7 +330,7 @@ def run_checks(cdp, artifacts, screenshots):
 
         for panel in range(4):
             click(cdp, f'[data-action="launch-panel"][data-value="{panel}"]')
-            assert cdp.evaluate("document.activeElement.id==='launch-panel-title'"), "Panel change did not focus its heading"
+            assert cdp.evaluate("document.activeElement.classList.contains('launch-tab')&&document.activeElement.classList.contains('is-active')"), "Panel change did not retain visible focus on its active tab"
             record(f"panel-{panel}", panel)
             capture(f"panel-{panel + 1}")
             check_content(cdp, panel, record, capture)

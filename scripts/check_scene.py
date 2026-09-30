@@ -900,7 +900,8 @@ def main():
                 window.__universeDebug?.select('client');document.querySelector('.cosmos-action')?.click();
                 const ready=await waitFor(()=>!!document.querySelector('.journey-view .lesson h1'));
                 results.push({phase:'activity',ready,h1:document.querySelector('.lesson h1')?.innerText,
-                  canvas:document.querySelectorAll('canvas').length,debug:!!window.__universeDebug});
+                  canvas:document.querySelectorAll('canvas').length,debug:!!window.__universeDebug,
+                  nav:document.querySelectorAll('.site-nav').length});
                 showMap();const mapReady=await waitForMap();
                 results.push({phase:'map',ready:mapReady,canvas:document.querySelectorAll('.cosmos-stage canvas').length,
                   stage:document.querySelectorAll('.cosmos-stage').length,debug:!!window.__universeDebug,
@@ -1016,20 +1017,24 @@ def main():
               trip={...trip,step:'planetas',duels:{},mainPlanet:null,explorePlanet:null};competencyRoute='';view='journey';render();
               const routePrompt=document.querySelector('.planet-journey h1')?.innerText||'';
               const routeButtons=document.querySelectorAll('[data-action="select-competency-route"]').length;
+              const journeyNav=document.querySelectorAll('.journey-view .site-nav').length;
               const exerciseRoute=(route)=>{
                 competencyRoute=route;trip.duels={9:competencyRouteMarkers[route]};trip.mainPlanet=null;trip.explorePlanet=null;
-                const questions=competencyDuels[route];
+                const questions=competencyDuels[route];let revealedClassification=false;
                 for(let index=0;index<questions.length;index++){
                   render();const next=nextCompetencyQuestion(route,trip.duels);
+                  revealedClassification ||= Boolean(document.querySelector('.orbital small'));
                   if(next!==index)return {route,questions:questions.length,next,result:false};
                   trip.duels[index]=questions[index][1][0];
                 }
                 const ranking=competencyRanking(route,trip.duels);trip.mainPlanet=ranking.rank[0];trip.explorePlanet=ranking.rank[1];render();
+                const resultCard=document.querySelector('.planet-result'),resultRect=resultCard?.getBoundingClientRect();
                 return {route,questions:questions.length,next:nextCompetencyQuestion(route,trip.duels),
                   result:!!document.querySelector('.planet-result'),primary:document.querySelector('.result-card h2')?.innerText||'',
-                  disclaimer:(document.querySelector('.assessment-note')?.innerText||'').includes('No es una valoración formal')};
+                  disclaimer:(document.querySelector('.assessment-note')?.innerText||'').includes('No es una valoración formal'),
+                  revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
-              const planetAssessment={routePrompt,routeButtons,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
+              const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
               return {results,header,evaluation,access,weakKey,registration,legacySatellite,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
@@ -1076,7 +1081,7 @@ def main():
                           "assetErrors": hierarchy_after.get("assetErrors",[]) if hierarchy_after else [],
                           "shaderErrors": hierarchy_after.get("shaderErrors",[]) if hierarchy_after else []}, ensure_ascii=True))
         integration_failed = integration and (integration["errors"] or integration["network"] or
-            any(not r.get("ready") or r.get("debug") or r.get("canvas") != 0 or not r.get("h1")
+            any(not r.get("ready") or r.get("debug") or r.get("canvas") != 0 or r.get("nav") != 0 or not r.get("h1")
                 for r in integration["results"] if r["phase"] == "activity") or
             any(not r.get("ready") or not r.get("debug") or r.get("canvas") != 1 or
                 r.get("stage") != 1 or r.get("fallback")
@@ -1141,14 +1146,19 @@ def main():
             not integration["offlineRecovery"].get("pendingCleared") or
             integration["planetAssessment"].get("routePrompt") != "¿Eres directivo/a?" or
             integration["planetAssessment"].get("routeButtons") != 2 or
+            integration["planetAssessment"].get("journeyNav") != 0 or
             integration["planetAssessment"].get("directive", {}).get("questions") != 8 or
             integration["planetAssessment"].get("directive", {}).get("next") != -1 or
             not integration["planetAssessment"].get("directive", {}).get("result") or
             not integration["planetAssessment"].get("directive", {}).get("disclaimer") or
+            integration["planetAssessment"].get("directive", {}).get("revealedClassification") or
+            not integration["planetAssessment"].get("directive", {}).get("resultFits") or
             integration["planetAssessment"].get("nonDirective", {}).get("questions") != 10 or
             integration["planetAssessment"].get("nonDirective", {}).get("next") != -1 or
             not integration["planetAssessment"].get("nonDirective", {}).get("result") or
-            not integration["planetAssessment"].get("nonDirective", {}).get("disclaimer"))
+            not integration["planetAssessment"].get("nonDirective", {}).get("disclaimer") or
+            integration["planetAssessment"].get("nonDirective", {}).get("revealedClassification") or
+            not integration["planetAssessment"].get("nonDirective", {}).get("resultFits"))
         hierarchy_failed = any(not c["parentTransformValid"] or not c["orbitalMotion"] for c in hierarchy_checks)
         if after.get("errors") or exceptions or console_errors or failed_resources or not after.get("calls") or (hierarchy_after and (hierarchy_after.get("shaderErrors") or hierarchy_after.get("assetErrors"))) or integration_failed or hierarchy_failed or (pause_check and not pause_check["pass"]) or not ambient_check.get("pass") or any(not sweep["pass"] for sweep in sweeps) or any(not check["pass"] for check in proportional_checks) or any(not check["pass"] for check in copy_checks) or (hover_report and not hover_report["pass"]):
             raise SystemExit(1)

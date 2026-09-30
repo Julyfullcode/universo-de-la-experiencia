@@ -25,7 +25,6 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 .launch-station h3{font-size:24px;line-height:1.25;letter-spacing:-.02em;margin:0;color:inherit}
 .launch-station p{font-size:17px;line-height:1.5;margin:0}
 .launch-station .launch-panel-intro{font-size:15px;color:var(--launch-muted);max-width:950px}
-.launch-station .launch-source{font-size:10px;color:#a5a0b0;line-height:1.3;margin-top:auto}
 .launch-station .launch-focus-layout{display:grid;grid-template-columns:minmax(270px,.85fr) minmax(0,1.4fr);gap:24px;align-content:center;flex:1;min-height:0}
 .launch-station .launch-option-rail{display:grid;gap:9px}
 .launch-station .launch-kit-button{display:flex;align-items:center;gap:12px;text-align:left;padding:13px 17px;min-height:48px;border:1px solid var(--launch-line);border-radius:12px;background:#ffffff06;color:#e2dfe6;font-size:14px;line-height:1.3;font-weight:700}
@@ -41,20 +40,20 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 .launch-station .launch-reference-view .launch-kicker{color:#d9c7f1;font-size:10px}
 .launch-station .launch-reference-view .launch-reference-contribution{font-size:15px;color:#c9c1d3}
 .launch-station .launch-reference-view .launch-reference-toggle{color:#e6d6f5}
-.launch-station .launch-chain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.launch-station .launch-experience-definition{display:grid;grid-template-columns:minmax(150px,.42fr) minmax(0,1.58fr);align-items:center;gap:22px;padding:15px 22px;border:1px solid #d4ed835c;border-radius:16px;background:linear-gradient(115deg,#d4ed8324,#c9b5f516 58%,#efbd9412);box-shadow:inset 3px 0 #d4ed83}
-.launch-station .launch-experience-definition>.launch-kicker{color:#d7ed8c}
-.launch-station .launch-experience-definition>p:last-child{font-size:clamp(19px,1.65vw,24px);font-weight:760;line-height:1.3;letter-spacing:-.015em;color:#f4f0e6}
-.launch-station .launch-chain-step{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;padding:17px 12px;border:1px solid #d4ed8355;border-radius:13px;background:#d4ed8314;color:#d4ed83;font-size:17px;font-weight:800;line-height:1.3}
-.launch-station .launch-chain-step:nth-child(2){color:#ddc6ff;border-color:#c9b5f555;background:#c9b5f514}
-.launch-station .launch-chain-step:nth-child(3){color:#f1c6a4;border-color:#efbd9455;background:#efbd9414}
-.launch-station .launch-chain-step:not(:last-child):after{content:"→";position:absolute;right:-16px;top:50%;transform:translateY(-50%);font-size:16px;color:#c4bec9}
-.launch-station .launch-chain-step>span[aria-hidden]{display:none}
-.launch-station .launch-chain-step.is-active{box-shadow:inset 0 -3px currentColor;background:#ffffff10}
+.launch-station .launch-chain{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
+.launch-station .launch-experience-definition{display:flex;align-items:center;justify-content:center;padding:17px 24px;border:1px solid #d4ed835c;border-radius:16px;background:linear-gradient(115deg,#d4ed8324,#c9b5f516 58%,#efbd9412);box-shadow:inset 3px 0 #d4ed83,0 10px 28px #0002;text-align:center}
+.launch-station .launch-experience-definition>p{max-width:1050px;font-size:clamp(19px,1.65vw,24px);font-weight:760;line-height:1.3;letter-spacing:-.015em;color:#f4f0e6}
+.launch-station .launch-chain-step{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;justify-items:start;gap:12px;padding:12px 16px;border:1px solid #d4ed8355;border-radius:999px;background:linear-gradient(135deg,#d4ed831e,#ffffff08);color:#d4ed83;font-size:17px;font-weight:800;line-height:1.3;text-align:left}
+.launch-station .launch-chain-step:nth-of-type(2){color:#ddc6ff;border-color:#c9b5f555;background:linear-gradient(135deg,#c9b5f51e,#ffffff08)}
+.launch-station .launch-chain-step:nth-of-type(3){color:#f1c6a4;border-color:#efbd9455;background:linear-gradient(135deg,#efbd941e,#ffffff08)}
+.launch-station .launch-chain-step i{display:grid;place-items:center;width:34px;height:34px;border:1px solid currentColor;border-radius:50%;background:#ffffff0c;font-size:17px;font-style:normal;box-shadow:0 0 18px color-mix(in srgb,currentColor 28%,transparent)}
+.launch-station .launch-chain-connector{display:grid;justify-items:center;gap:0;min-width:74px;color:#c9c4cf;line-height:1}
+.launch-station .launch-chain-connector small{font-size:10px;font-weight:750;white-space:nowrap}
+.launch-station .launch-chain-connector b{font-size:22px;font-weight:400;color:#d4ed83}
+.launch-station .launch-chain-step.is-active{box-shadow:inset 0 0 0 2px currentColor,0 8px 24px #0003;background:#ffffff12}
 .launch-station .launch-chain+.launch-focus-card{flex:1;max-height:250px;background:#e6ddef}
 .launch-station .launch-cx-definition{font-size:18px;line-height:1.45;color:#e2edc3}
 .launch-station .launch-cx-definition>strong{display:block;font-size:11px;letter-spacing:.04em;margin-bottom:4px;text-transform:uppercase}
-.launch-station .launch-client-line{font-size:14px;line-height:1.45;color:#c7c4cd}
 .launch-station .launch-selector{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
 .launch-station .launch-strategy-choice{padding:13px 10px;border:1px solid var(--launch-line);border-radius:12px;background:#ffffff06;color:#e7e1eb;font-size:14px;font-weight:700;line-height:1.4}
 .launch-station .launch-strategy-choice.is-active{background:#9fdac528;border-color:#9fdac5;color:#c9f2e5}
@@ -149,7 +148,6 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
   .launch-station h3{font-size:21px}
   .launch-station p{font-size:15px;line-height:1.45}
   .launch-station .launch-panel-intro{font-size:13px;line-height:1.4}
-  .launch-station .launch-source{font-size:9px}
   .launch-station .launch-focus-layout{grid-template-columns:1fr;gap:12px;align-content:center}
   .launch-station .launch-option-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .launch-station .launch-kit-button{font-size:12px;gap:7px;min-height:44px;padding:9px 10px}
@@ -158,14 +156,16 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
   .launch-station .launch-focus-card h3{font-size:24px}
   .launch-station .launch-reference-view{padding:18px;gap:16px}
   .launch-station .launch-reference-view p{font-size:15px;line-height:1.5}
-  .launch-station .launch-chain{gap:14px}
-  .launch-station .launch-experience-definition{grid-template-columns:1fr;gap:4px;padding:11px 14px}
-  .launch-station .launch-experience-definition>p:last-child{font-size:16px;line-height:1.3}
-  .launch-station .launch-chain-step{font-size:12px;padding:15px 5px;gap:4px}
-  .launch-station .launch-chain-step:not(:last-child):after{right:-13px;font-size:13px}
+  .launch-station .launch-chain{grid-template-columns:1fr;gap:5px}
+  .launch-station .launch-experience-definition{padding:11px 14px}
+  .launch-station .launch-experience-definition>p{font-size:16px;line-height:1.3}
+  .launch-station .launch-chain-step{width:100%;font-size:12px;padding:7px 11px;gap:8px}
+  .launch-station .launch-chain-step i{width:24px;height:24px;font-size:12px}
+  .launch-station .launch-chain-connector{display:flex;justify-content:center;align-items:center;gap:6px;min-width:0;height:14px}
+  .launch-station .launch-chain-connector small{font-size:8px}
+  .launch-station .launch-chain-connector b{font-size:13px;transform:rotate(90deg)}
   .launch-station .launch-chain+.launch-focus-card{max-height:185px}
   .launch-station .launch-cx-definition{font-size:15px}
-  .launch-station .launch-client-line{font-size:13px}
   .launch-station .launch-selector{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
   .launch-station .launch-strategy-choice{font-size:12px;padding:10px 5px}
   .launch-station .launch-strategy-detail{max-height:none}
