@@ -912,7 +912,27 @@ def main():
                 width:guideRect?.width||0,fullyInside:!!guideRect&&guideRect.left>=guideStageRect.left&&
                   guideRect.top>=guideStageRect.top&&guideRect.right<=guideStageRect.right+.5&&guideRect.bottom<=guideStageRect.bottom+.5,
                 anchored:!!guideRect&&(innerWidth<=800?guideRect.top>=guideStageRect.top+guideStageRect.height*.5:
-                  guideRect.left>=guideStageRect.left+guideStageRect.width*.6)};
+                  guideRect.left>=guideStageRect.left+guideStageRect.width*.6),
+                noEyebrow:!guideNode?.querySelector('small')};
+              guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
+              window.__universeDebug?.select('client');await wait(180);
+              const satelliteProbes=[];
+              for(const id of ['satellite-0','satellite-1','satellite-2']){
+                const point=window.__universeDebug?.project(id);if(!point||!guideStageRect)continue;
+                satelliteProbes.push({id,point,hit:window.__universeDebug?.hitAt(point.x,point.y)});
+                guideStage.querySelector('canvas')?.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',
+                  clientX:guideStageRect.left+point.x,clientY:guideStageRect.top+point.y}));
+                window.__universeDebug?.hoverAt(point.x,point.y);
+                await wait(40);
+                if(document.querySelector('.satellite-tooltip:not([hidden])'))break;
+              }
+              const satelliteNode=document.querySelector('.satellite-tooltip:not([hidden])');
+              const satelliteTooltip={visible:!!satelliteNode,
+                title:satelliteNode?.querySelector('b')?.innerText||'',
+                definition:satelliteNode?.querySelector('.cosmos-tooltip-definition')?.innerText||'',
+                probes:satelliteProbes,
+                noStaticLabel:![...document.querySelectorAll('.cosmos-object-label:not([hidden]) b')]
+                  .some(node=>node.innerText.includes('Satélites ↗'))};
               guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
               for(let n=0;n<2;n++){
                 window.__universeDebug?.select('client');document.querySelector('.cosmos-action')?.click();
@@ -986,10 +1006,15 @@ def main():
               const starSaved=await persist({step:'estrella'},'journey');
               const starUiStep=trip.step;
               const starNode=document.querySelector('.star-moment'),starRect=starNode?.getBoundingClientRect();
+              const starOverflow=starNode?getComputedStyle(starNode).overflowY:'';
+              const starContained=!!starNode&&(starNode.scrollHeight<=starNode.clientHeight+1||['auto','scroll'].includes(starOverflow));
+              if(starNode)starNode.scrollTop=starNode.scrollHeight;await wait(80);
               const starActions=document.querySelector('.star-moment .moment-actions')?.getBoundingClientRect();
-              const starLayout={fits:!!starNode&&starNode.scrollHeight<=starNode.clientHeight+1,
+              const starLayout={fits:starContained,
                 topVisible:!!starRect&&starRect.top>=0,bottomVisible:!!starRect&&starRect.bottom<=innerHeight+.5,
-                actionsVisible:!!starActions&&starActions.top>=starRect.top&&starActions.bottom<=starRect.bottom+.5};
+                actionsVisible:!!starActions&&starActions.top>=starRect.top&&starActions.bottom<=starRect.bottom+.5,
+                title:document.querySelector('.star-moment h1')?.innerText||'',
+                expectationCount:document.querySelectorAll('.star-moment .stellar-expectations>span').length};
               const constellationSaved=await persist({role:'generador',step:'constelaciones'},'journey');
               const constellationUiStep=trip.step;
               const compatibilityWrites=window.__fixtureWrites.slice(compatibilityWriteStart)
@@ -1067,7 +1092,7 @@ def main():
                   revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
               const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
-              return {results,guideTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
+              return {results,guideTooltip,satelliteTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1121,7 +1146,12 @@ def main():
             (args.width > 800 and (not integration["guideTooltip"].get("visible") or
              integration["guideTooltip"].get("width", 999) > 300 or
              not integration["guideTooltip"].get("fullyInside") or
-             not integration["guideTooltip"].get("anchored"))) or
+             not integration["guideTooltip"].get("anchored") or
+             not integration["guideTooltip"].get("noEyebrow"))) or
+            (args.width > 800 and (not integration["satelliteTooltip"].get("visible") or
+             integration["satelliteTooltip"].get("title") != "Satélite" or
+             "Proveedores y Contratistas" not in integration["satelliteTooltip"].get("definition", "") or
+             not integration["satelliteTooltip"].get("noStaticLabel"))) or
             not integration["header"].get("epmFirst") or
             (args.width > 800 and "—" not in (integration["header"].get("product") or "")) or
             not integration["header"].get("feedbackButton") or integration["header"].get("forbidden") or
@@ -1161,6 +1191,8 @@ def main():
             not integration["stepCompatibility"].get("starLayout", {}).get("topVisible") or
             not integration["stepCompatibility"].get("starLayout", {}).get("bottomVisible") or
             not integration["stepCompatibility"].get("starLayout", {}).get("actionsVisible") or
+            integration["stepCompatibility"].get("starLayout", {}).get("title") != "¿Por qué gestionar la experiencia?" or
+            integration["stepCompatibility"].get("starLayout", {}).get("expectationCount") != 9 or
             not integration["stepCompatibility"].get("constellationSaved") or
             integration["stepCompatibility"].get("constellationUiStep") != "constelaciones" or
             integration["stepCompatibility"].get("compatibilityWrites") != ["estrellas", "planetas"] or

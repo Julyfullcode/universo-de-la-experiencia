@@ -432,7 +432,7 @@
     ['Proveedores y contratistas','Dueño','Comunidad'].forEach((name,i)=>{
       const o=orbit(parentPlanet.object,3.65+i*.88,48+i*23,.8+i*2.1,[-.18,.16,.27][i],0xbeadf4,[.13,.17,.12][i],true,{pitch:[.16,-.12,.09][i],yaw:[.4,1.45,2.3][i]});
       const s=satellite();s.scale.setScalar(1.30);o.anchor.add(s);o.body=s;spinning.push({object:s,speed:.025});
-      records.push({id:`satellite-${i}`,step:'satelites',title:name,eyebrow:'Satélite · Actor del ecosistema',description:'Orbita alrededor de un planeta empleado, no de la estrella. Proveedores y contratistas, Dueño y Comunidad acompañan y hacen posible la experiencia.',object:o.anchor,visual:s,kind:'satellite'});
+      records.push({id:`satellite-${i}`,step:'satelites',title:'Satélite',eyebrow:'Satélite · Actor del ecosistema',description:'Son otros actores del ecosistema Proveedores y Contratistas, Dueño, Comunidad. Orbitan alrededor de los planetas.',object:o.anchor,visual:s,kind:'satellite'});
     });
     // Instruments and the mission are activity waypoints, not employee planets.
     const observatory=telescope();observatory.scale.setScalar(7.20);
@@ -529,10 +529,9 @@
     records.filter(r=>r.kind==='waypoint'&&r.id!=='observatory').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
     {const observatoryRecord=records.find(r=>r.id==='observatory');addLabel(observatoryRecord,`<b>${observatoryRecord.title}</b><span class="cosmos-tooltip-definition">${observatoryRecord.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','waypoint-tooltip');}
     labels.find(l=>l.record===launchRecord).button.classList.add('launch');
-    addLabel(records.find(r=>r.id==='satellite-0'),'<b>Satélites ↗</b>','system',48);
-    [1,2].forEach(i=>{const r=records.find(r=>r.id===`satellite-${i}`);addLabel(r,`<b>${r.title}</b>`,'system',25);labels[labels.length-1].focusOnly=true;});
+    [0,1,2].forEach(i=>{const r=records.find(r=>r.id===`satellite-${i}`);addLabel(r,`<b>Satélite</b><span class="cosmos-tooltip-definition">${r.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','satellite-tooltip');});
     constellation.object=guideStars[5];
-    addLabel(constellation,`<small>${constellation.eyebrow}</small><b>${constellation.title}</b><span class="cosmos-tooltip-definition">${constellation.description}</span>`,'constellation',22);
+    addLabel(constellation,`<b>${constellation.title}</b><span class="cosmos-tooltip-definition">${constellation.description}</span>`,'constellation',22);
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','guide-tooltip');}
     route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>{hoverGroup=null;select(record,false,b.dataset.step);};b.onpointerenter=b.onfocus=()=>{hoverGroup=b.dataset.step==='planetas'?'planets':null;setHover(hoverGroup?null:record);};b.onpointerleave=b.onblur=()=>{hoverGroup=null;setHover(null);};});
     tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{mobileView=b.dataset.view;resize();});
@@ -667,12 +666,13 @@
       });
       const placed=[];const priority=l=>l.record===hovered?-1:l.record===selected?0:l.record.kind==='client'?1:l.record.kind==='planet'?2:3;
       [...labels].sort((a,b)=>priority(a)-priority(b)).forEach(l=>{
-        const satelliteGroup=l.record.id==='satellite-0'&&!focusPlanet;
-        const v=views[l.view],projected=project(satelliteGroup?parentPlanet.object:l.record.object,l.view),p=l.record===constellation?{x:v.x+v.w*.58,y:v.y+v.h*.55,z:projected.z}:projected,inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
-        const hoverReveal=!l.hoverOnly||hovered===l.record||(!l.strictHoverOnly&&selected===l.record);
-        const show=v.visible&&inFocus&&hoverReveal&&!(compact&&focusPlanet&&l.view==='system')&&(!l.focusOnly||focusPlanet===parentPlanet)&&p.z>=-1&&p.z<=1;
+        const v=views[l.view],projected=project(l.record.object,l.view),p=l.record===constellation?{x:v.x+v.w*.58,y:v.y+v.h*.55,z:projected.z}:projected,inFocus=!focusPlanet||l.view!=='system'||l.record===focusPlanet||(focusPlanet===parentPlanet&&l.record.kind==='satellite');
+        const hoverReveal=!l.hoverOnly||hovered===l.record||(!l.strictHoverOnly&&selected===l.record),activeHoverTooltip=l.hoverOnly&&hovered===l.record;
+        // Una ficha activada directamente por el cursor siempre tiene prioridad
+        // sobre las reglas de enfoque y las capas que se solapan en el mapa.
+        const show=v.visible&&hoverReveal&&p.z>=-1&&p.z<=1&&(activeHoverTooltip||
+          (inFocus&&!(compact&&focusPlanet&&l.view==='system')&&(!l.focusOnly||focusPlanet===parentPlanet)));
         l.button.hidden=!show;if(show){
-          if(l.record.id==='satellite-0')l.button.querySelector('b').textContent=focusPlanet===parentPlanet?'Proveedores y contratistas':'Satélites ↗';
           const half=l.button.offsetWidth/2+4,halfHeight=l.button.offsetHeight/2+5;
           if(l.record===constellation){
             const x=compact?v.x+v.w/2:v.x+v.w-half-12*displayScale;
@@ -681,10 +681,10 @@
             l.placement='fixed';l.button.style.visibility='';l.button.setAttribute('aria-hidden','false');
             l.button.style.left=`${x}px`;l.button.style.top=`${y}px`;placed.push(rect);return;
           }
-          const anchor=satelliteGroup?parentPlanet:l.record,pixelsPerUnit=v.w/(cameras[l.view].right-cameras[l.view].left),disk=bodyDisks.find(body=>body.record===anchor),radius=disk?.radius??bodyExtent(anchor)*MAX_HOVER_SCALE*pixelsPerUnit;
+          const anchor=l.record,pixelsPerUnit=v.w/(cameras[l.view].right-cameras[l.view].left),disk=bodyDisks.find(body=>body.record===anchor),radius=disk?.radius??bodyExtent(anchor)*MAX_HOVER_SCALE*pixelsPerUnit;
           // Label positions reserve the largest hover size, so they do not
           // jump when artwork grows. The launch has its own caption strip.
-          const offset=Math.max((satelliteGroup?77:l.offset)*displayScale,radius+halfHeight+7*displayScale);
+          const offset=Math.max(l.offset*displayScale,radius+halfHeight+7*displayScale);
           const positions={below:{x:p.x,y:p.y+offset},above:{x:p.x,y:p.y-offset},right:{x:p.x+radius+half+9*displayScale,y:p.y},left:{x:p.x-radius-half-9*displayScale,y:p.y}};
           const preferred=['client','earth'].includes(l.record.id)?['above','below','right','left']:['below','above','right','left'];
           const options=l.view==='launch'?['launch']:l.record===hovered?preferred:l.placement?[l.placement]:preferred;
@@ -719,6 +719,14 @@
     }
     const raycaster=new T.Raycaster(),pointer=new T.Vector2();
     function hitTest(x,y,exact=false){
+      // Los satélites comparten espacio visual con la constelación. Se comprueban
+      // primero para que el cursor siempre pueda activar su ficha informativa.
+      if(views.system.visible){
+        const nearbySatellite=systemRecords().filter(record=>record.kind==='satellite').map(record=>{
+          const point=project(record.object,'system');return{record,distance:Math.hypot(point.x-x,point.y-y)};
+        }).sort((a,b)=>a.distance-b.distance)[0];
+        if(nearbySatellite&&nearbySatellite.distance<=18*displayScale)return nearbySatellite.record;
+      }
       let view=['launch','constellation','galaxy','system'].find(k=>{const r=views[k];return r.visible&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;});if(!view)return null;
       let v=views[view];
       if(view==='constellation'){
@@ -781,6 +789,7 @@
       advance:seconds=>{elapsed+=seconds;draw();return debug.snapshot();},setTime:(seconds,render=true)=>{elapsed=Math.max(0,Number(seconds)||0);if(render)draw();else updatePositions();},auditVisibility,
       setPaused:value=>{paused=!!value;return debug.snapshot();},
       select:id=>{const r=records.find(r=>r.id===id);if(r){select(r,r.kind==='satellite');draw();}},project:id=>{const r=records.find(r=>r.id===id);return r?.object?project(r.object,r.view||'system'):r===constellation?project(guideStars[5],'constellation'):r===galaxyRecord?project(galaxyRoot,'galaxy'):null;},
+      hoverAt:(x,y)=>{mousePoint={x,y};setHover(hitTest(x,y));draw();return hovered?.id||null;},
       hitAt:(x,y,exact=false)=>hitTest(x,y,exact)?.id||null};
     const cleanup=()=>{disposed=true;cancelAnimationFrame(animation);observer.disconnect();reduced.removeEventListener('change',motionChange);document.removeEventListener('visibilitychange',visibilityChange);renderer.domElement.removeEventListener('click',pick);renderer.domElement.removeEventListener('webglcontextlost',contextLost);
       stage.removeEventListener('pointermove',pointerMove);stage.removeEventListener('pointerleave',pointerLeave);

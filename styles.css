@@ -222,8 +222,8 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 .planet-question .orbital{min-height:190px;display:grid;place-items:center;text-align:center;justify-content:stretch}
 .planet-question .orbital strong{max-width:44ch;margin:0 auto;font-size:clamp(1.02rem,1.45vw,1.3rem)}
 .planet-result{justify-content:flex-start!important;padding-top:clamp(.65rem,1.6vh,1.15rem)!important;overflow:hidden}
-.planet-result-header{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(360px,1.2fr);align-items:end;gap:1.3rem}
-.planet-result-header h1{margin:.28rem 0 0;font-size:clamp(2rem,3.6vw,3.45rem);line-height:1;letter-spacing:-.045em}
+.planet-result-header{display:grid;grid-template-columns:minmax(390px,.95fr) minmax(390px,1.05fr);align-items:end;gap:1.3rem}
+.journey-view .planet-result .planet-result-header h1{max-width:none;margin:.28rem 0 0;font-size:clamp(2rem,3vw,2.65rem);line-height:1;letter-spacing:-.04em;white-space:nowrap}
 .planet-result-header .assessment-note{max-width:none;margin:0}
 .planet-result-layout{display:grid;grid-template-columns:minmax(200px,.34fr) minmax(0,1.66fr);align-items:stretch;gap:1rem;margin:1rem 0}
 .planet-result .result-card{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr);align-items:stretch;gap:1rem;max-width:none;margin:0;border-color:color-mix(in srgb,var(--color) 45%,#ffffff22);background:linear-gradient(135deg,color-mix(in srgb,var(--color) 10%,#09142b),#151436d9)}
@@ -250,3 +250,36 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 .planet-result-actions{display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;margin-top:1rem}
 @media(prefers-reduced-motion:reduce){.result-orbiter{animation-play-state:paused}}
 @media(max-width:720px){.planet-journey .route-choice,.planet-development,.planet-result .result-card,.planet-result-header,.planet-result-layout{grid-template-columns:1fr}.planet-result{overflow:auto}.planet-result-header{gap:.6rem}.planet-result-header .assessment-note{font-size:.72rem}.result-orbit-scene{min-height:170px}.planet-question-head{align-items:center}.planet-question-head>strong{width:58px;height:58px}.planet-question .scenario{padding:.8rem 1rem;font-size:.88rem}.planet-question .orbital{min-height:130px}.planet-question .orbital strong{font-size:.78rem}.planet-result .result-card>.result-identity,.planet-result .result-card>.result-evidence{padding:.55rem}.planet-result .result-card>.result-evidence{border-left:0;border-top:1px solid #ffffff20}.planet-result-actions>*{width:100%}}
+
+/* Contenido editorial de Estrella principal y Actores. */
+.journey-view .star-moment,.journey-view .satellite-moment{max-width:1500px;justify-content:flex-start;overflow-y:auto;padding-top:clamp(.85rem,2vh,1.35rem);padding-bottom:1.1rem}
+.star-heading{text-align:center}
+.star-heading .tag{margin:0}
+.star-heading h1{max-width:none!important;margin:.2rem auto .45rem!important;text-align:center;font-size:clamp(2rem,3.5vw,3.4rem)!important}
+.star-definition{max-width:1180px;margin:0 auto;color:#dce7f3;font-size:clamp(.85rem,1.15vw,1.05rem);line-height:1.45;text-align:center}
+.experience-journey{display:grid;grid-template-columns:repeat(9,auto);align-items:center;justify-content:center;gap:clamp(.35rem,1vw,.85rem);margin:.2rem auto;width:100%}
+.experience-journey>span{display:grid;justify-items:center;gap:.35rem;min-width:112px;color:#dcebf7;text-align:center}
+.experience-journey>span b{display:grid;place-items:center;width:58px;height:58px;border:3px solid currentColor;border-radius:50%;background:#071831;color:#d9ff6a;font-size:1.3rem;box-shadow:0 0 22px #80d8ff20}
+.experience-journey>span:nth-of-type(1){color:#58b9f4}.experience-journey>span:nth-of-type(2){color:#6fc3d2}.experience-journey>span:nth-of-type(3){color:#79c59b}.experience-journey>span:nth-of-type(4){color:#91ca62}.experience-journey>span:nth-of-type(5){color:#b3dd4f}
+.experience-journey>span strong{color:inherit;font-size:.78rem}.experience-journey>i{color:#d9ff6a;font-size:1.4rem;font-style:normal}
+.emotion-definition{max-width:1100px;margin:.1rem auto;padding:.55rem .8rem;border-left:3px solid #d9ff6a;background:#d9ff6a0d;color:#dce7f3;font-size:.78rem;line-height:1.42;text-align:center}
+.expectations-section h2{margin:.15rem 0 .1rem;text-align:center;font-size:clamp(1.15rem,1.9vw,1.7rem)}
+.expectations-section>p{margin:.1rem 0 .35rem;color:#c8d4e3;font-size:.76rem;text-align:center}
+.star-moment .stellar-expectations{grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem;margin:0}
+.star-moment .stellar-expectations span{display:grid;grid-template-columns:auto 1fr;align-items:center;justify-content:start;gap:.55rem;min-height:52px;padding:.5rem .7rem;text-align:left;font-size:.68rem}
+.star-moment .stellar-expectations i{font-size:1rem}
+.satellite-heading{text-align:center}.satellite-heading .tag{margin:0}.satellite-heading h1{max-width:none!important;margin:.2rem 0!important;text-align:center;font-size:clamp(1.8rem,3vw,2.9rem)!important}
+.actor-ecosystem{display:grid;grid-template-columns:minmax(360px,.85fr) minmax(0,1.4fr);align-items:center;gap:1.2rem;padding:.65rem;border:1px solid #9ad6ff29;border-radius:1.3rem;background:linear-gradient(135deg,#0b2347cc,#161335b8)}
+.actor-wheel{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;align-items:stretch}
+.actor-wheel>strong{grid-row:1/4;display:grid;place-content:center;width:150px;min-height:150px;margin:auto;border:2px solid #6ec0e0;border-radius:50%;background:radial-gradient(circle,#153d63,#07162d);color:#8ad7c7;text-align:center;font-size:1.25rem;box-shadow:0 0 30px #6ed6cb25}
+.actor-wheel>strong small{display:block;max-width:105px;margin:.4rem auto 0;color:#c9e1e7;font-size:.55rem;line-height:1.25}
+.actor-wheel>span{display:grid;place-items:center;min-height:42px;padding:.45rem .6rem;border:1px solid #79c9f045;border-radius:.8rem;background:#72baf019;color:#deebf5;font-size:.68rem;font-weight:800;text-align:center}
+.employee-role-copy{display:grid;gap:.45rem}.employee-role-copy h2,.employee-role-copy h3{margin:0}.employee-role-copy h2{font-size:1.45rem}.employee-role-copy h3{color:#8ee6d0;font-size:1.05rem;text-align:center}.employee-role-copy blockquote{margin:0;padding:.55rem .8rem;border-left:3px solid #d9ff6a;color:#d8e2ed;font-size:.82rem;line-height:1.5;text-align:center}
+.employee-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}.employee-roles span{padding:.65rem;border-radius:999px;background:linear-gradient(90deg,#a5d77b,#78b9e8);color:#073257;font-weight:900;text-align:center}
+.satellite-moment .scenario{max-width:none;margin:.05rem 0;padding:.55rem .75rem;font-size:.78rem}.satellite-moment .satellites{margin:.05rem 0;gap:.5rem}.satellite-moment .satellites button{min-height:78px;padding:.65rem}.satellite-moment .satellites i{font-size:1.35rem}.satellite-moment .satellites small{font-size:.66rem}
+.planet-result{overflow-y:auto!important;padding-bottom:1rem!important}.planet-result-header{padding-right:0!important}.planet-result-actions{flex:none;margin-top:.6rem!important;padding-bottom:.2rem}
+.mission-moment,.observatory-moment{justify-content:flex-start!important;overflow-y:auto!important;padding-top:clamp(.8rem,2vh,1.25rem)!important;padding-bottom:1rem!important}
+.journey-view .observatory-moment{flex:0 0 auto!important;max-height:calc(100svh - 4px)}
+.mission-moment h1{margin:.25rem 0!important;font-size:clamp(1.8rem,3.4vw,3rem)!important}.mission-moment .mission-grid{max-width:none;width:100%}.mission-moment .moment-actions,.observatory-moment .moment-actions{flex:none;padding-bottom:.15rem}
+@media(max-width:900px){.experience-journey{grid-template-columns:repeat(5,1fr);gap:.35rem}.experience-journey>i{display:none}.experience-journey>span{min-width:0}.actor-ecosystem{grid-template-columns:1fr}.actor-wheel>strong{width:125px;min-height:125px}.satellite-moment .satellites{grid-template-columns:1fr}.journey-view .planet-result .planet-result-header h1{white-space:normal}}
+@media(max-width:600px){.experience-journey>span b{width:43px;height:43px;border-width:2px;font-size:1rem}.experience-journey>span strong{font-size:.51rem}.star-moment .stellar-expectations span{font-size:.56rem}.actor-wheel{grid-template-columns:1fr 1fr}.actor-wheel>strong{grid-column:1/-1;grid-row:auto;width:108px;min-height:108px}.employee-roles{grid-template-columns:1fr}.employee-role-copy blockquote{font-size:.7rem}.planet-result-actions>*{width:100%}}

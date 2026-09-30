@@ -179,8 +179,7 @@ def check_content(cdp, panel, record, capture):
         for index in range(3):
             click(cdp, f'[data-action="launch-experience"][data-value="{index}"]')
             state(f"experience-{index}", photo=index == 0)
-        expected = ["La experiencia es el resultado de", "Valores", "A través de", "Emociones", "para generar", "Experiencias"]
-        assert "Clientecentrismo:" not in "\n".join(texts), "The removed clientecentrism definition returned"
+        expected = ["La experiencia es el resultado de", "Poner el cliente y usuario en el centro", "Valores", "A través de", "Emociones", "para generar", "Experiencias"]
     elif panel == 1:
         for index in range(5):
             click(cdp, f'[data-action="launch-strategy"][data-value="{index}"]')
@@ -340,8 +339,42 @@ def run_checks(cdp, artifacts, screenshots):
         assert cdp.evaluate("window.__fixtureWrites.filter(item=>item.name==='universo_guardar_viaje').length") == initial_writes, "Learning controls unexpectedly wrote participant data"
 
     click(cdp, '[data-action="go-step"][data-step="estrella"]')
-    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='Clientes y usuarios orientan el universo.'")
+    wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='¿Por qué gestionar la experiencia?'")
     result["advancedToMainStar"] = True
+    result["journeyLayouts"] = []
+
+    def journey_state(name, setup):
+        cdp.evaluate(setup)
+        wait_for(cdp, "Boolean(document.querySelector('.journey-view .lesson'))")
+        cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
+        if screenshots:
+            screenshot(cdp, artifacts, f"1440x900-journey-{name}-top", True)
+        layout = cdp.evaluate("""(()=>{
+          const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions');
+          const before={clientHeight:lesson?.clientHeight||0,scrollHeight:lesson?.scrollHeight||0,
+            horizontal:(lesson?.scrollWidth||0)>(lesson?.clientWidth||0)+1};
+          if(lesson)lesson.scrollTop=lesson.scrollHeight;
+          const box=lesson?.getBoundingClientRect(),buttons=[...(actions?.querySelectorAll('button')||[])];
+          return {...before,buttons:buttons.length,actionsReachable:!!box&&buttons.length>0&&buttons.every(button=>{
+            const rect=button.getBoundingClientRect();return rect.top>=box.top-.5&&rect.bottom<=box.bottom+.5;
+          })};
+        })()""")
+        if screenshots:
+            screenshot(cdp, artifacts, f"1440x900-journey-{name}-bottom", True)
+        result["journeyLayouts"].append({"name": name, **layout})
+        assert not layout["horizontal"], f"{name} has horizontal overflow"
+        assert layout["buttons"] >= 2 and layout["actionsReachable"], f"{name} actions are not reachable"
+
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
+             "deviceScaleFactor": 1, "mobile": False})
+    journey_state("star", "trip.step='estrella';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.stellar-expectations>span').length") == 9
+    journey_state("satellites", "trip.step='satelites';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.actor-wheel>span').length") == 5
+    journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.planet-result-actions>button').length") == 3
+    journey_state("observatory", "trip.step='observatorio';localAnswer='ces';view='journey';render()")
+    journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")
