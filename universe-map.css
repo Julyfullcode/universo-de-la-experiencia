@@ -62,9 +62,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-company-shell header p { margin: 0; color: #b9c7dd; font-size: .88rem; }
 .cosmos-company-close { flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #a9bddc55; border-radius: 50%; background: #ffffff0b; color: #f2f6ff; font: 300 1.8rem/1 sans-serif; cursor: pointer; }
 .cosmos-company-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.cosmos-company-mark { display: grid; place-items: center; min-height: 82px; padding: 10px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
-.cosmos-company-logo { position: relative; display: block; width: 100%; height: 60px; overflow: hidden; }
-.cosmos-company-logo img { position: absolute; inset: 3px; display: block; width: calc(100% - 6px); height: calc(100% - 6px); min-width: 0; max-width: none; max-height: none; object-fit: contain; object-position: center; }
+.cosmos-company-mark { display: grid; place-items: center; min-height: 94px; padding: 10px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
+.cosmos-company-logo { position: relative; display: block; width: 100%; height: 72px; overflow: visible; }
+.cosmos-company-logo img { position: absolute; inset: 10px 14px; display: block; width: calc(100% - 28px); height: calc(100% - 20px); min-width: 0; max-width: none; max-height: none; object-fit: contain; object-position: center; }
 .cosmos-tools { position: absolute; top: 8px; left: 50%; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); }
 .cosmos-pause { display: none !important; }
 .cosmos-tools:empty { display: none; }
@@ -126,8 +126,9 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-galaxy-tooltip span { font-size: .76rem; }
   .cosmos-company-dialog { width: min(94vw, 680px); max-height: 88dvh; border-radius: 17px; }
   .cosmos-company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-  .cosmos-company-mark { min-height: 62px; padding: 8px; }
-  .cosmos-company-logo { height: 46px; }
+  .cosmos-company-mark { min-height: 72px; padding: 7px; }
+  .cosmos-company-logo { height: 56px; }
+  .cosmos-company-logo img { inset: 7px 10px; width: calc(100% - 20px); height: calc(100% - 14px); }
   .cosmos-company-shell>header { gap: 12px; margin-bottom: 14px; }
   .cosmos-heading h2 { font-size: .9rem; }
   .cosmos-heading p { font-size: .65rem; }
@@ -170,13 +171,13 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-route button { font-size: .5rem; white-space: normal; }
 }
 
-/* Navegación inferior: ocho momentos y una única acción de disponibilidad. */
+/* Navegación inferior: cada momento disponible abre directamente su actividad. */
 .cosmos-navigation{
   position:relative;
   z-index:7;
   flex:0 0 auto;
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,1fr);
   align-items:center;
   gap:clamp(10px,1.4vw,24px);
   min-height:clamp(66px,8.6vh,88px);
@@ -210,7 +211,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   line-height:1.08;
   text-align:center;
   white-space:normal;
-  transition:border-color .2s ease,background .2s ease,color .2s ease;
+  transition:border-color .2s ease,background .2s ease,color .2s ease,box-shadow .2s ease,transform .2s ease;
 }
 .cosmos-navigation .cosmos-route button span{
   flex:none;
@@ -219,11 +220,29 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   font-size:.78em;
   font-weight:900;
 }
+.cosmos-navigation .cosmos-route button.is-available{
+  border-color:rgba(112,211,255,.52);
+  background:linear-gradient(145deg,rgba(30,91,145,.72),rgba(73,43,126,.7));
+  color:#f2f8ff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 18px rgba(88,185,255,.12);
+}
+.cosmos-navigation .cosmos-route button.is-available:not(:disabled):hover{
+  border-color:#bfeaff;
+  background:linear-gradient(145deg,rgba(42,122,184,.9),rgba(101,57,166,.86));
+  box-shadow:0 0 24px rgba(94,205,255,.3);
+  transform:translateY(-2px);
+}
 .cosmos-navigation .cosmos-route button[aria-pressed=true]{
-  border-color:rgba(210,246,105,.55);
-  background:linear-gradient(145deg,rgba(195,224,90,.16),rgba(88,50,161,.18));
-  color:#e6ff9c;
-  box-shadow:0 0 20px rgba(195,224,90,.08);
+  border-color:#d2f669;
+  background:linear-gradient(145deg,#dfff76,#9edb3f);
+  color:#07142d;
+  box-shadow:0 0 28px rgba(195,224,90,.48),inset 0 1px 0 rgba(255,255,255,.7);
+}
+.cosmos-navigation .cosmos-route button[aria-pressed=true] span{color:#33431c}
+.cosmos-navigation .cosmos-route button:disabled{
+  opacity:.38;
+  cursor:not-allowed;
+  filter:saturate(.45);
 }
 .cosmos-navigation .cosmos-inspector.cosmos-availability{
   display:flex;

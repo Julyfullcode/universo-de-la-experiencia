@@ -402,11 +402,15 @@ def visual_copy_checks(cdp):
       const momentButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-route > button')]:[];
       const availabilityButtons=navigation?[...navigation.querySelectorAll(':scope > .cosmos-availability > button.cosmos-action')]:[];
       const allButtons=navigation?[...navigation.querySelectorAll('button')]:[];
+      const availableButtons=momentButtons.filter(button=>!button.disabled&&button.classList.contains('is-available'));
+      const lockedButtons=momentButtons.filter(button=>button.disabled&&button.classList.contains('is-locked'));
       const copyOnly=navigation?.cloneNode(true);copyOnly?.querySelectorAll('button').forEach(button=>button.remove());
       const descriptiveText=(copyOnly?.textContent||'').replace(/\\s+/g,' ').trim();
       const bottomStrip={momentButtons:momentButtons.length,availabilityButtons:availabilityButtons.length,
-        allButtons:allButtons.length,descriptiveText,
-        pass:momentButtons.length===8&&availabilityButtons.length===1&&allButtons.length===9&&!descriptiveText};
+        allButtons:allButtons.length,availableButtons:availableButtons.length,lockedButtons:lockedButtons.length,descriptiveText,
+        noOpenActivity:!document.body.innerText.includes('Abrir actividad'),
+        pass:momentButtons.length===8&&availabilityButtons.length===0&&allButtons.length===8&&availableButtons.length>=1&&
+          availableButtons.length+lockedButtons.length===8&&!descriptiveText&&!document.body.innerText.includes('Abrir actividad')};
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
       let launchLabel=null;
@@ -905,6 +909,7 @@ def main():
               if(guidePoint&&guideStageRect){
                 guideStage.querySelector('canvas')?.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',
                   clientX:guideStageRect.left+guidePoint.x,clientY:guideStageRect.top+guidePoint.y}));
+                window.__universeDebug?.hoverAt(guidePoint.x,guidePoint.y);
                 await wait(240);
               }
               const guideNode=document.querySelector('.guide-tooltip'),guideRect=guideNode?.getBoundingClientRect();
@@ -918,9 +923,10 @@ def main():
               await waitFor(()=>[...document.querySelectorAll('.cosmos-company-logo img')].every(img=>img.complete&&img.naturalWidth>0));
               const companyLogos=[...document.querySelectorAll('.cosmos-company-logo img')].map(img=>{
                 const image=img.getBoundingClientRect(),frame=img.parentElement.getBoundingClientRect();
-                return{name:img.alt,fit:getComputedStyle(img).objectFit,loaded:img.naturalWidth>0,
+                const safeInset=Math.min(image.left-frame.left,image.top-frame.top,frame.right-image.right,frame.bottom-image.bottom);
+                return{name:img.alt,fit:getComputedStyle(img).objectFit,loaded:img.naturalWidth>0,safeInset,
                   image:[image.left,image.top,image.right,image.bottom],frame:[frame.left,frame.top,frame.right,frame.bottom],
-                  contained:image.left>=frame.left-.5&&image.top>=frame.top-.5&&image.right<=frame.right+.5&&image.bottom<=frame.bottom+.5};
+                  contained:image.left>=frame.left+6&&image.top>=frame.top+6&&image.right<=frame.right-6&&image.bottom<=frame.bottom-6};
               });
               const companyGallery={count:companyLogos.length,allLoaded:companyLogos.every(item=>item.loaded),
                 allContained:companyLogos.every(item=>item.contained&&item.fit==='contain'),
@@ -945,9 +951,10 @@ def main():
                 probes:satelliteProbes,
                 noStaticLabel:![...document.querySelectorAll('.cosmos-object-label:not([hidden]) b')]
                   .some(node=>node.innerText.includes('Satélites ↗'))};
+              const noEarthLabel=!document.querySelector('.cosmos-object-label[data-cosmos-id="earth"]');
               guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
               for(let n=0;n<2;n++){
-                window.__universeDebug?.select('client');document.querySelector('.cosmos-action')?.click();
+                window.__universeDebug?.select('client');document.querySelector('.cosmos-route [data-step="estrella"]')?.click();
                 const ready=await waitFor(()=>!!document.querySelector('.journey-view .lesson h1'));
                 results.push({phase:'activity',ready,h1:document.querySelector('.lesson h1')?.innerText,
                   canvas:document.querySelectorAll('canvas').length,debug:!!window.__universeDebug,
@@ -1051,7 +1058,7 @@ def main():
               const failureWriteStart=window.__fixtureWrites.length;
               window.__fixtureSaveFailures=3;
               window.__universeDebug?.select('launch');
-              const launchAction=document.querySelector('.cosmos-action');
+              const launchAction=document.querySelector('.cosmos-route [data-step="lanzamiento"]');
               const clickedAt=performance.now();
               launchAction?.click();
               await wait(50);
@@ -1104,7 +1111,7 @@ def main():
                   revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
               const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
-              return {results,guideTooltip,companyGallery,satelliteTooltip,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
+              return {results,guideTooltip,companyGallery,satelliteTooltip,noEarthLabel,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1163,6 +1170,7 @@ def main():
             integration["companyGallery"].get("count") != 17 or
             not integration["companyGallery"].get("allLoaded") or
             not integration["companyGallery"].get("allContained") or
+            not integration.get("noEarthLabel") or
             (args.width > 800 and (not integration["satelliteTooltip"].get("visible") or
              integration["satelliteTooltip"].get("title") != "Satélite" or
              "Proveedores y Contratistas" not in integration["satelliteTooltip"].get("definition", "") or

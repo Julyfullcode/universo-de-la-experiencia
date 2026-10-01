@@ -348,14 +348,14 @@ def run_checks(cdp, artifacts, screenshots):
     result["advancedToMainStar"] = True
     result["journeyLayouts"] = []
 
-    def journey_state(name, setup):
+    def journey_state(name, setup, min_buttons=2):
         cdp.evaluate(setup)
         wait_for(cdp, "Boolean(document.querySelector('.journey-view .lesson'))")
         cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
         if screenshots:
             screenshot(cdp, artifacts, f"1440x900-journey-{name}-top", True)
         layout = cdp.evaluate("""(()=>{
-          const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions');
+          const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions,.planet-question-actions');
           const before={clientHeight:lesson?.clientHeight||0,scrollHeight:lesson?.scrollHeight||0,
             horizontal:(lesson?.scrollWidth||0)>(lesson?.clientWidth||0)+1};
           if(lesson)lesson.scrollTop=lesson.scrollHeight;
@@ -369,7 +369,7 @@ def run_checks(cdp, artifacts, screenshots):
         result["journeyLayouts"].append({"name": name, **layout})
         assert not layout["horizontal"], f"{name} has horizontal overflow"
         assert layout["titleSize"] >= 38, f"{name} title is still too small: {layout['titleSize']}px"
-        assert layout["buttons"] >= 2 and layout["actionsReachable"], f"{name} actions are not reachable"
+        assert layout["buttons"] >= min_buttons and layout["actionsReachable"], f"{name} actions are not reachable"
         return layout
 
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
@@ -378,6 +378,10 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelectorAll('.stellar-expectations>span').length") == 9
     journey_state("satellites", "trip.step='satelites';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.actor-wheel>span').length") == 5
+    journey_state("planet-question", "competencyRoute='directivo';trip.step='planetas';trip.duels={_route:'directivo'};view='journey';render()", 1)
+    assert cdp.evaluate("document.querySelectorAll('.planet-question>.planet-question-exit').length") == 0
+    assert cdp.evaluate("document.querySelectorAll('.planet-question-actions .planet-question-exit').length") == 1
+    assert cdp.evaluate("(()=>{const cards=document.querySelector('.duel-cards')?.getBoundingClientRect(),actions=document.querySelector('.planet-question-actions')?.getBoundingClientRect();return !!cards&&!!actions&&actions.top>=cards.bottom-.5})()"), "Planet return control is not below the decision cards"
     planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.planet-result-actions>button').length") == 3
     assert planet_layout["clientHeight"] < 820, "Planet result still wastes most of the viewport below its content"

@@ -44,7 +44,7 @@
   function build(realm,progress){
     const T=window.THREE,renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
     // A rollback exists even if initialization stops before the full lifecycle.
-    active=()=>{realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-navigation,.cosmos-inspector,.cosmos-route').forEach(e=>e.remove());};
+    active=()=>{realm.__planetMaterialSession?.dispose();delete realm.__planetMaterialSession;renderer.dispose();renderer.forceContextLoss();realm.querySelectorAll('.cosmos-tabs,.cosmos-stage,.cosmos-navigation,.cosmos-route').forEach(e=>e.remove());};
     renderer.setClearColor(0x000000,0);renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.outputColorSpace=T.SRGBColorSpace;renderer.autoClear=false;
     const fallback=realm.querySelector('.cosmos-fallback');
     const tabs=document.createElement('div');tabs.className='cosmos-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Escala del universo');
@@ -54,13 +54,11 @@
       <div class="cosmos-tools"><button class="cosmos-reset" hidden>Ver sistema ↗</button></div>
       <div class="cosmos-actors" role="group" aria-label="Seleccionar un actor del ecosistema" hidden><button data-actor="0">Proveedores y contratistas</button><button data-actor="1">Dueño</button><button data-actor="2">Comunidad</button></div>
       <svg class="cosmos-constellation-lines" aria-hidden="true"><defs><clipPath id="constellation-viewport"><rect/></clipPath><linearGradient id="constellation-light"><stop stop-color="#8ca3b8" stop-opacity=".48"/><stop offset=".52" stop-color="#f5f9ff" stop-opacity=".92"/><stop offset="1" stop-color="#91a9bd" stop-opacity=".42"/></linearGradient></defs><g clip-path="url(#constellation-viewport)"><path class="reference-constellation" fill="none" stroke="url(#constellation-light)"/></g></svg><div class="cosmos-labels"></div>
-      <dialog class="cosmos-company-dialog" aria-labelledby="cosmos-company-title"><div class="cosmos-company-shell"><header><div><small>Nuestra galaxia empresarial</small><h2 id="cosmos-company-title">Empresas del Grupo EPM</h2><p>Una red de empresas que conecta capacidades, territorios y servicios.</p></div><button type="button" class="cosmos-company-close" aria-label="Cerrar empresas">×</button></header><div class="cosmos-company-grid" role="list">${companyMarks.map(({brand,name,src,crop=''})=>`<div class="cosmos-company-mark brand-${brand}" role="listitem"><span class="cosmos-company-logo ${crop}"><img src="${src}" alt="Logo ${name}" loading="lazy" decoding="async" draggable="false"></span></div>`).join('')}</div></div></dialog>`;
+      <dialog class="cosmos-company-dialog" aria-labelledby="cosmos-company-title"><div class="cosmos-company-shell"><header><div><small>Nuestra galaxia empresarial</small><h2 id="cosmos-company-title">Empresas del Grupo EPM</h2><p>Una red de empresas que conecta capacidades, territorios y servicios.</p></div><button type="button" class="cosmos-company-close" aria-label="Cerrar empresas">×</button></header><div class="cosmos-company-grid" role="list">${companyMarks.map(({brand,name,src,crop=''})=>`<div class="cosmos-company-mark brand-${brand}" role="listitem"><span class="cosmos-company-logo ${crop}"><img src="${src}" alt="Logo ${name}" loading="eager" decoding="async" draggable="false"></span></div>`).join('')}</div></div></dialog>`;
     stage.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Universo tridimensional. También puedes seleccionar los elementos con los botones del recorrido.');
-    const inspector=document.createElement('section');inspector.className='cosmos-inspector cosmos-availability';inspector.setAttribute('aria-label','Disponibilidad de la actividad seleccionada');
-    inspector.innerHTML='<button class="cosmos-action"></button>';
     const route=document.createElement('div');route.className='cosmos-route';route.setAttribute('role','group');route.setAttribute('aria-label','Explorar el recorrido');
-    route.innerHTML=chapters.map(([id,name],i)=>`<button data-step="${id}" aria-pressed="false"><span>0${i+1}</span>${name}</button>`).join('');
-    const navigation=document.createElement('div');navigation.className='cosmos-navigation';navigation.setAttribute('aria-label','Navegación por los ocho momentos');navigation.append(route,inspector);
+    route.innerHTML=chapters.map(([id,name],i)=>`<button data-step="${id}" class="${i<=progress?'is-available':'is-locked'}" aria-pressed="false" ${i>progress?'disabled':''}><span>0${i+1}</span>${name}</button>`).join('');
+    const navigation=document.createElement('div');navigation.className='cosmos-navigation';navigation.setAttribute('aria-label','Navegación por los ocho momentos');navigation.append(route);
     realm.append(tabs,stage,navigation);if(fallback)fallback.hidden=true;
     const galaxyTooltip=stage.querySelector('.cosmos-galaxy-tooltip');
     const companyDialog=stage.querySelector('.cosmos-company-dialog');
@@ -500,10 +498,7 @@
       else if(compact&&record.kind==='planet')focusPlanet=record;
       else if(record.kind!=='satellite')focusPlanet=null;
       if(compact)mobileView=['guide','galaxy'].includes(record.kind)?'galaxy':'system';resize();
-      const activeStep=stepOverride||record.step,index=chapters.findIndex(c=>c[0]===activeStep),allowed=index<=progress;
-      const action=inspector.querySelector('button');action.disabled=!allowed;action.textContent=allowed?'Abrir actividad →':`Disponible en el momento ${index+1}`;
-      action.setAttribute('aria-label',allowed?`Abrir ${record.title}`:`${record.title}. Disponible en el momento ${index+1}`);
-      action.onclick=()=>{if(allowed&&typeof window.goStep==='function')window.goStep(activeStep);};
+      const activeStep=stepOverride||record.step;
       route.querySelectorAll('button').forEach(b=>{const isActive=b.dataset.step===activeStep;b.setAttribute('aria-pressed',String(isActive));b.classList.toggle('is-start-cue',progress===0&&record===launchRecord&&b.dataset.step==='lanzamiento');});
       labels.forEach(l=>{l.button.setAttribute('aria-pressed',String(l.record===record));l.button.classList.toggle('is-start-cue',progress===0&&record===launchRecord&&l.record===launchRecord);});
       stage.querySelector('.cosmos-reset').hidden=!focusPlanet;
@@ -526,14 +521,14 @@
     addLabel(clientRecord,`<small>La estrella central</small><b>Cliente</b><span class="cosmos-tooltip-definition">Es el centro del sistema: sus necesidades, expectativas y emociones dan sentido a todo el universo de la experiencia.</span>`,'system',38);
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','client-tooltip');}
     talentRecords.filter(r=>r.id!=='forjadores').forEach(r=>{addLabel(r,`<b>${r.name}</b><span class="cosmos-tooltip-definition">${r.definition}</span>`,'system',23);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','planet-tooltip');});
-    records.filter(r=>r.kind==='waypoint'&&r.id!=='observatory').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
+    records.filter(r=>r.kind==='waypoint'&&r.id!=='observatory'&&r.id!=='earth').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
     {const observatoryRecord=records.find(r=>r.id==='observatory');addLabel(observatoryRecord,`<b>${observatoryRecord.title}</b><span class="cosmos-tooltip-definition">${observatoryRecord.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','waypoint-tooltip');}
     labels.find(l=>l.record===launchRecord).button.classList.add('launch');
     [0,1,2].forEach(i=>{const r=records.find(r=>r.id===`satellite-${i}`);addLabel(r,`<b>Satélite</b><span class="cosmos-tooltip-definition">${r.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','satellite-tooltip');});
     constellation.object=guideStars[5];
     addLabel(constellation,`<b>${constellation.title}</b><span class="cosmos-tooltip-definition">${constellation.description}</span>`,'constellation',22);
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','guide-tooltip');}
-    route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>{hoverGroup=null;select(record,false,b.dataset.step);};b.onpointerenter=b.onfocus=()=>{hoverGroup=b.dataset.step==='planetas'?'planets':null;setHover(hoverGroup?null:record);};b.onpointerleave=b.onblur=()=>{hoverGroup=null;setHover(null);};});
+    route.querySelectorAll('button').forEach(b=>{const record=recordForStep(b.dataset.step);b.onclick=()=>{if(!b.disabled&&typeof window.goStep==='function')window.goStep(b.dataset.step);};b.onpointerenter=b.onfocus=()=>{hoverGroup=b.dataset.step==='planetas'?'planets':null;setHover(hoverGroup?null:record);};b.onpointerleave=b.onblur=()=>{hoverGroup=null;setHover(null);};});
     tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{mobileView=b.dataset.view;resize();});
     stage.querySelectorAll('[data-actor]').forEach(b=>b.onclick=()=>select(records.find(r=>r.id===`satellite-${b.dataset.actor}`),true));
     stage.querySelector('.cosmos-reset').onclick=()=>select(clientRecord);
