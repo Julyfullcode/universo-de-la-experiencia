@@ -341,21 +341,21 @@ def run_checks(cdp, artifacts, screenshots):
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
              "deviceScaleFactor": 1, "mobile": False})
     launch_title_size = cdp.evaluate("parseFloat(getComputedStyle(document.querySelector('.launch-heading h1')).fontSize)")
-    assert launch_title_size >= 36, f"Launch station title is still too small: {launch_title_size}px"
+    assert 18 <= launch_title_size <= 22, f"Launch station title is not compact: {launch_title_size}px"
     result["launchTitleSize"] = launch_title_size
     click(cdp, '[data-action="go-step"][data-step="estrella"]')
     wait_for(cdp, "document.querySelector('.lesson h1')?.innerText==='¿Por qué gestionar la experiencia?'")
     result["advancedToMainStar"] = True
     result["journeyLayouts"] = []
 
-    def journey_state(name, setup, min_buttons=2):
+    def journey_state(name, setup, min_buttons=2, compact_title=True):
         cdp.evaluate(setup)
         wait_for(cdp, "Boolean(document.querySelector('.journey-view .lesson'))")
         cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
         if screenshots:
             screenshot(cdp, artifacts, f"1440x900-journey-{name}-top", True)
         layout = cdp.evaluate("""(()=>{
-          const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions,.planet-question-actions');
+          const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions,.planet-question-actions')||lesson;
           const before={clientHeight:lesson?.clientHeight||0,scrollHeight:lesson?.scrollHeight||0,
             horizontal:(lesson?.scrollWidth||0)>(lesson?.clientWidth||0)+1};
           if(lesson)lesson.scrollTop=lesson.scrollHeight;
@@ -368,7 +368,12 @@ def run_checks(cdp, artifacts, screenshots):
             screenshot(cdp, artifacts, f"1440x900-journey-{name}-bottom", True)
         result["journeyLayouts"].append({"name": name, **layout})
         assert not layout["horizontal"], f"{name} has horizontal overflow"
-        assert layout["titleSize"] >= 38, f"{name} title is still too small: {layout['titleSize']}px"
+        if compact_title:
+            assert abs(layout["titleSize"] - launch_title_size) <= .5, (
+                f"{name} title is not visually consistent: {layout['titleSize']}px vs {launch_title_size}px"
+            )
+        else:
+            assert layout["titleSize"] >= 38, f"{name} preserved title became too small: {layout['titleSize']}px"
         assert layout["buttons"] >= min_buttons and layout["actionsReachable"], f"{name} actions are not reachable"
         return layout
 
@@ -378,13 +383,15 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelectorAll('.stellar-expectations>span').length") == 9
     journey_state("satellites", "trip.step='satelites';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.actor-wheel>span').length") == 5
+    journey_state("coordinates", "trip.step='coordenadas';view='journey';render()", 4)
     journey_state("planet-question", "competencyRoute='directivo';trip.step='planetas';trip.duels={_route:'directivo'};view='journey';render()", 1)
     assert cdp.evaluate("document.querySelectorAll('.planet-question>.planet-question-exit').length") == 0
     assert cdp.evaluate("document.querySelectorAll('.planet-question-actions .planet-question-exit').length") == 1
     assert cdp.evaluate("(()=>{const cards=document.querySelector('.duel-cards')?.getBoundingClientRect(),actions=document.querySelector('.planet-question-actions')?.getBoundingClientRect();return !!cards&&!!actions&&actions.top>=cards.bottom-.5})()"), "Planet return control is not below the decision cards"
-    planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
+    planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()", compact_title=False)
     assert cdp.evaluate("document.querySelectorAll('.planet-result-actions>button').length") == 3
     assert planet_layout["clientHeight"] < 820, "Planet result still wastes most of the viewport below its content"
+    journey_state("constellations", "trip.step='constelaciones';view='journey';render()")
     journey_state("observatory", "trip.step='observatorio';localAnswer='ces';view='journey';render()")
     journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")

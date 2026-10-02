@@ -303,3 +303,100 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
   .launch-station .launch-constellation{width:100px;height:32px;max-height:32px}
   .launch-station .launch-signal-case{gap:5px;padding:6px 20px}
 }
+
+/* El centro de lanzamiento comparte el mismo lenguaje visual de las estaciones. */
+.journey-view .lesson.launch-station{
+  --launch-paper:#0a2345;
+  --launch-ink:#eef5fb;
+  --launch-muted:#b8c7d8;
+  --launch-line:#85d3ef3b;
+  --launch-accent:#d9ff6a;
+  gap:10px;
+}
+body .universo .lesson.launch-station:before{
+  border-color:#85d3ef3b;
+  background:linear-gradient(132deg,#041835d1,#0c0c2bb8);
+  box-shadow:0 20px 64px #0004,inset 0 1px #ffffff0a;
+}
+.launch-station .launch-heading{margin:0 0 clamp(.8rem,1.8vh,1.2rem)}
+.launch-station .journey-title-line{
+  gap:clamp(.65rem,1.2vw,1rem);
+  min-height:52px;
+  padding:.65rem clamp(.75rem,1.4vw,1.1rem);
+  border-color:#85d3ef3b;
+  border-radius:16px;
+  background:linear-gradient(100deg,#1f557447,#472f7738 62%,#aed35517);
+  box-shadow:inset 0 1px #ffffff0f,0 12px 30px #0003;
+}
+.journey-view .launch-station .journey-title-line>.tag,
+.journey-view .launch-station .journey-title-line>h1{
+  margin:0!important;
+  font-size:1.25rem!important;
+  line-height:1.35!important;
+  letter-spacing:0!important;
+  text-align:left!important;
+}
+.journey-view .launch-station .journey-title-line>.tag{
+  flex:0 0 auto;
+  max-width:none;
+  color:#d9ff6a;
+  letter-spacing:.025em!important;
+  white-space:nowrap;
+}
+.journey-view .launch-station .journey-title-line>h1{
+  min-width:0;
+  max-width:none;
+  padding-left:clamp(.65rem,1.2vw,1rem);
+  border-left:1px solid #daebf833;
+  color:#edf5fb;
+}
+.launch-station .launch-scroll{margin-top:clamp(.8rem,1.7vh,1.15rem)}
+.launch-station .launch-panel{gap:12px}
+.launch-station .launch-tab,
+.launch-station :is(.launch-kit-button,.launch-strategy-choice,.launch-group-tabs>button,.launch-code-button,.launch-code-pagination>button){
+  border-color:#85d3ef3b;
+  background:linear-gradient(145deg,#0b2848bd,#161538b8);
+  color:#e7eff7;
+  box-shadow:inset 0 1px #ffffff0d;
+}
+.launch-station .launch-tab.is-active,
+.launch-station :is(.launch-strategy-choice,.launch-group-tabs>button,.launch-code-button).is-active{
+  border-color:#d9ff6a;
+  background:#d9ff6a;
+  color:#10243a;
+}
+.launch-station :is(.launch-focus-card,.launch-code-detail,.launch-signal-case,.launch-reference-view){
+  border:1px solid #85d3ef3b;
+  border-radius:16px;
+  background:linear-gradient(145deg,#082344f0,#171536e8);
+  color:#edf5fb;
+  box-shadow:inset 0 1px #ffffff0f,0 12px 30px #0003;
+}
+.launch-station :is(.launch-focus-card,.launch-code-detail,.launch-signal-case,.launch-reference-view) :is(h3,p){color:#edf5fb}
+.launch-station :is(.launch-focus-card,.launch-code-detail,.launch-signal-case,.launch-reference-view) .launch-kicker{color:#d9ff6a}
+.launch-station :is(.launch-reference-toggle,.launch-consult){color:#bcd8ea;border-bottom-color:#85d3ef66}
+.launch-station .launch-code-view{border-color:#85d3ef4a;color:#c7d9e7}
+.launch-station .launch-code-view.is-active{border-color:#d9ff6a;background:#d9ff6a;color:#10243a}
+.launch-station .launch-code-answer{border-color:#85d3ef3b;background:#0a2445;color:#edf5fb}
+.launch-station .launch-code-answer:hover:not(:disabled),.launch-station .launch-code-answer:focus-visible{border-color:#d9ff6a;background:#153653}
+.launch-station .launch-feedback{color:#c6d5e2}
+.launch-station .launch-result h3{color:#dff0b1}
+.launch-station .launch-caption,.launch-station .launch-strategy-detail>.launch-caption{color:#afc2d0}
+.launch-station .launch-experience-definition+.launch-chain{margin-top:clamp(.85rem,1.8vh,1.15rem)}
+.launch-station .launch-experience-definition>.launch-clientecentrism{
+  border-color:#c9e77242;
+  background:linear-gradient(115deg,#d4ed8315,#7654a315);
+  color:#edf5df;
+  box-shadow:inset 3px 0 #d9ff6a,0 9px 24px #0002;
+}
+.launch-station .launch-footer{border-top-color:#85d3ef2e}
+@media(max-width:720px){
+  .launch-station .launch-heading{margin-bottom:.75rem}
+  .launch-station .journey-title-line{align-items:center;gap:.45rem;min-height:46px;padding:.5rem .6rem}
+  .journey-view .launch-station .journey-title-line>.tag,
+  .journey-view .launch-station .journey-title-line>h1{font-size:.9rem!important;line-height:1.3!important}
+  .journey-view .launch-station .journey-title-line>.tag{flex:0 1 auto;max-width:42%;white-space:normal}
+  .journey-view .launch-station .journey-title-line>h1{padding-left:.5rem}
+  .launch-station .launch-scroll{margin-top:.8rem}
+  .launch-station .launch-experience-definition+.launch-chain{margin-top:.8rem}
+}
