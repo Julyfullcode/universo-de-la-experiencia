@@ -318,3 +318,6 @@ noscript { display: block; padding: 1rem; color: var(--danger); background: var(
   .kpi-card { border-color: rgba(151, 220, 255, .22); background: linear-gradient(145deg, rgba(12, 32, 68, .92), rgba(5, 14, 37, .84)); }
   .kpi-icon { background: rgba(95, 232, 255, .1); }
 }
+
+/* Respeta la capitalización editorial; el panel no fuerza mayúsculas sostenidas. */
+.admin-shell *{text-transform:none!important}

@@ -5,7 +5,7 @@
   'use strict';
   let active;
   const TAU=Math.PI*2;
-  const chapters=[['lanzamiento','Centro de lanzamiento'],['estrella','Estrella principal'],['satelites','Satélites'],['coordenadas','Coordenadas'],['constelaciones','Constelaciones'],['planetas','Planetas'],['observatorio','Observatorio'],['mision','Mi misión']];
+  const chapters=[['lanzamiento','Centro de lanzamiento'],['estrella','Estrella principal'],['satelites','Satélites'],['coordenadas','Coordenadas'],['planetas','Planetas'],['constelaciones','Constelaciones'],['observatorio','Observatorio'],['mision','Mi misión']];
   const companyMarks=[
     {brand:'epm',name:'EPM',src:'assets/company-logos/epm.svg'},
     {brand:'oriente',name:'Aguas del Oriente',src:'assets/company-logos/aguas-del-oriente.png'},

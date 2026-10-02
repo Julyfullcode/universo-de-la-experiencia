@@ -269,27 +269,37 @@ body .universo .lesson.launch-station:before{background:linear-gradient(115deg,#
 @media(max-width:720px){.launch-station .launch-scroll{overflow:auto}.launch-station .launch-experience-definition{gap:6px;margin-top:2px;padding:2px 5px 4px}.launch-station .launch-experience-definition>p:first-child{font-size:13px;line-height:1.22}.launch-station .launch-experience-definition>.launch-clientecentrism{padding-top:5px;font-size:10px;line-height:1.28}.launch-station .launch-chain{position:relative;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.launch-station .launch-chain-connector{position:absolute;display:flex;width:1px;height:1px;min-width:0;overflow:hidden;opacity:0;pointer-events:none}.launch-station .launch-chain-step{grid-template-columns:1fr;justify-items:center;gap:3px;min-height:54px;padding:5px 3px;text-align:center}.launch-station .launch-chain-step i{width:22px;height:22px;font-size:10px}.launch-station .launch-chain-step>span{font-size:10px}.launch-station .launch-code-layout{max-height:none}}
 
 /* Jerarquía y respiración compartidas con los demás momentos. */
-.launch-station .launch-heading{justify-content:flex-start;align-items:center;gap:clamp(.8rem,1.8vw,1.5rem);margin:0 0 clamp(.9rem,1.8vh,1.25rem);padding-inline:4px;text-align:left}
+.launch-station .launch-heading{display:block;justify-content:initial;align-items:initial;gap:0;margin:0 0 clamp(1.5rem,3.4vh,2.35rem);padding:0;text-align:left}
 .launch-station .launch-heading>.launch-kicker,
 .journey-view .launch-station .launch-heading>h1{font-size:clamp(2.375rem,2.8vw,2.5rem)!important;line-height:1.3!important;margin:0!important;text-align:left!important}
 .launch-station .launch-heading>.launch-kicker{flex:0 0 auto;max-width:none;padding:0;border:0;color:#d9ff6a;font-weight:900;letter-spacing:.055em;white-space:nowrap}
 .journey-view .launch-station .launch-heading>h1{min-width:0;max-width:none;padding:0 0 0 clamp(.8rem,1.5vw,1.35rem);border-left:1px solid #ffffff2e;letter-spacing:-.025em}
-.launch-station .launch-scroll{margin-top:clamp(1rem,2.4vh,1.75rem)}
+.launch-station .launch-scroll{margin-top:clamp(1.5rem,3.2vh,2.25rem)}
+.launch-station .launch-experience-definition+.launch-chain{margin-top:clamp(1.1rem,2.6vh,1.75rem)}
+.launch-station .launch-experience-definition>.launch-clientecentrism{max-width:1240px;padding:clamp(.9rem,1.5vw,1.2rem) clamp(1rem,2vw,1.5rem);border:1px solid #d4ed8355;border-radius:14px;background:linear-gradient(115deg,#d4ed8318,#c9b5f512);color:#f0f7d8;font-size:clamp(1.05rem,1.35vw,1.3rem);font-weight:760;line-height:1.48;box-shadow:inset 3px 0 #d4ed83,0 9px 24px #0002}
 .launch-station .launch-footer-actions{max-width:100%;flex-wrap:wrap;justify-content:flex-end}
 .launch-station .launch-universe{padding:10px 18px;border:1px solid #d9d1e340;border-radius:30px;background:#ffffff08;color:#efe8f6;font-size:12px;font-weight:800;line-height:1.3}
 @media(max-width:720px){
-  .launch-station .launch-heading{gap:.55rem;margin-bottom:.85rem;padding-inline:0;align-items:flex-start}
+  .launch-station .launch-heading{display:block;gap:0;margin-bottom:1.25rem;padding:0;align-items:initial}
   .launch-station .launch-heading>.launch-kicker,.journey-view .launch-station .launch-heading>h1{font-size:1.125rem!important;line-height:1.35!important}
   .launch-station .launch-heading>.launch-kicker{flex:0 1 auto;max-width:46%;letter-spacing:.035em;white-space:normal}
   .journey-view .launch-station .launch-heading>h1{padding-left:.6rem}
-  .launch-station .launch-scroll{margin-top:1rem}
+  .launch-station .launch-scroll{margin-top:1.25rem}
+  .launch-station .launch-experience-definition+.launch-chain{margin-top:1rem}
+  .launch-station .launch-experience-definition>.launch-clientecentrism{padding:.55rem .7rem;font-size:.82rem;line-height:1.32}
+  .launch-station .launch-chain+.launch-focus-card.launch-experience-detail{display:block;min-height:0;padding:9px 12px}
+  .launch-station .launch-experience-detail .launch-experience-visual{display:none}
+  .launch-station .launch-experience-copy{gap:3px}
+  .launch-station .launch-experience-copy h3{font-size:15px}
+  .launch-station .launch-experience-copy p{font-size:11px;line-height:1.3}
   .launch-station .launch-universe{padding:9px 12px;font-size:11px}
   .launch-station .launch-strategy-detail[data-view="3"]{grid-template-columns:1fr;min-height:0}
   .launch-station .launch-strategy-detail[data-view="3"] .launch-strategy-orbit{display:none}
   .launch-station .launch-strategy-detail[data-view="3"] .launch-retos{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
   .launch-station .launch-strategy-detail[data-view="3"] .launch-retos>li{padding:6px 7px;font-size:11px;gap:6px}
-  .launch-station .launch-training-grid{gap:4px}
-  .launch-station .launch-star-board{grid-template-columns:1fr 110px;max-height:54px;padding:0 8px}
-  .launch-station .launch-constellation{width:110px;height:54px;max-height:54px}
-  .launch-station .launch-signal-case{gap:6px;padding:10px 20px}
+  .launch-station .launch-training-grid{gap:2px}
+  .launch-station .launch-star-board{grid-template-columns:1fr 100px;max-height:32px;padding:0 8px}
+  .launch-station .launch-match-status>.launch-kicker{display:none}
+  .launch-station .launch-constellation{width:100px;height:32px;max-height:32px}
+  .launch-station .launch-signal-case{gap:5px;padding:6px 20px}
 }
