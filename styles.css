@@ -283,3 +283,28 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
 .mission-moment h1{margin:.25rem 0!important;font-size:clamp(2.35rem,4vw,3.7rem)!important}.mission-moment .mission-grid{max-width:none;width:100%}.mission-moment .moment-actions,.observatory-moment .moment-actions{flex:none;padding-bottom:.15rem}
 @media(max-width:900px){.experience-journey{grid-template-columns:repeat(5,1fr);gap:.35rem}.experience-journey>i{display:none}.experience-journey>span{min-width:0}.actor-ecosystem{grid-template-columns:1fr}.actor-wheel>strong{width:125px;min-height:125px}.satellite-moment .satellites{grid-template-columns:1fr}.planet-result-header{grid-template-columns:1fr}.journey-view .planet-result .planet-result-header h1{white-space:normal}}
 @media(max-width:600px){.moment-heading h1,.journey-view .planet-result .planet-result-header h1,.star-heading h1,.satellite-heading h1,.mission-moment h1{font-size:2rem!important}.experience-journey>span b{width:43px;height:43px;border-width:2px;font-size:1rem}.experience-journey>span strong{font-size:.51rem}.star-moment .stellar-expectations span{font-size:.56rem}.actor-wheel{grid-template-columns:1fr 1fr}.actor-wheel>strong{grid-column:1/-1;grid-row:auto;width:108px;min-height:108px}.employee-roles{grid-template-columns:1fr}.employee-role-copy blockquote{font-size:.7rem}.planet-result-actions>*{width:100%}}
+
+/* Encabezado editorial común para todos los momentos del recorrido. */
+.journey-view .journey-heading{display:block;width:100%;flex:none;margin:0 0 clamp(1rem,2.4vh,1.6rem);text-align:left}
+.journey-view .journey-title-line{display:flex;align-items:center;justify-content:flex-start;gap:clamp(.8rem,1.8vw,1.5rem);width:100%;min-width:0;text-align:left}
+.journey-view .journey-title-line>.tag,
+.journey-view .journey-title-line>h1{font-size:clamp(2.375rem,2.8vw,2.5rem)!important;line-height:1.3!important;margin:0!important;text-align:left!important}
+.journey-view .journey-title-line>.tag{flex:0 0 auto;max-width:none;white-space:nowrap;color:#d9ff6a;font-weight:900;letter-spacing:.055em;text-transform:uppercase}
+.journey-view .journey-title-line>h1{min-width:0;max-width:none!important;padding-left:clamp(.8rem,1.5vw,1.35rem);border-left:1px solid #ffffff2e;letter-spacing:-.025em!important}
+.journey-view .planet-result .journey-title-line>.tag{flex:0 1 auto;max-width:58%;white-space:normal;overflow-wrap:anywhere}
+.journey-view .journey-heading>:not(.journey-title-line){margin-top:clamp(.8rem,1.7vh,1.15rem)!important;text-align:left}
+.journey-view .journey-heading .star-definition{max-width:1180px;margin-left:0!important;margin-right:0!important}
+.journey-view .journey-heading+.experience-journey,
+.journey-view .journey-heading+.actor-ecosystem,
+.journey-view .journey-heading+.role-compass,
+.journey-view .journey-heading+.constellation-map,
+.journey-view .journey-heading+.planet-result-layout,
+.journey-view .journey-heading+.mission-grid{margin-top:clamp(.35rem,1vh,.75rem)}
+@media(max-width:700px){
+  .journey-view .journey-heading{margin-bottom:1rem}
+  .journey-view .journey-title-line{gap:.55rem;align-items:flex-start}
+  .journey-view .journey-title-line>.tag,.journey-view .journey-title-line>h1{font-size:1.125rem!important;line-height:1.35!important}
+  .journey-view .journey-title-line>.tag{flex:0 1 auto;max-width:46%;white-space:normal;letter-spacing:.035em}
+  .journey-view .journey-title-line>h1{padding-left:.6rem}
+  .journey-view .journey-heading>:not(.journey-title-line){margin-top:.75rem!important}
+}
