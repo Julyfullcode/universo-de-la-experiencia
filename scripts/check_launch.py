@@ -388,11 +388,15 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelectorAll('.planet-question>.planet-question-exit').length") == 0
     assert cdp.evaluate("document.querySelectorAll('.planet-question-actions .planet-question-exit').length") == 1
     assert cdp.evaluate("(()=>{const cards=document.querySelector('.duel-cards')?.getBoundingClientRect(),actions=document.querySelector('.planet-question-actions')?.getBoundingClientRect();return !!cards&&!!actions&&actions.top>=cards.bottom-.5})()"), "Planet return control is not below the decision cards"
-    planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()", compact_title=False)
+    planet_layout = journey_state("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.planet-result-actions>button').length") == 3
-    assert planet_layout["clientHeight"] < 820, "Planet result still wastes most of the viewport below its content"
+    assert planet_layout["scrollHeight"] <= planet_layout["clientHeight"] + 1, "Planet result requires vertical scrolling"
+    assert cdp.evaluate("document.querySelector('.planet-result h1')?.innerText==='Resultado de afinidad'")
     journey_state("constellations", "trip.step='constelaciones';view='journey';render()")
-    journey_state("observatory", "trip.step='observatorio';localAnswer='ces';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.management-model .model-node').length") == 4
+    journey_state("observatory", "trip.step='observatorio';observatorySection='client';localAnswer='ces';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.observatory-tabs>button').length") == 3
+    assert cdp.evaluate("document.querySelectorAll('.client-metrics .metric-card').length") == 3
     journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")

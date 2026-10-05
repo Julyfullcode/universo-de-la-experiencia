@@ -40,8 +40,26 @@
     ratingStars: document.querySelector("#rating-stars"),
     ratingCount: document.querySelector("#rating-count"),
     exportParticipants: document.querySelector("#export-participants-button"),
+    exportPassports: document.querySelector("#export-passports-button"),
     exportFeedback: document.querySelector("#export-feedback-button")
   };
+
+  const PASSPORT_PROFILES = {
+    no_directivo: {
+      forjadores: ["Planeta de los Conscientes", "Transformas cada experiencia en una oportunidad para aprender, crecer y aportar mejor."],
+      empaticos: ["Planeta de los Empáticos y Serviciales", "Comprendes a las personas y conviertes sus necesidades en oportunidades para facilitarles la vida."],
+      impulsores: ["Planeta de los Impulsores", "Mantienes el propósito en la mira y movilizas las acciones necesarias para convertirlo en resultados."],
+      exploradores: ["Planeta de los Exploradores", "Lees los cambios como posibilidades y encuentras nuevas rutas para seguir avanzando."],
+      conectores: ["Planeta de los Conectores", "Conectas perspectivas, capacidades y personas para que juntos lleguen más lejos."]
+    },
+    directivo: {
+      forjadores: ["Planeta de los Conscientes", "Tu liderazgo parte de la consciencia sobre ti mismo, tu impacto y tu capacidad de aprender y evolucionar."],
+      empaticos: ["Planeta de los Empáticos y Serviciales", "Comprendes las necesidades y perspectivas de las personas y las incorporas a tu manera de liderar y tomar decisiones."],
+      exploradores: ["Planeta de los Visionarios", "Lees más allá del presente y conectas tendencias, oportunidades y decisiones para construir futuro."],
+      impulsores: ["Planeta de los Valientes", "Afrontas situaciones complejas, tomas decisiones con criterio y avanzas aun cuando el camino exige asumir riesgos."]
+    }
+  };
+  const ROLE_LABELS = { disenador: "Diseñador", generador: "Generador", habilitador: "Habilitador" };
 
   let panel = emptyPanel();
   let pollTimer = 0;
@@ -386,6 +404,7 @@
     renderParticipants();
     renderFeedback();
     elements.exportParticipants.disabled = panel.participantes.length === 0;
+    elements.exportPassports.disabled = !panel.participantes.some((participant) => participant.completed_at);
     elements.exportFeedback.disabled = panel.feedback.length === 0;
   }
 
@@ -460,7 +479,7 @@
     if (!participants.length) {
       const row = create("tr", "table-empty");
       const cell = create("td", "", panel.participantes.length ? "No encontramos coincidencias." : "Aún no hay participantes registrados.");
-      cell.colSpan = 7;
+      cell.colSpan = 8;
       row.append(cell);
       elements.participantsBody.append(row);
       return;
@@ -487,7 +506,25 @@
 
       const statusCell = create("td");
       statusCell.append(create("span", `status-pill${participant.completed_at ? " completed" : ""}`, participant.completed_at ? "Completado" : "En curso"));
-      row.append(statusCell);
+      const actionsCell = create("td");
+      const actions = create("div", "participant-actions");
+      const passportButton = create("button", "table-action passport-action", "Abrir PDF");
+      passportButton.type = "button";
+      passportButton.dataset.adminAction = "passport";
+      passportButton.dataset.participantId = String(participant.id || "");
+      passportButton.dataset.participantIndex = String(panel.participantes.indexOf(participant));
+      passportButton.disabled = !participant.completed_at;
+      passportButton.title = participant.completed_at ? "Abrir el pasaporte finalizado en PDF" : "El pasaporte estará disponible al finalizar el recorrido";
+      const deleteButton = create("button", "table-action delete-action", "Eliminar");
+      deleteButton.type = "button";
+      deleteButton.dataset.adminAction = "delete";
+      deleteButton.dataset.participantId = String(participant.id || "");
+      deleteButton.dataset.participantIndex = String(panel.participantes.indexOf(participant));
+      deleteButton.disabled = !participant.id;
+      deleteButton.title = participant.id ? "Eliminar definitivamente este usuario" : "Actualiza la base de datos para habilitar esta acción";
+      actions.append(passportButton, deleteButton);
+      actionsCell.append(actions);
+      row.append(statusCell, actionsCell);
       elements.participantsBody.append(row);
     });
   }
@@ -573,6 +610,155 @@
     exportCsv("reporte-participantes-universo", columns, filteredParticipants());
   }
 
+  function participantById(id) {
+    return panel.participantes.find((participant) => String(participant.id || "") === String(id || ""));
+  }
+
+  function participantRoute(participant) {
+    const duels = parseJson(participant.duelos) || {};
+    return String(duels._route || duels[9] || duels["9"] || "") === "forjadores" ? "directivo" : "no_directivo";
+  }
+
+  function passportProfile(participant, planetId) {
+    const route = participantRoute(participant);
+    return PASSPORT_PROFILES[route]?.[planetId] || PASSPORT_PROFILES.no_directivo[planetId] || [valueOrDash(planetId), "Tu comportamiento aporta a la experiencia."];
+  }
+
+  function wrapPdfText(pdf, text, width) {
+    return pdf.splitTextToSize(String(text || "Por definir"), width);
+  }
+
+  function drawPassportPage(pdf, participant) {
+    const width = pdf.internal.pageSize.getWidth();
+    const height = pdf.internal.pageSize.getHeight();
+    const mainId = String(participant.planeta || "");
+    const secondaryId = String(participant.planeta_explorar || "");
+    const main = passportProfile(participant, mainId);
+    const secondary = passportProfile(participant, secondaryId);
+    const mission = parseJson(participant.mision) || {};
+    const role = ROLE_LABELS[participant.rol] || valueOrDash(participant.rol);
+
+    pdf.setFillColor(5, 14, 38);
+    pdf.rect(0, 0, width, height, "F");
+    pdf.setFillColor(15, 42, 74);
+    pdf.roundedRect(11, 11, width - 22, height - 22, 5, 5, "F");
+    pdf.setDrawColor(201, 240, 104);
+    pdf.setLineWidth(.8);
+    pdf.roundedRect(11, 11, width - 22, height - 22, 5, 5, "S");
+    pdf.setFillColor(201, 240, 104);
+    pdf.circle(width - 35, 35, 14, "F");
+    pdf.setTextColor(8, 25, 46);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(19);
+    pdf.text("✦", width - 35, 40, { align: "center" });
+
+    pdf.setTextColor(201, 240, 104);
+    pdf.setFontSize(10);
+    pdf.text("Pasaporte espacial", 23, 27);
+    pdf.setTextColor(235, 244, 251);
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Explorador/a", 23, 39);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(24);
+    pdf.text(wrapPdfText(pdf, participant.nombre, width - 80), 23, 51);
+
+    const cards = [
+      ["Mis coordenadas", role],
+      ["Mi planeta principal", main[0]],
+      ["Otro planeta en mi ruta", secondary[0]],
+      ["Mi fuerza gravitacional", main[1]],
+      ["Mi próxima misión", mission.accion],
+      ["Aprenderé con", mission.conQuien],
+      ["Quiero aprender", mission.aprendizaje]
+    ];
+    const columns = 3;
+    const gap = 5;
+    const cardWidth = (width - 46 - gap * (columns - 1)) / columns;
+    const cardHeight = 43;
+    cards.forEach((card, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = 23 + column * (cardWidth + gap);
+      const y = 72 + row * (cardHeight + gap);
+      pdf.setFillColor(8, 27, 55);
+      pdf.setDrawColor(75, 117, 146);
+      pdf.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+      pdf.setTextColor(201, 240, 104);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7.5);
+      pdf.text(card[0], x + 5, y + 8);
+      pdf.setTextColor(226, 237, 246);
+      pdf.setFontSize(8.5);
+      pdf.text(wrapPdfText(pdf, card[1], cardWidth - 10).slice(0, 4), x + 5, y + 17);
+    });
+    pdf.setTextColor(181, 201, 218);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    pdf.text("Sembramos comportamientos, florecen experiencias.", 23, height - 18);
+    pdf.text(`Finalizado: ${formatDate(participant.completed_at)}`, width - 23, height - 18, { align: "right" });
+  }
+
+  function createPassportsPdf(participants) {
+    if (!window.jspdf?.jsPDF) throw new Error("El generador de PDF no está disponible.");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    participants.forEach((participant, index) => {
+      if (index) pdf.addPage("a4", "landscape");
+      drawPassportPage(pdf, participant);
+    });
+    return pdf;
+  }
+
+  function openPassport(participant) {
+    if (!participant?.completed_at) return;
+    try {
+      const url = URL.createObjectURL(createPassportsPdf([participant]).output("blob"));
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `pasaporte-${String(participant.nombre || "participante").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      setDashboardMessage(error.message || "No fue posible generar el pasaporte.");
+    }
+  }
+
+  function exportPassports() {
+    const completed = panel.participantes.filter((participant) => participant.completed_at);
+    if (!completed.length) return;
+    try {
+      createPassportsPdf(completed).save(`pasaportes-finalizados-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setDashboardMessage(`${completed.length} ${completed.length === 1 ? "pasaporte descargado" : "pasaportes descargados"}.`, true);
+    } catch (error) {
+      setDashboardMessage(error.message || "No fue posible generar los pasaportes.");
+    }
+  }
+
+  async function deleteParticipant(participant, button) {
+    if (!participant?.id) return;
+    if (!window.confirm(`Vas a eliminar definitivamente a ${valueOrDash(participant.nombre)} y todo su recorrido. ¿Deseas continuar?`)) return;
+    setLoading(button, true);
+    stopPolling();
+    try {
+      const data = unwrapRpc(await callRpc("universo_admin_eliminar_viaje", { p_token: sessionToken(), p_viaje_id: participant.id }), "universo_admin_eliminar_viaje");
+      if (!data?.ok) throw new Error("No fue posible confirmar la eliminación.");
+      panel.participantes = panel.participantes.filter((item) => item.id !== participant.id);
+      renderPanel();
+      setDashboardMessage(`${valueOrDash(participant.nombre)} fue eliminado/a definitivamente.`, true);
+      await refreshPanel();
+    } catch (error) {
+      if (isAuthError(error)) return clearAdministrativeState("Tu sesión venció. Ingresa nuevamente.", false);
+      setDashboardMessage(error.message || "No fue posible eliminar el usuario.");
+    } finally {
+      if (button.isConnected) setLoading(button, false);
+      schedulePolling();
+    }
+  }
+
   function exportFeedback() {
     const columns = [
       { label: "Nombre completo", value: (row) => row.nombre },
@@ -598,7 +784,16 @@
   elements.refreshButton.addEventListener("click", () => refreshPanel());
   elements.participantSearch.addEventListener("input", () => renderParticipants({ announce: true }));
   elements.exportParticipants.addEventListener("click", exportParticipants);
+  elements.exportPassports.addEventListener("click", exportPassports);
   elements.exportFeedback.addEventListener("click", exportFeedback);
+  elements.participantsBody.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-action]");
+    if (!button || button.disabled) return;
+    const participant = (button.dataset.participantId ? participantById(button.dataset.participantId) : null) || panel.participantes[Number(button.dataset.participantIndex)];
+    if (!participant) return;
+    if (button.dataset.adminAction === "passport") openPassport(participant);
+    if (button.dataset.adminAction === "delete") deleteParticipant(participant, button);
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) stopPolling();
     else if (!elements.dashboardView.hidden) refreshPanel();

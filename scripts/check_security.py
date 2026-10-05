@@ -30,6 +30,7 @@ def main():
     index = read("index.html")
     schema = read("supabase/schema.sql")
     migration = read("supabase/migrations/20260928103000_endurecimiento_seguridad.sql")
+    admin_migration = read("supabase/migrations/20261005130000_admin_passports_and_delete.sql")
     admin = read("admin.js") + read("admin.html")
     proxy = read("api/rpc.js")
     styles = read("styles.css") + read("admin.css") + read("universe-map.css")
@@ -108,7 +109,7 @@ def main():
     for rpc_name in (
         "universo_ingresar", "universo_mi_viaje", "universo_guardar_viaje",
         "universo_guardar_feedback", "universo_heartbeat", "universo_salir",
-        "universo_admin_ingresar", "universo_admin_panel", "universo_admin_salir",
+        "universo_admin_ingresar", "universo_admin_panel", "universo_admin_eliminar_viaje", "universo_admin_salir",
     ):
         require(f'"{rpc_name}"' in proxy, f"Proxy allowlist is missing {rpc_name}.")
     require("validRpcArguments" in proxy and "hasExactKeys" in proxy,
@@ -123,6 +124,12 @@ def main():
             "The serverless proxy must never contain a service-role credential.")
     require('fetch("/api/rpc"' in admin and "SUPABASE_KEY" not in admin,
             "Administration must use the same-origin proxy.")
+    require("p_viaje_id" in proxy and "UUID_PATTERN.test(args.p_viaje_id)" in proxy,
+            "Administrative deletion must validate the trip UUID at the proxy boundary.")
+    require("universo_admin_eliminar_viaje" in admin_migration and
+            "universo_private.validar_admin_token(p_token)" in admin_migration and
+            "where id = p_viaje_id and palabra_clave_hash is not null" in admin_migration,
+            "Administrative deletion must require an admin session and target one registered trip.")
 
     global_headers = next(
         (entry["headers"] for entry in vercel.get("headers", []) if entry.get("source") == "/(.*)"),

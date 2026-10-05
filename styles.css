@@ -442,3 +442,66 @@ body .universo{height:100svh;min-height:0;overflow:hidden;display:flex;flex-dire
   .journey-view :is(.actor-wheel>span,.observatory-benefits span){font-size:.75rem;line-height:1.3}
   .journey-view .constellation-map span em{font-size:.72rem;line-height:1.35}
 }
+
+/* Modelo de gestión inspirado en la lámina de referencia: capacidades orbitando a los actores. */
+.journey-view .management-model{display:block;min-height:400px;padding:.8rem!important;overflow:hidden}
+.management-model>small,.architecture-model>small{display:block!important;margin-bottom:.45rem;color:var(--station-accent)!important;font-size:.68rem!important;font-weight:850;letter-spacing:.04em!important}
+.management-orbit{position:relative;min-height:305px;isolation:isolate}
+.management-orbit:before,.management-orbit:after{content:"";position:absolute;left:50%;top:50%;border:1px solid rgba(171,213,240,.28);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.management-orbit:before{width:78%;height:78%}
+.management-orbit:after{width:55%;height:55%;border-color:rgba(209,239,112,.28)}
+.management-model .model-node{position:absolute!important;z-index:2;display:flex!important;flex-direction:column;justify-content:center;gap:.2rem;width:34%;min-height:86px!important;padding:.65rem!important;border-radius:50%!important;text-align:center;background:linear-gradient(145deg,rgba(30,75,102,.96),rgba(34,33,76,.94))!important;box-shadow:0 10px 24px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.08)!important}
+.management-model .model-node b{font-size:.82rem}
+.management-model .model-node em{color:#d1dce8!important;font-size:.66rem!important}
+.management-model .model-node.knowledge{left:4%;top:3%;border-color:#77d7f0!important}
+.management-model .model-node.design{right:4%;top:3%;border-color:#7bafef!important}
+.management-model .model-node.digital{left:4%;bottom:3%;border-color:#bf83dc!important}
+.management-model .model-node.efficiency{right:4%;bottom:3%;border-color:#e2a777!important}
+.model-actors{position:absolute;z-index:3;left:50%;top:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;width:37%;aspect-ratio:1;border:2px solid rgba(125,214,238,.72);border-radius:50%;padding:.65rem;background:radial-gradient(circle,rgba(15,83,99,.95),rgba(7,25,55,.98));box-shadow:0 0 32px rgba(68,186,219,.22);text-align:center;transform:translate(-50%,-50%)}
+.model-actors i{color:#dfff98;font-size:1rem;font-style:normal;letter-spacing:.12rem}
+.model-actors b{margin:.2rem 0;color:#f2f6fa;font-size:.83rem}
+.model-actors em{color:#b9cadd;font-size:.57rem;font-style:normal;line-height:1.3}
+.model-foundations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;padding-top:.55rem;border-top:1px solid rgba(185,220,241,.22)}
+.model-foundations span{display:flex;flex-direction:column;gap:.15rem;padding:.55rem .65rem;border:1px solid var(--station-border);border-radius:.7rem;background:rgba(10,32,63,.76)}
+.model-foundations b{color:#e9f4fc;font-size:.72rem}.model-foundations em{color:var(--station-muted);font-size:.62rem;font-style:normal}
+
+/* Observatorio en tres bloques editoriales tomados de las láminas 13 a 15. */
+.observatory-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:.05rem 0 .65rem}
+.observatory-tabs button{min-height:50px;padding:.6rem .75rem;border:1px solid var(--station-border);border-radius:.8rem;background:rgba(8,28,58,.74);color:#dce8f3;font:inherit;font-size:.74rem;font-weight:750;line-height:1.25;cursor:pointer}
+.observatory-tabs button.selected{border-color:rgba(216,255,129,.66);background:linear-gradient(145deg,rgba(153,191,73,.25),rgba(23,55,75,.88));color:#f1ffc9;box-shadow:0 0 20px rgba(216,255,129,.1)}
+.observatory-panel{min-height:285px}
+.benefit-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem}
+.benefit-grid article,.metric-card{border:1px solid var(--station-border);border-radius:1rem;background:linear-gradient(145deg,rgba(15,43,77,.88),rgba(14,17,49,.84));box-shadow:inset 0 1px rgba(255,255,255,.05)}
+.benefit-grid article{display:flex;flex-direction:column;gap:.75rem;min-height:225px;padding:1rem}
+.benefit-grid span,.metric-card>span{color:var(--station-accent);font-size:.73rem;font-weight:900}
+.benefit-grid p{margin:0;color:#dbe6ef;font-size:.78rem;line-height:1.52}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}
+.metric-card{display:flex;flex-direction:column;align-items:flex-start;gap:.45rem;min-height:255px;padding:1rem;color:var(--station-text);text-align:left}
+button.metric-card{font:inherit;cursor:pointer}
+.metric-card b{font-size:1rem}.metric-card p{margin:0;color:#d5e0eb;font-size:.76rem;line-height:1.45}.metric-card em{margin-top:auto;padding-top:.55rem;border-top:1px solid rgba(255,255,255,.12);color:#b9caDA;font-size:.7rem;font-style:italic;line-height:1.4}
+.metric-card.selected{border-color:rgba(216,255,129,.75);background:linear-gradient(145deg,rgba(100,137,51,.28),rgba(15,37,65,.92));box-shadow:0 0 24px rgba(216,255,129,.12)}
+
+/* El resultado de planetas cabe completo en una pantalla de escritorio. */
+@media(min-width:721px){
+  .journey-view .planet-result{height:calc(100svh - 4px);max-height:calc(100svh - 4px);padding:.55rem clamp(.8rem,2vw,1.5rem)!important;overflow:hidden!important}
+  .planet-result .journey-heading{margin-bottom:.45rem!important}
+  .planet-result .journey-title-line{min-height:48px;padding:.5rem .75rem}
+  .journey-view .planet-result .journey-title-line>.tag,.journey-view .planet-result .journey-title-line>h1{font-size:1.25rem!important;line-height:1.25!important}
+  .planet-result .journey-heading>:not(.journey-title-line){margin-top:.45rem!important;padding:.5rem .75rem;font-size:.72rem;line-height:1.35}
+  .journey-view .planet-result .planet-result-layout{grid-template-columns:180px minmax(0,1fr);gap:.65rem;margin:.2rem 0 .5rem!important;min-height:0}
+  .planet-result .result-orbit-scene{min-height:185px;border-radius:1rem}
+  .planet-result .result-main-planet{width:68px;height:68px}.planet-result .result-orbit-ring.ring-one{width:125px;height:63px}.planet-result .result-orbit-ring.ring-two{width:165px;height:92px}
+  .planet-result .result-card{grid-template-columns:minmax(230px,.75fr) minmax(0,1.25fr);gap:.55rem;border-radius:1rem}
+  .planet-result .result-card>.result-identity,.planet-result .result-card>.result-evidence{gap:.38rem;padding:.65rem}
+  .planet-result .result-card h2{margin:.2rem 0;font-size:1.35rem;line-height:1.2}.planet-result .result-card blockquote{font-size:.9rem;line-height:1.35}.planet-result .result-card p{margin:.2rem 0;font-size:.73rem;line-height:1.38}
+  .planet-result .planet-development{gap:.6rem}.planet-result .planet-development>div{padding:.58rem .75rem}.planet-result .planet-development .tag{font-size:.58rem}.planet-result .planet-development h2{margin:.25rem 0;font-size:.9rem}.planet-result .planet-development ul{margin:.25rem 0 0}.planet-result .planet-development li{font-size:.69rem;line-height:1.28}
+  .planet-result .planet-result-actions{gap:.5rem;margin-top:.4rem!important;padding:0!important}.planet-result .planet-result-actions button{min-height:38px;padding:.55rem .8rem;font-size:.7rem}
+}
+@media(max-width:900px){
+  .journey-view .management-model{min-height:380px}.management-orbit{min-height:285px}
+  .observatory-tabs,.benefit-grid,.metric-grid{grid-template-columns:1fr 1fr}.observatory-panel{min-height:0}.benefit-grid article,.metric-card{min-height:150px}
+}
+@media(max-width:600px){
+  .observatory-tabs,.benefit-grid,.metric-grid{grid-template-columns:1fr}.observatory-tabs button{min-height:44px}.benefit-grid article,.metric-card{min-height:0}
+  .management-model .model-node{width:38%;padding:.45rem!important}.model-actors{width:40%}.model-actors em{font-size:.5rem}
+}

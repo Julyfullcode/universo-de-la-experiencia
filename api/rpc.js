@@ -14,6 +14,7 @@ const ALLOWED_RPCS = new Set([
   "universo_salir",
   "universo_admin_ingresar",
   "universo_admin_panel",
+  "universo_admin_eliminar_viaje",
   "universo_admin_salir",
 ]);
 
@@ -67,6 +68,10 @@ function validRpcArguments(name, args) {
     case "universo_admin_panel":
     case "universo_admin_salir":
       return hasExactKeys(args, ["p_token"]) && validToken(args.p_token);
+    case "universo_admin_eliminar_viaje":
+      return hasExactKeys(args, ["p_token", "p_viaje_id"])
+        && validToken(args.p_token)
+        && typeof args.p_viaje_id === "string" && UUID_PATTERN.test(args.p_viaje_id);
     case "universo_guardar_viaje":
       return hasExactKeys(args, ["p_token", "p_viaje"])
         && validToken(args.p_token)

@@ -990,11 +990,11 @@ begin
       select coalesce(pg_catalog.jsonb_agg(item order by item ->> 'last_seen_at' desc), '[]'::jsonb)
       from (
         select pg_catalog.jsonb_build_object(
-          'nombre', v.nombre, 'paso', v.paso,
+          'id', v.id, 'nombre', v.nombre, 'paso', v.paso,
           'avance_maximo', v.avance_maximo,
           'avance_porcentaje', pg_catalog.round(pg_catalog.least(v.avance_maximo, 5)::numeric * 100 / 5, 1),
           'planeta', v.planeta_principal, 'planeta_explorar', v.planeta_explorar,
-          'rol', v.rol, 'satelites', v.satelites, 'observatorio', v.observatorio,
+          'rol', v.rol, 'duelos', v.duelos, 'satelites', v.satelites, 'observatorio', v.observatorio,
           'mision', v.mision, 'created_at', v.created_at, 'updated_at', v.updated_at,
           'last_seen_at', v.last_seen_at, 'completed_at', v.completed_at,
           'calificacion', f.calificacion, 'recomendacion', f.recomendacion
@@ -1018,6 +1018,24 @@ begin
 end
 $function$;
 
+create or replace function public.universo_admin_eliminar_viaje(p_token text, p_viaje_id uuid)
+returns jsonb language plpgsql security definer set search_path = ''
+as $function$
+declare
+  v_session_id uuid := universo_private.validar_admin_token(p_token);
+  v_deleted integer;
+begin
+  if v_session_id is null then
+    raise exception using errcode = '28000', message = 'Sesión administrativa inválida o vencida.';
+  end if;
+  update public.universo_admin_sessions set last_seen_at = pg_catalog.clock_timestamp()
+  where id = v_session_id;
+  delete from public.universo_viajes where id = p_viaje_id and palabra_clave_hash is not null;
+  get diagnostics v_deleted = row_count;
+  return pg_catalog.jsonb_build_object('ok', v_deleted = 1, 'deleted', v_deleted);
+end
+$function$;
+
 create or replace function public.universo_admin_salir(p_token text)
 returns jsonb language plpgsql security definer set search_path = ''
 as $function$
@@ -1036,7 +1054,7 @@ end
 $function$;
 
 -- PostgreSQL concede EXECUTE a PUBLIC por defecto; se revoca antes de habilitar
--- para anon exclusivamente los nueve endpoints que usa el sitio estático.
+-- para anon exclusivamente los diez endpoints que usa el sitio estático.
 revoke all on function public.universo_ingresar(text, text, text, uuid) from public, anon, authenticated;
 revoke all on function public.universo_mi_viaje(text) from public, anon, authenticated;
 revoke all on function public.universo_guardar_viaje(text, jsonb) from public, anon, authenticated;
@@ -1045,6 +1063,7 @@ revoke all on function public.universo_heartbeat(text) from public, anon, authen
 revoke all on function public.universo_salir(text) from public, anon, authenticated;
 revoke all on function public.universo_admin_ingresar(text, text) from public, anon, authenticated;
 revoke all on function public.universo_admin_panel(text) from public, anon, authenticated;
+revoke all on function public.universo_admin_eliminar_viaje(text, uuid) from public, anon, authenticated;
 revoke all on function public.universo_admin_salir(text) from public, anon, authenticated;
 
 grant execute on function public.universo_ingresar(text, text, text, uuid) to anon;
@@ -1055,6 +1074,7 @@ grant execute on function public.universo_heartbeat(text) to anon;
 grant execute on function public.universo_salir(text) to anon;
 grant execute on function public.universo_admin_ingresar(text, text) to anon;
 grant execute on function public.universo_admin_panel(text) to anon;
+grant execute on function public.universo_admin_eliminar_viaje(text, uuid) to anon;
 grant execute on function public.universo_admin_salir(text) to anon;
 
 revoke all on function universo_private.token_hash(text) from public, anon, authenticated;

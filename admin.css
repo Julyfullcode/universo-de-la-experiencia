@@ -243,7 +243,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .table-count { margin: -.35rem 0 .65rem; color: var(--muted); font-size: .69rem; }
 .table-scroll { width: 100%; overflow: auto; border: 1px solid rgba(255, 255, 255, .08); border-radius: .9rem; }
 .table-scroll:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
-table { width: 100%; min-width: 1010px; border-collapse: collapse; }
+table { width: 100%; min-width: 1160px; border-collapse: collapse; }
 th, td { padding: .82rem .75rem; border-bottom: 1px solid rgba(255, 255, 255, .075); text-align: left; vertical-align: middle; }
 th { position: sticky; top: 0; z-index: 1; color: #93a7c7; background: rgba(5, 15, 41, .97); font-size: .6rem; letter-spacing: .09em; text-transform: uppercase; }
 td { color: #dae6f7; font-size: .73rem; }
@@ -260,6 +260,12 @@ tbody tr:hover { background: rgba(95, 232, 255, .045); }
 .progress-cell span { color: var(--lime); font-size: .66rem; font-weight: 900; text-align: right; }
 .status-pill { display: inline-block; padding: .34rem .55rem; border-radius: 999px; color: #c2d0e3; background: rgba(255, 255, 255, .08); font-size: .61rem; font-weight: 900; white-space: nowrap; }
 .status-pill.completed { color: var(--lime); background: rgba(215, 255, 85, .12); }
+.participant-actions { display: flex; align-items: center; gap: .4rem; min-width: 145px; }
+.table-action { min-height: 31px; padding: .38rem .55rem; border: 1px solid rgba(180, 222, 255, .24); border-radius: .55rem; background: rgba(255, 255, 255, .055); color: #e7eff9; font: inherit; font-size: .63rem; font-weight: 750; white-space: nowrap; cursor: pointer; }
+.table-action:hover:not(:disabled), .table-action:focus-visible { border-color: var(--lime); background: rgba(215, 255, 85, .1); }
+.table-action.delete-action { border-color: rgba(255, 115, 137, .32); color: #ffc6d0; }
+.table-action.delete-action:hover:not(:disabled), .table-action.delete-action:focus-visible { border-color: var(--danger); background: rgba(255, 91, 118, .12); }
+.table-action:disabled { opacity: .42; cursor: not-allowed; }
 .table-empty td { padding: 2rem 1rem; color: var(--muted); text-align: center; }
 
 .result-count { flex: none; padding: .36rem .65rem; border-radius: 99px; color: var(--cyan); background: rgba(95, 232, 255, .09); font-size: .67rem; font-weight: 900; }

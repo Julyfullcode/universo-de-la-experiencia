@@ -403,6 +403,15 @@
     const dustMaterial=new T.PointsMaterial({map:glow,size:2,vertexColors:true,transparent:true,opacity:.38,alphaTest:.015,blending:T.AdditiveBlending,depthWrite:false,sizeAttenuation:false});materials.push(dustMaterial);
     const dustGrains=new T.Points(dustGeometry,dustMaterial);constellationDust.add(dustGrains);
     layer(constellationDust,3);scene.add(constellationDust);
+    const planetCopy={
+      empaticos:{competency:'Empático y Servicial',audience:'Para directivos y no directivos',definitions:[['No directivos','Primero comprendo a la persona para poder servirle mejor.'],['Directivos','Comprendo a las personas y sus realidades para liderar y facilitar soluciones con cercanía.']]},
+      conectores:{competency:'Trabajo en equipo',audience:'Para no directivos',definitions:[['','Conecto personas y perspectivas para construir resultados comunes.']]},
+      valientes:{competency:'Valiente',audience:'Para directivos',definitions:[['','Afronto los retos, tomo decisiones con criterio y asumo responsablemente sus consecuencias.']]},
+      impulsores:{competency:'Orientación al logro',audience:'Para no directivos',definitions:[['','Convierto propósitos en acciones y resultados que generan valor.']]},
+      visionarios:{competency:'Visionario',audience:'Para directivos',definitions:[['','Leo el entorno, anticipo escenarios y conecto las decisiones de hoy con el futuro.']]},
+      exploradores:{competency:'Adaptación al cambio',audience:'Para no directivos',definitions:[['','Si cambia la ruta, encuentro nuevas formas de avanzar.']]},
+      conscientes:{competency:'Liderazgo Personal Consciente',audience:'Para directivos y no directivos',definitions:[['No directivos','Me observo, aprendo y evoluciono para aportar cada vez mejor.'],['Directivos','Me observo, reconozco mi impacto y evoluciono para liderar cada vez mejor.']]}
+    };
     const talent=[
       ['empaticos','Empáticos y Serviciales','Comprenden a las personas para servir y facilitar soluciones con cercanía.',0x1ba7d5,0x57ce85,1,8,1.18,.6,257],
       ['conectores','Conectores','Conectan personas y perspectivas para construir resultados comunes.',0x155abe,0x6dc8ff,0,8.9,1.42,2.5,389],
@@ -424,7 +433,8 @@
         const ring=mesh(new T.RingGeometry(size*1.35,size*1.95,80),ringMaterial,p);ring.rotation.x=Math.PI/2-.24;
         const gap=mesh(new T.RingGeometry(size*1.56,size*1.63,80),standard(0x473045),p);gap.rotation.copy(ring.rotation);
       }
-      const record={id,step:'planetas',title:`Planeta de los ${name}`,eyebrow:'Empleados · Roles y competencias',description:competency,object:o.anchor,visual:p,kind:'planet',radius:size,name,definition:competency};records.push(record);talentRecords.push(record);
+      const copy=planetCopy[id];
+      const record={id,step:'planetas',title:`Planeta de los ${name}`,eyebrow:'Empleados · Roles y competencias',description:copy?.competency||competency,object:o.anchor,visual:p,kind:'planet',radius:size,name,definition:copy?.definitions?.[0]?.[1]||competency,competency:copy?.competency,audience:copy?.audience,definitions:copy?.definitions||[]};records.push(record);talentRecords.push(record);
     });
     const parentPlanet=talentRecords.find(record=>record.id==='forjadores');
     ['Proveedores y contratistas','Dueño','Comunidad'].forEach((name,i)=>{
@@ -520,7 +530,7 @@
     }
     addLabel(clientRecord,`<small>La estrella central</small><b>Cliente</b><span class="cosmos-tooltip-definition">Es el centro del sistema: sus necesidades, expectativas y emociones dan sentido a todo el universo de la experiencia.</span>`,'system',38);
     {const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','client-tooltip');}
-    talentRecords.filter(r=>r.id!=='forjadores').forEach(r=>{addLabel(r,`<b>${r.name}</b><span class="cosmos-tooltip-definition">${r.definition}</span>`,'system',23);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','planet-tooltip');});
+    talentRecords.filter(r=>r.id!=='forjadores').forEach(r=>{const definitions=r.definitions.map(([audience,text])=>`<span class="cosmos-tooltip-definition">${audience?`<strong>${audience}:</strong> `:''}${text}</span>`).join('');addLabel(r,`<b>${r.name}</b><em class="cosmos-tooltip-competency">Competencia: ${r.competency}</em><small class="cosmos-tooltip-audience">${r.audience}</small>${definitions}`,'system',23);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','planet-tooltip');});
     records.filter(r=>r.kind==='waypoint'&&r.id!=='observatory'&&r.id!=='earth').forEach(r=>addLabel(r,`${r===launchRecord?'<small>01 · Empieza aquí</small>':''}<b>${r.title}</b>`,r.view,r===launchRecord?70:25));
     {const observatoryRecord=records.find(r=>r.id==='observatory');addLabel(observatoryRecord,`<b>${observatoryRecord.title}</b><span class="cosmos-tooltip-definition">${observatoryRecord.description}</span>`,'system',25);const label=labels[labels.length-1];label.hoverOnly=label.strictHoverOnly=true;label.button.classList.add('cosmos-tooltip','waypoint-tooltip');}
     labels.find(l=>l.record===launchRecord).button.classList.add('launch');
