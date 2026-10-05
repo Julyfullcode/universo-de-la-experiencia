@@ -3,6 +3,11 @@
 .orbital-realm-view {
   --cosmos-unit: clamp(.8px, min(calc(100vw / 1440), calc(100dvh / 900)), 3px);
   --cosmos-gutter: clamp(6px, .65vw, 18px);
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 .orbital-realm-view .orbital-realm {
   display: flex;
@@ -53,7 +58,7 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-galaxy-tooltip strong { display: block; margin-bottom: calc(5 * var(--cosmos-unit)); color: #d8ff81; font-size: calc(17 * var(--cosmos-unit)); }
 .cosmos-galaxy-tooltip span { display: block; color: #d4deef; font-size: calc(13 * var(--cosmos-unit)); }
 .cosmos-galaxy-tooltip small { display: block; margin-top: calc(8 * var(--cosmos-unit)); color: #a9c8e5; font-size: calc(11 * var(--cosmos-unit)); font-weight: 750; }
-.cosmos-company-dialog { width: min(1040px, calc(100vw - 34px)); max-height: min(84dvh, 760px); padding: 0; border: 1px solid #c9d8f04f; border-radius: 22px; background: #071127; color: #eef5ff; box-shadow: 0 28px 90px #000c; overflow: auto; }
+.cosmos-company-dialog { width: min(1040px, calc(100vw - 34px)); max-height: calc(100dvh - 18px); padding: 0; border: 1px solid #c9d8f04f; border-radius: 22px; background: #071127; color: #eef5ff; box-shadow: 0 28px 90px #000c; overflow: hidden; }
 .cosmos-company-dialog::backdrop { background: rgba(0, 3, 13, .76); backdrop-filter: blur(5px); }
 .cosmos-company-shell { padding: clamp(18px, 2.4vw, 32px); background: radial-gradient(circle at 82% 0, #34225a70, transparent 33%), radial-gradient(circle at 9% 20%, #124e6f52, transparent 34%), #071127; }
 .cosmos-company-shell>header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
@@ -62,8 +67,8 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
 .cosmos-company-shell header p { margin: 0; color: #b9c7dd; font-size: .88rem; }
 .cosmos-company-close { flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #a9bddc55; border-radius: 50%; background: #ffffff0b; color: #f2f6ff; font: 300 1.8rem/1 sans-serif; cursor: pointer; }
 .cosmos-company-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.cosmos-company-mark { display: grid; place-items: center; min-height: 94px; padding: 10px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
-.cosmos-company-logo { position: relative; display: block; width: 100%; height: 72px; overflow: visible; }
+.cosmos-company-mark { display: grid; place-items: center; min-height: clamp(54px, 9.5dvh, 84px); padding: 8px; border: 1px solid #aab8ce26; border-radius: 13px; background: linear-gradient(145deg, #fff, #eef2f5); overflow: hidden; }
+.cosmos-company-logo { position: relative; display: block; width: 100%; height: clamp(42px, 7.5dvh, 64px); overflow: visible; }
 .cosmos-company-logo img { position: absolute; inset: 10px 14px; display: block; width: calc(100% - 28px); height: calc(100% - 20px); min-width: 0; max-width: none; max-height: none; object-fit: contain; object-position: center; }
 .cosmos-tools { position: absolute; top: 8px; left: 50%; z-index: 4; display: flex; gap: 6px; transform: translateX(-50%); }
 .cosmos-pause { display: none !important; }
@@ -129,8 +134,13 @@ body .orbital-realm-view nav { padding-top: calc(9 * var(--cosmos-unit)); paddin
   .cosmos-galaxy-tooltip { width: min(80vw, 315px); padding: 12px 14px; border-radius: 12px; }
   .cosmos-galaxy-tooltip strong { font-size: .94rem; }
   .cosmos-galaxy-tooltip span { font-size: .76rem; }
-  .cosmos-company-dialog { width: min(94vw, 680px); max-height: 88dvh; border-radius: 17px; }
-  .cosmos-company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .cosmos-company-dialog { width: min(96vw, 680px); max-height: calc(100dvh - 12px); border-radius: 17px; }
+  .cosmos-company-shell { padding:12px; }
+  .cosmos-company-shell>header { gap:10px; margin-bottom:10px; }
+  .cosmos-company-shell header p { font-size:.72rem; }
+  .cosmos-company-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .cosmos-company-mark { min-height:clamp(48px,8dvh,66px);padding:5px; }
+  .cosmos-company-logo { height:clamp(38px,6.5dvh,52px); }
   .cosmos-company-mark { min-height: 72px; padding: 7px; }
   .cosmos-company-logo { height: 56px; }
   .cosmos-company-logo img { inset: 7px 10px; width: calc(100% - 20px); height: calc(100% - 14px); }

@@ -394,9 +394,16 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelector('.planet-result h1')?.innerText==='Resultado de afinidad'")
     journey_state("constellations", "trip.step='constelaciones';view='journey';render()")
     assert cdp.evaluate("document.querySelectorAll('.management-model .model-node').length") == 4
-    journey_state("observatory", "trip.step='observatorio';observatorySection='client';localAnswer='ces';view='journey';render()")
-    assert cdp.evaluate("document.querySelectorAll('.observatory-tabs>button').length") == 3
-    assert cdp.evaluate("document.querySelectorAll('.client-metrics .metric-card').length") == 3
+    journey_state("observatory-benefits", "trip.step='observatorio';observatorySection='benefits';localAnswer='';view='journey';render()")
+    assert cdp.evaluate("document.querySelectorAll('.observatory-tabs>button').length") == 4
+    assert cdp.evaluate("document.querySelectorAll('.benefits-orbit .signal-satellite').length") == 5
+    journey_state("observatory-client", "observatorySection='client';render()")
+    assert cdp.evaluate("document.querySelectorAll('.client-metrics .metric-planet').length") == 3
+    journey_state("observatory-employee", "observatorySection='employee';render()")
+    assert cdp.evaluate("document.querySelectorAll('.employee-metrics .metric-planet').length") == 3
+    journey_state("observatory-challenge", "observatorySection='challenge';localAnswer='ces';render()")
+    assert cdp.evaluate("document.querySelectorAll('.signal-radar .radar-satellite').length") == 3
+    assert cdp.evaluate("!document.querySelector('[data-action=\"save-observatory\"]')?.disabled")
     journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")

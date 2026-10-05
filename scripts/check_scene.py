@@ -928,8 +928,10 @@ def main():
                   image:[image.left,image.top,image.right,image.bottom],frame:[frame.left,frame.top,frame.right,frame.bottom],
                   contained:image.left>=frame.left+6&&image.top>=frame.top+6&&image.right<=frame.right-6&&image.bottom<=frame.bottom-6};
               });
+              const companyDialog=document.querySelector('.cosmos-company-dialog');
               const companyGallery={count:companyLogos.length,allLoaded:companyLogos.every(item=>item.loaded),
                 allContained:companyLogos.every(item=>item.contained&&item.fit==='contain'),
+                noScroll:!!companyDialog&&companyDialog.scrollHeight<=companyDialog.clientHeight+1&&companyDialog.scrollWidth<=companyDialog.clientWidth+1,
                 problems:companyLogos.filter(item=>!item.contained||item.fit!=='contain')};
               document.querySelector('.cosmos-company-dialog')?.close();
               guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
@@ -1170,6 +1172,7 @@ def main():
             integration["companyGallery"].get("count") != 17 or
             not integration["companyGallery"].get("allLoaded") or
             not integration["companyGallery"].get("allContained") or
+            not integration["companyGallery"].get("noScroll") or
             not integration.get("noEarthLabel") or
             (args.width > 800 and (not integration["satelliteTooltip"].get("visible") or
              integration["satelliteTooltip"].get("title") != "Satélite" or
