@@ -399,11 +399,16 @@ def run_checks(cdp, artifacts, screenshots):
     assert cdp.evaluate("document.querySelectorAll('.benefits-orbit .signal-satellite').length") == 5
     journey_state("observatory-client", "observatorySection='client';render()")
     assert cdp.evaluate("document.querySelectorAll('.client-metrics .metric-planet').length") == 3
+    assert cdp.evaluate("[...document.querySelectorAll('.client-metrics .metric-planet')].every(node=>node.querySelector('p')?.innerText.startsWith('Mide')&&node.querySelector('em')?.innerText.includes('¿'))")
     journey_state("observatory-employee", "observatorySection='employee';render()")
     assert cdp.evaluate("document.querySelectorAll('.employee-metrics .metric-planet').length") == 3
-    journey_state("observatory-challenge", "observatorySection='challenge';localAnswer='ces';render()")
+    assert cdp.evaluate("[...document.querySelectorAll('.employee-metrics .metric-planet')].every(node=>node.querySelector('p')?.innerText.startsWith('Mide')&&node.querySelector('em')?.innerText.length>20)")
+    journey_state("observatory-challenge", "observatorySection='challenge';observatoryChallengeIndex=0;observatoryScore=0;localAnswer='';render()")
+    assert cdp.evaluate("observatoryChallengeQuestions.length") == 6
     assert cdp.evaluate("document.querySelectorAll('.signal-radar .radar-satellite').length") == 3
-    assert cdp.evaluate("!document.querySelector('[data-action=\"save-observatory\"]')?.disabled")
+    cdp.evaluate("(()=>{for(let index=0;index<observatoryChallengeQuestions.length;index++){answer(observatoryChallengeQuestions[index].answer);if(index<observatoryChallengeQuestions.length-1)advanceObservatoryChallenge();}})()")
+    assert cdp.evaluate("observatoryScore") == 6
+    assert cdp.evaluate("!!document.querySelector('[data-action=\"save-observatory\"]')&&!document.querySelector('[data-action=\"save-observatory\"]').disabled")
     journey_state("mission", "trip.step='mision';view='journey';render()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
