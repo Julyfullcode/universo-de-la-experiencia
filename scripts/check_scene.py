@@ -409,8 +409,8 @@ def visual_copy_checks(cdp):
       const bottomStrip={momentButtons:momentButtons.length,availabilityButtons:availabilityButtons.length,
         allButtons:allButtons.length,availableButtons:availableButtons.length,lockedButtons:lockedButtons.length,descriptiveText,
         noOpenActivity:!document.body.innerText.includes('Abrir actividad'),
-        pass:momentButtons.length===8&&availabilityButtons.length===0&&allButtons.length===8&&availableButtons.length>=1&&
-          availableButtons.length+lockedButtons.length===8&&!descriptiveText&&!document.body.innerText.includes('Abrir actividad')};
+        pass:momentButtons.length===8&&availabilityButtons.length===0&&allButtons.length===8&&availableButtons.length===8&&
+          lockedButtons.length===0&&momentButtons.every(button=>!button.disabled)&&!descriptiveText&&!document.body.innerText.includes('Abrir actividad')};
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
       let launchLabel=null;
@@ -929,7 +929,10 @@ def main():
                   contained:image.left>=frame.left+6&&image.top>=frame.top+6&&image.right<=frame.right-6&&image.bottom<=frame.bottom-6};
               });
               const companyDialog=document.querySelector('.cosmos-company-dialog');
-              const companyGallery={count:companyLogos.length,allLoaded:companyLogos.every(item=>item.loaded),
+              const companyNames=companyLogos.map(item=>item.name.replace(/^Logo\\s+/i,''));
+              const companyGallery={count:companyLogos.length,names:companyNames,
+                alphabetical:companyNames.every((name,index)=>!index||companyNames[index-1].localeCompare(name,'es',{sensitivity:'base'})<=0),
+                removedAguasDelOriente:!companyNames.includes('Aguas del Oriente'),allLoaded:companyLogos.every(item=>item.loaded),
                 allContained:companyLogos.every(item=>item.contained&&item.fit==='contain'),
                 noScroll:!!companyDialog&&companyDialog.scrollHeight<=companyDialog.clientHeight+1&&companyDialog.scrollWidth<=companyDialog.clientWidth+1,
                 problems:companyLogos.filter(item=>!item.contained||item.fit!=='contain')};
@@ -955,6 +958,16 @@ def main():
                   .some(node=>node.innerText.includes('Satélites ↗'))};
               const noEarthLabel=!document.querySelector('.cosmos-object-label[data-cosmos-id="earth"]');
               guideStage?.dispatchEvent(new PointerEvent('pointerleave',{bubbles:true}));
+              window.__universeDebug?.select('client');await wait(100);
+              const figurePoint=window.__universeDebug?.project('client'),figureHit=figurePoint?window.__universeDebug?.hitAt(figurePoint.x,figurePoint.y):null;
+              if(figurePoint&&guideStageRect){
+                guideStage.querySelector('canvas')?.dispatchEvent(new MouseEvent('click',{bubbles:true,
+                  clientX:guideStageRect.left+figurePoint.x,clientY:guideStageRect.top+figurePoint.y}));
+              }
+              const figureReady=await waitFor(()=>!!document.querySelector('.journey-view .star-moment'));
+              const figureNavigation={point:figurePoint,hit:figureHit,ready:figureReady,
+                title:document.querySelector('.star-moment h1')?.innerText||''};
+              showMap();await waitForMap();
               for(let n=0;n<2;n++){
                 window.__universeDebug?.select('client');document.querySelector('.cosmos-route [data-step="estrella"]')?.click();
                 const ready=await waitFor(()=>!!document.querySelector('.journey-view .lesson h1'));
@@ -1113,7 +1126,7 @@ def main():
                   revealedClassification,resultFits:!!resultRect&&resultRect.top>=0&&resultRect.bottom<=innerHeight+.5};
               };
               const planetAssessment={routePrompt,routeButtons,journeyNav,directive:exerciseRoute('directivo'),nonDirective:exerciseRoute('no_directivo')};
-              return {results,guideTooltip,companyGallery,satelliteTooltip,noEarthLabel,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
+              return {results,guideTooltip,companyGallery,satelliteTooltip,noEarthLabel,figureNavigation,header,evaluation,access,weakKey,registration,legacySatellite,stepCompatibility,recovery,offlineRecovery,planetAssessment,
                 writes:window.__fixtureWrites.length,
                 network:window.__networkAttempts,errors:window.__errors};
             })()""")
@@ -1169,11 +1182,17 @@ def main():
              not integration["guideTooltip"].get("fullyInside") or
              not integration["guideTooltip"].get("anchored") or
              not integration["guideTooltip"].get("noEyebrow"))) or
-            integration["companyGallery"].get("count") != 17 or
+            integration["companyGallery"].get("count") != 16 or
+            integration["companyGallery"].get("names") != ["Afinia", "Aguas de Antofagasta", "Aguas de Malambo", "Aguas Regionales", "CENS", "CHEC", "COMEGSA", "DELSUR", "EDEQ", "EEGSA", "Emvarias", "ENÉRGICA", "ENSA", "EPM", "ESSA", "Somos"] or
+            not integration["companyGallery"].get("alphabetical") or
+            not integration["companyGallery"].get("removedAguasDelOriente") or
             not integration["companyGallery"].get("allLoaded") or
             not integration["companyGallery"].get("allContained") or
             not integration["companyGallery"].get("noScroll") or
             not integration.get("noEarthLabel") or
+            not integration["figureNavigation"].get("ready") or
+            integration["figureNavigation"].get("hit") != "client" or
+            integration["figureNavigation"].get("title") != "¿Por qué gestionar la experiencia?" or
             (args.width > 800 and (not integration["satelliteTooltip"].get("visible") or
              integration["satelliteTooltip"].get("title") != "Satélite" or
              "Proveedores y Contratistas" not in integration["satelliteTooltip"].get("definition", "") or

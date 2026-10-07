@@ -60,9 +60,9 @@ GLOSSARY_DEFINITION_PARTS = [
     ["métricas", "visible", "gestionable"],
     ["evolución permanente", "mediciones", "datos", "retroalimentación"],
     ["clientes y usuarios", "empleados", "proveedores", "contratistas", "dueño", "comunidad", "marca", "reputación"],
-    ["perciben", "viven", "sienten", "organización"],
-    ["etapas", "interacciones", "empleado", "organización"],
-    ["interacciones", "conectan", "orientan", "fortalecen"],
+    ["perciben", "viven", "sienten", "organización", "durante su viaje como empleado"],
+    ["etapas", "interacciones", "empleado", "atracción y selección", "cierre de ciclo laboral"],
+    ["interacciones", "conectan", "orientan", "fortalecen", "confianza"],
 ]
 
 
@@ -213,6 +213,10 @@ def check_content(cdp, panel, record, capture):
                     assert GLOSSARY_TERMS[index] in detail, f"Selected {concept} has the wrong heading"
                     if view == "definition":
                         require_content(detail, GLOSSARY_DEFINITION_PARTS[index], f"Official {concept} definition")
+                    if concept == "viaje" and view == "example":
+                        require_content(detail, ["atracción y selección", "inducción", "desarrollo",
+                                                 "cierre de ciclo laboral", "implementando acciones de mejora"],
+                                        "Employee journey example")
         click(cdp, '[data-action="launch-code-next"]')
         assert cdp.evaluate("document.querySelector('.launch-code-detail').dataset.code") == "cx", "Next code does not wrap across all 16 concepts"
         state("codes-next-wrap")
