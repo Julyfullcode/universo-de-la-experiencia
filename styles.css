@@ -603,3 +603,44 @@ body .universo .passport{flex:1 1 0;height:auto;min-height:0;max-height:none;mar
   .observatory-moment.is-challenge .incoming-signal{padding:.65rem 1rem}
   .observatory-moment.is-challenge .signal-wave{height:24px;margin:.2rem 0}
 }
+
+/* Mi misión: toda la actividad permanece dentro de la pantalla. */
+.journey-view .mission-moment{overflow:hidden!important;gap:clamp(.3rem,.75vh,.55rem)!important;padding-top:clamp(.65rem,1.3vh,.9rem)!important;padding-bottom:.7rem!important}
+.mission-moment .journey-heading{margin-bottom:.25rem!important}
+.mission-moment>.intro{max-width:none!important;margin:.15rem 0!important;font-size:clamp(.72rem,.9vw,.84rem)!important;line-height:1.35!important}
+.mission-moment>.scenario{max-width:none;margin:.1rem 0!important;padding:.5rem .75rem!important;font-size:clamp(.7rem,.86vw,.8rem)!important;line-height:1.35}
+.mission-moment .mission-grid{display:grid;grid-template-columns:minmax(0,1.55fr) repeat(2,minmax(0,.85fr));gap:.55rem!important;min-height:0;margin:.15rem 0!important}
+.mission-moment .mission-grid>label{min-width:0;padding:.65rem!important}
+.mission-moment .mission-grid>label:first-child{grid-row:span 1}
+.mission-moment .mission-grid b{display:block;font-size:.72rem;line-height:1.25}
+.mission-moment .mission-grid :is(select,textarea){margin-top:.35rem;padding:.5rem .6rem;font-size:.72rem;line-height:1.25}
+.mission-moment .mission-grid textarea{height:clamp(54px,8.5vh,72px);min-height:0;resize:none}
+.mission-moment .moment-actions{flex:none;margin-top:auto!important;padding-top:.2rem!important}
+
+/* Evaluación: constelación acumulativa y comentario opcional. */
+.feedback-card{isolation:isolate;overflow:hidden;background:radial-gradient(circle at 88% 12%,rgba(98,216,241,.2),transparent 25%),radial-gradient(circle at 13% 92%,rgba(167,82,236,.22),transparent 30%),linear-gradient(145deg,rgba(10,38,79,.99),rgba(24,13,68,.99))}
+.feedback-card>*:not(.feedback-signal):not(.dialog-close){position:relative;z-index:1}
+.feedback-card>.dialog-close{position:absolute;z-index:2;right:1rem;top:.9rem}
+.feedback-signal{position:absolute;z-index:0;right:-78px;top:-76px;width:270px;height:270px;border:1px solid rgba(128,222,245,.25);border-radius:50%;box-shadow:0 0 0 30px rgba(100,190,226,.05),0 0 70px rgba(92,215,240,.13);pointer-events:none}
+.feedback-signal i{position:absolute;width:7px;height:7px;border-radius:50%;background:#d9ff6a;box-shadow:0 0 16px #d9ff6a}
+.feedback-signal i:nth-child(1){left:20px;top:128px}.feedback-signal i:nth-child(2){left:112px;bottom:5px;width:4px;height:4px;background:#8de8ff}.feedback-signal i:nth-child(3){right:30px;top:52px;width:10px;height:10px;background:#e3a4ff}
+.feedback-card .rating-field{border-color:rgba(131,217,241,.3);background:linear-gradient(110deg,rgba(5,28,62,.76),rgba(34,20,80,.62));box-shadow:inset 0 1px rgba(255,255,255,.06),0 16px 34px rgba(0,0,0,.2)}
+.rating-stars{align-items:stretch}
+.rating-stars label{overflow:hidden;min-width:0;background:linear-gradient(145deg,rgba(7,29,64,.9),rgba(17,17,60,.82));transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.rating-stars label:before{content:"";position:absolute;inset:auto 15% 0;height:2px;background:linear-gradient(90deg,transparent,#8de8ff,transparent);opacity:.45}
+.rating-stars label:hover,.rating-stars label:has(input:focus-visible){transform:translateY(-3px);border-color:rgba(141,232,255,.65);box-shadow:0 10px 22px rgba(0,0,0,.25)}
+.rating-stars label:has(input:checked){transform:translateY(-4px);border-color:#d9ff6a;background:linear-gradient(145deg,rgba(50,77,102,.95),rgba(43,30,87,.92));box-shadow:0 0 0 1px rgba(217,255,106,.18),0 0 24px rgba(217,255,106,.18)}
+.rating-stars span{display:flex;align-items:center;justify-content:center;gap:.08em;white-space:nowrap;font-size:clamp(.75rem,1.25vw,1.05rem);letter-spacing:0;color:#71809e}
+.rating-stars input:checked+span,.rating-stars label:hover span{color:#d9ff6a;text-shadow:0 0 12px rgba(217,255,106,.7)}
+.feedback-copy>span{display:flex;align-items:center;gap:.55rem}
+.feedback-copy>span small{padding:.18rem .45rem;border:1px solid rgba(141,232,255,.32);border-radius:999px;color:#aeeeff;font-size:.62rem;font-weight:800;letter-spacing:.04em}
+.feedback-copy textarea{border-color:rgba(131,217,241,.25);background:linear-gradient(145deg,rgba(2,16,42,.94),rgba(12,19,59,.9));box-shadow:inset 0 1px rgba(255,255,255,.04)}
+
+@media(max-width:700px){
+  .mission-moment>.intro{font-size:.68rem!important}.mission-moment>.scenario{padding:.4rem .55rem!important;font-size:.64rem!important}
+  .mission-moment .mission-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem!important}
+  .mission-moment .mission-grid>label{padding:.45rem!important}.mission-moment .mission-grid>label:first-child{grid-column:1/-1}
+  .mission-moment .mission-grid b,.mission-moment .mission-grid :is(select,textarea){font-size:.62rem}
+  .mission-moment .mission-grid :is(select,textarea){margin-top:.25rem;padding:.38rem .45rem}.mission-moment .mission-grid textarea{height:42px}
+  .rating-stars{gap:.22rem}.rating-stars label{min-height:50px;padding:.25rem}.rating-stars span{font-size:clamp(.52rem,2.35vw,.72rem);gap:.03em}
+}

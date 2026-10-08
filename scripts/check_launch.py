@@ -298,7 +298,7 @@ def check_scenarios(cdp, record, capture):
 
 def run_checks(cdp, artifacts, screenshots):
     result = {"viewports": [], "layoutErrors": []}
-    wait_for(cdp, "Boolean(document.querySelector('.orbital-realm-view'))")
+    wait_for(cdp, "Boolean(document.querySelector('.orbital-realm-view'))", timeout=20)
     cdp.evaluate("goStep('lanzamiento')")
     wait_for(cdp, "Boolean(document.querySelector('.launch-station'))")
     cdp.evaluate("flushPending()")
@@ -438,7 +438,31 @@ def run_checks(cdp, artifacts, screenshots):
     cdp.evaluate("(()=>{for(let index=1;index<observatoryChallengeQuestions.length;index++){answer(observatoryChallengeQuestions[index].answer);if(index<observatoryChallengeQuestions.length-1)advanceObservatoryChallenge();}})()")
     assert cdp.evaluate("observatoryScore") == 6
     assert cdp.evaluate("!!document.querySelector('[data-action=\"save-observatory\"]')&&!document.querySelector('[data-action=\"save-observatory\"]').disabled")
-    journey_state("mission", "trip.step='mision';view='journey';render()")
+    mission_layout = journey_state("mission", "trip.step='mision';view='journey';render()")
+    assert mission_layout["scrollHeight"] <= mission_layout["clientHeight"] + 1, "Mission requires vertical scrolling at 1440x900"
+    assert mission_layout["actionsInitiallyVisible"], "Mission actions are below the initial viewport at 1440x900"
+    for width, height in ((1366, 768), (1280, 720), (390, 844)):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
+                 "deviceScaleFactor": 1, "mobile": False})
+        cdp.evaluate("trip.step='mision';view='journey';render()")
+        wait_for(cdp, "Boolean(document.querySelector('.mission-moment'))")
+        mission_viewport = cdp.evaluate("""(()=>{
+          const lesson=document.querySelector('.mission-moment'),actions=lesson.querySelector('.moment-actions');
+          const l=lesson.getBoundingClientRect(),a=actions.getBoundingClientRect();
+          return {noScroll:lesson.scrollHeight<=lesson.clientHeight+1,
+            actionsVisible:a.top>=l.top-.5&&a.bottom<=l.bottom+.5,
+            horizontal:lesson.scrollWidth>lesson.clientWidth+1,
+            bodyScroll:document.documentElement.scrollHeight>innerHeight+1};
+        })()""")
+        result.setdefault("missionViewports", []).append({"viewport": [width, height], **mission_viewport})
+        assert mission_viewport["noScroll"] and mission_viewport["actionsVisible"], (
+            f"Mission does not fit without scrolling at {width}x{height}"
+        )
+        assert not mission_viewport["horizontal"] and not mission_viewport["bodyScroll"], (
+            f"Mission overflows the viewport at {width}x{height}"
+        )
+        if screenshots:
+            screenshot(cdp, artifacts, f"{width}x{height}-journey-mission", True)
     for width, height in ((1440, 900), (390, 844)):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
                  "deviceScaleFactor": 1, "mobile": False})
@@ -480,6 +504,33 @@ def run_checks(cdp, artifacts, screenshots):
         assert passport_layout["compactTop"] and passport_layout["neonTitle"], f"Passport title treatment is incorrect at {width}x{height}"
         if screenshots:
             screenshot(cdp, artifacts, f"{width}x{height}-passport", True)
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900,
+             "deviceScaleFactor": 1, "mobile": False})
+    cdp.evaluate("view='passport';renderPassport();openFeedback()")
+    wait_for(cdp, "document.querySelector('#feedback-dialog')?.open===true")
+    feedback_layout = cdp.evaluate("""(()=>{
+      const dialog=document.querySelector('#feedback-dialog'),textarea=document.querySelector('#feedback-recommendation'),close=document.querySelector('.dialog-close');
+      const rect=dialog.getBoundingClientRect(),closeRect=close.getBoundingClientRect(),options=[...document.querySelectorAll('.rating-stars label')];
+      return {starCounts:options.map(option=>option.querySelector('span').textContent.length),
+        visibleNumbers:options.some(option=>option.querySelector('small')),
+        optional:!textarea.required&&document.querySelector('.feedback-copy small')?.textContent.trim()==='Opcional',
+        signalOrbits:document.querySelectorAll('.feedback-signal i').length,
+        closeAtTopRight:closeRect.left>rect.left+rect.width/2&&closeRect.top<rect.top+80,
+        fits:rect.top>=0&&rect.bottom<=innerHeight&&dialog.scrollHeight<=dialog.clientHeight+1};
+    })()""")
+    result["feedbackLayout"] = feedback_layout
+    assert feedback_layout["starCounts"] == [1, 2, 3, 4, 5] and not feedback_layout["visibleNumbers"], (
+        "Feedback rating is not represented by cumulative stars without numbers"
+    )
+    assert feedback_layout["optional"] and feedback_layout["signalOrbits"] == 3 and feedback_layout["fits"] and feedback_layout["closeAtTopRight"], (
+        "Feedback dialog is not visual, optional, or fully visible"
+    )
+    cdp.evaluate("document.querySelector('.rating-stars input[value=\"5\"]').checked=true;document.querySelector('#feedback-recommendation').value=''")
+    if screenshots:
+        screenshot(cdp, artifacts, "1440x900-feedback", True)
+    cdp.evaluate("saveFeedback({preventDefault(){},currentTarget:document.querySelector('[data-form=\"feedback\"]')})")
+    wait_for(cdp, "window.__fixtureWrites.some(write=>write.name==='universo_guardar_feedback'&&write.args.p_recomendacion==='')")
+    result["feedbackWithoutCommentSaved"] = True
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")
