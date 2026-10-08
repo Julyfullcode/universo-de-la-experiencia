@@ -626,12 +626,21 @@ body .universo .passport{flex:1 1 0;height:auto;min-height:0;max-height:none;mar
 .feedback-signal i:nth-child(1){left:20px;top:128px}.feedback-signal i:nth-child(2){left:112px;bottom:5px;width:4px;height:4px;background:#8de8ff}.feedback-signal i:nth-child(3){right:30px;top:52px;width:10px;height:10px;background:#e3a4ff}
 .feedback-card .rating-field{border-color:rgba(131,217,241,.3);background:linear-gradient(110deg,rgba(5,28,62,.76),rgba(34,20,80,.62));box-shadow:inset 0 1px rgba(255,255,255,.06),0 16px 34px rgba(0,0,0,.2)}
 .rating-stars{align-items:stretch}
-.rating-stars label{overflow:hidden;min-width:0;background:linear-gradient(145deg,rgba(7,29,64,.9),rgba(17,17,60,.82));transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.rating-stars label{overflow:hidden;min-width:0;min-height:clamp(78px,10vh,96px);background:linear-gradient(145deg,rgba(7,29,64,.9),rgba(17,17,60,.82));transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 .rating-stars label:before{content:"";position:absolute;inset:auto 15% 0;height:2px;background:linear-gradient(90deg,transparent,#8de8ff,transparent);opacity:.45}
 .rating-stars label:hover,.rating-stars label:has(input:focus-visible){transform:translateY(-3px);border-color:rgba(141,232,255,.65);box-shadow:0 10px 22px rgba(0,0,0,.25)}
 .rating-stars label:has(input:checked){transform:translateY(-4px);border-color:#d9ff6a;background:linear-gradient(145deg,rgba(50,77,102,.95),rgba(43,30,87,.92));box-shadow:0 0 0 1px rgba(217,255,106,.18),0 0 24px rgba(217,255,106,.18)}
-.rating-stars span{display:flex;align-items:center;justify-content:center;gap:.08em;white-space:nowrap;font-size:clamp(.75rem,1.25vw,1.05rem);letter-spacing:0;color:#71809e}
+.rating-stars span{display:flex;align-items:center;justify-content:center;gap:.08em;white-space:nowrap;font-size:clamp(1.05rem,1.75vw,1.5rem);letter-spacing:0;color:#71809e}
+.rating-stars span i{font-style:normal;filter:drop-shadow(0 0 5px rgba(141,232,255,.18));transform:scale(.94);transition:transform .18s ease,color .18s ease,filter .18s ease}
+.rating-stars label:has(input:checked) span i{color:#d9ff6a;filter:drop-shadow(0 0 9px rgba(217,255,106,.8));animation:feedback-star-pulse 1.8s ease-in-out calc(var(--star)*.11s) infinite}
 .rating-stars input:checked+span,.rating-stars label:hover span{color:#d9ff6a;text-shadow:0 0 12px rgba(217,255,106,.7)}
+.feedback-card h2{font-size:clamp(2.65rem,4.5vw,4rem)}
+.feedback-card>p{font-size:clamp(1.05rem,1.35vw,1.25rem)}
+.feedback-card .rating-field legend,.feedback-copy>span{font-size:clamp(1rem,1.2vw,1.18rem)}
+.feedback-card .rating-field.needs-rating{border-color:rgba(255,190,116,.8);box-shadow:0 0 0 2px rgba(255,190,116,.1),0 16px 34px rgba(0,0,0,.2)}
+.feedback-card.is-sent{box-shadow:inset 0 0 70px rgba(217,255,106,.08)}
+.feedback-card.is-sent .feedback-status{font-size:1rem;color:#ecffc1!important;text-shadow:0 0 14px rgba(217,255,106,.35)}
+@keyframes feedback-star-pulse{0%,100%{transform:scale(.96)}50%{transform:scale(1.13)}}
 .feedback-copy>span{display:flex;align-items:center;gap:.55rem}
 .feedback-copy>span small{padding:.18rem .45rem;border:1px solid rgba(141,232,255,.32);border-radius:999px;color:#aeeeff;font-size:.62rem;font-weight:800;letter-spacing:.04em}
 .feedback-copy textarea{border-color:rgba(131,217,241,.25);background:linear-gradient(145deg,rgba(2,16,42,.94),rgba(12,19,59,.9));box-shadow:inset 0 1px rgba(255,255,255,.04)}
@@ -642,5 +651,7 @@ body .universo .passport{flex:1 1 0;height:auto;min-height:0;max-height:none;mar
   .mission-moment .mission-grid>label{padding:.45rem!important}.mission-moment .mission-grid>label:first-child{grid-column:1/-1}
   .mission-moment .mission-grid b,.mission-moment .mission-grid :is(select,textarea){font-size:.62rem}
   .mission-moment .mission-grid :is(select,textarea){margin-top:.25rem;padding:.38rem .45rem}.mission-moment .mission-grid textarea{height:42px}
-  .rating-stars{gap:.22rem}.rating-stars label{min-height:50px;padding:.25rem}.rating-stars span{font-size:clamp(.52rem,2.35vw,.72rem);gap:.03em}
+  .feedback-card h2{font-size:clamp(2rem,8vw,2.7rem)}.feedback-card>p{font-size:.9rem}
+  .rating-stars{gap:.22rem}.rating-stars label{min-height:58px;padding:.25rem}.rating-stars span{font-size:clamp(.62rem,2.8vw,.82rem);gap:.03em}
 }
+@media(prefers-reduced-motion:reduce){.rating-stars label:has(input:checked) span i{animation:none}}

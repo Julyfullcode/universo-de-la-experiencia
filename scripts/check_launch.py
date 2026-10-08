@@ -525,11 +525,24 @@ def run_checks(cdp, artifacts, screenshots):
     assert feedback_layout["optional"] and feedback_layout["signalOrbits"] == 3 and feedback_layout["fits"] and feedback_layout["closeAtTopRight"], (
         "Feedback dialog is not visual, optional, or fully visible"
     )
-    cdp.evaluate("document.querySelector('.rating-stars input[value=\"5\"]').checked=true;document.querySelector('#feedback-recommendation').value=''")
+    cdp.evaluate("document.querySelectorAll('.rating-stars input').forEach(input=>input.checked=false);document.querySelector('#feedback-recommendation').value=''")
+    writes_before_feedback = cdp.evaluate("window.__fixtureWrites.filter(write=>write.name==='universo_guardar_feedback').length")
+    click(cdp, '[data-form="feedback"] button[type="submit"]')
+    wait_for(cdp, "document.querySelector('#feedback-status')?.innerText.includes('Elige una cantidad')")
+    assert cdp.evaluate("window.__fixtureWrites.filter(write=>write.name==='universo_guardar_feedback').length") == writes_before_feedback, (
+        "Feedback without a rating was unexpectedly submitted"
+    )
+    click(cdp, '.rating-stars label[data-rating="5"]')
+    assert cdp.evaluate("!document.querySelector('.rating-field').classList.contains('needs-rating')&&!document.querySelector('#feedback-status').innerText"), (
+        "Choosing a rating did not clear the validation guidance"
+    )
     if screenshots:
         screenshot(cdp, artifacts, "1440x900-feedback", True)
-    cdp.evaluate("saveFeedback({preventDefault(){},currentTarget:document.querySelector('[data-form=\"feedback\"]')})")
+    click(cdp, '[data-form="feedback"] button[type="submit"]')
     wait_for(cdp, "window.__fixtureWrites.some(write=>write.name==='universo_guardar_feedback'&&write.args.p_recomendacion==='')")
+    assert cdp.evaluate("document.querySelector('#feedback-status')?.innerText.includes('señal quedó registrada')"), (
+        "A real feedback form submission did not show its success confirmation"
+    )
     result["feedbackWithoutCommentSaved"] = True
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
