@@ -424,6 +424,7 @@ def run_checks(cdp, artifacts, screenshots):
     assert challenge_layout["scrollHeight"] <= challenge_layout["clientHeight"] + 1, "Observatory challenge requires vertical scrolling"
     assert challenge_layout["actionsInitiallyVisible"], "Observatory challenge actions are below the initial viewport"
     assert cdp.evaluate("getComputedStyle(document.querySelector('.observatory-moment'),'::before').display==='none'"), "Observatory background panel is still visible"
+    assert cdp.evaluate("""(()=>{const style=getComputedStyle(document.querySelector('.observatory-tabs'));return style.backgroundColor==='rgba(0, 0, 0, 0)'&&parseFloat(style.paddingTop)===0&&parseFloat(style.borderTopWidth)===0})()"""), "Observatory navigation still has a dark container behind its buttons"
     assert cdp.evaluate("observatoryChallengeQuestions.length") == 6
     assert cdp.evaluate("document.querySelectorAll('.signal-radar .radar-satellite').length") == 3
     first_answer = cdp.evaluate("observatoryChallengeQuestions[0].answer")
@@ -459,19 +460,24 @@ def run_checks(cdp, artifacts, screenshots):
         cdp.evaluate("trip.name='Persona exploradora';trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';trip.role='generador';view='passport';renderPassport()")
         wait_for(cdp, "Boolean(document.querySelector('.passport-header'))")
         passport_layout = cdp.evaluate("""(()=>{
-          const card=document.querySelector('.passport'),header=document.querySelector('.passport-header'),title=document.querySelector('.passport-title'),logo=document.querySelector('.passport-logo');
-          const c=card.getBoundingClientRect(),h=header.getBoundingClientRect(),t=title.getBoundingClientRect(),l=logo.getBoundingClientRect();
+          const card=document.querySelector('.passport'),header=document.querySelector('.passport-header'),title=document.querySelector('.passport-title'),logo=document.querySelector('.passport-logo'),actions=document.querySelector('.passport-actions');
+          const c=card.getBoundingClientRect(),h=header.getBoundingClientRect(),t=title.getBoundingClientRect(),l=logo.getBoundingClientRect(),a=actions.getBoundingClientRect(),titleStyle=getComputedStyle(title);
           return {fits:c.top>=0&&c.bottom<=innerHeight+.5&&card.scrollHeight<=card.clientHeight+1,
             titleSize:parseFloat(getComputedStyle(title).fontSize),logoRight:l.left>t.right,
             horizontallyAligned:Math.abs((t.top+t.bottom)/2-(l.top+l.bottom)/2)<=8,
             noExplorerLabel:!card.querySelector(':scope>p')&&!card.innerText.includes('Explorador/a'),
-            headerInside:h.left>=c.left&&h.right<=c.right+.5};
+            headerInside:h.left>=c.left&&h.right<=c.right+.5,
+            actionsVisible:a.top>=0&&a.bottom<=innerHeight+.5,
+            compactTop:h.top-c.top<=40,
+            neonTitle:parseFloat(titleStyle.borderTopWidth)>=1&&titleStyle.boxShadow!=='none'};
         })()""")
         result.setdefault("passportLayouts", []).append({"viewport": [width, height], **passport_layout})
         assert passport_layout["fits"], f"Passport does not fit at {width}x{height}"
         assert passport_layout["titleSize"] >= (24 if width > 720 else 16), f"Passport title is too small at {width}x{height}"
         assert passport_layout["logoRight"] and passport_layout["horizontallyAligned"], f"Passport logo and title are not aligned at {width}x{height}"
         assert passport_layout["noExplorerLabel"] and passport_layout["headerInside"], f"Passport header content is incorrect at {width}x{height}"
+        assert passport_layout["actionsVisible"], f"Passport actions are outside the viewport at {width}x{height}"
+        assert passport_layout["compactTop"] and passport_layout["neonTitle"], f"Passport title treatment is incorrect at {width}x{height}"
         if screenshots:
             screenshot(cdp, artifacts, f"{width}x{height}-passport", True)
     result["errors"] = cdp.evaluate("window.__launchErrors")
