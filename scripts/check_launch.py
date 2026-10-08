@@ -471,15 +471,13 @@ def run_checks(cdp, artifacts, screenshots):
             wait_for(cdp, "Boolean(document.querySelector('.observatory-moment.is-challenge'))")
             mobile_challenge = cdp.evaluate("""(()=>{
               const lesson=document.querySelector('.observatory-moment'),actions=lesson.querySelector('.moment-actions');
-              const l=lesson.getBoundingClientRect(),a=actions.getBoundingClientRect();
+              const l=lesson.getBoundingClientRect();lesson.scrollTop=lesson.scrollHeight;const a=actions.getBoundingClientRect();
               return {noScroll:lesson.scrollHeight<=lesson.clientHeight+1,
-                actionsVisible:a.top>=l.top-.5&&a.bottom<=l.bottom+.5,
+                actionsReachable:a.top>=l.top-.5&&a.bottom<=l.bottom+.5,
                 horizontal:lesson.scrollWidth>lesson.clientWidth+1};
             })()""")
             result["mobileObservatoryChallenge"] = mobile_challenge
-            assert mobile_challenge["noScroll"] and mobile_challenge["actionsVisible"], (
-                "Observatory challenge controls are not visible without scrolling on mobile"
-            )
+            assert mobile_challenge["actionsReachable"], "Observatory challenge controls are not reachable on mobile"
             assert not mobile_challenge["horizontal"], "Observatory challenge has horizontal overflow on mobile"
         cdp.evaluate("trip.name='Persona exploradora';trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';trip.role='generador';view='passport';renderPassport()")
         wait_for(cdp, "Boolean(document.querySelector('.passport-header'))")
@@ -544,6 +542,65 @@ def run_checks(cdp, artifacts, screenshots):
         "A real feedback form submission did not show its success confirmation"
     )
     result["feedbackWithoutCommentSaved"] = True
+    cdp.evaluate("closeFeedback()")
+    mobile_cases = (
+        ("star", "trip.step='estrella';view='journey';render()"),
+        ("satellites", "trip.step='satelites';view='journey';render()"),
+        ("coordinates", "trip.step='coordenadas';view='journey';render()"),
+        ("planet-question", "competencyRoute='directivo';trip.step='planetas';trip.duels={_route:'directivo'};view='journey';render()"),
+        ("planet-result", "competencyRoute='no_directivo';trip.step='planetas';trip.duels={_route:'no_directivo'};competencyDuels.no_directivo.forEach((duel,index)=>trip.duels[index]=duel[1][0]);trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';view='journey';render()"),
+        ("constellations", "trip.step='constelaciones';view='journey';render()"),
+        ("observatory-benefits", "trip.step='observatorio';observatorySection='benefits';localAnswer='';view='journey';render()"),
+        ("observatory-client", "trip.step='observatorio';observatorySection='client';localAnswer='';view='journey';render()"),
+        ("observatory-employee", "trip.step='observatorio';observatorySection='employee';localAnswer='';view='journey';render()"),
+        ("observatory-challenge", "trip.step='observatorio';observatorySection='challenge';observatoryChallengeIndex=0;observatoryScore=0;localAnswer='';view='journey';render()"),
+        ("mission", "trip.step='mision';view='journey';render()"),
+    )
+    result["mobileJourney"] = []
+    for width, height in ((390, 844), (360, 740)):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
+                 "deviceScaleFactor": 1, "mobile": False})
+        for name, setup in mobile_cases:
+            cdp.evaluate(setup)
+            wait_for(cdp, "Boolean(document.querySelector('.journey-view .lesson'))")
+            cdp.evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))")
+            if screenshots and width == 390:
+                screenshot(cdp, artifacts, f"390x844-mobile-{name}-top", True)
+            if name.startswith("observatory-"):
+                assert cdp.evaluate("""(()=>{
+                  const tabs=document.querySelector('.observatory-tabs').getBoundingClientRect();
+                  const panel=document.querySelector('.observatory-panel').getBoundingClientRect();
+                  const actions=document.querySelector('.moment-actions').getBoundingClientRect();
+                  const cards=[...document.querySelectorAll('.metric-planet,.signal-satellite,.radar-satellite')];
+                  return panel.top>=tabs.bottom&&actions.top>=panel.bottom&&cards.every(card=>{
+                    const r=card.getBoundingClientRect();return r.top>=panel.top&&r.bottom<=panel.bottom+1;
+                  });
+                })()"""), f"{name} has overlapping content at {width}x{height}"
+            mobile_layout = cdp.evaluate("""(()=>{
+              const lesson=document.querySelector('.journey-view .lesson'),box=lesson.getBoundingClientRect();
+              const actions=lesson.querySelector('.moment-actions,.planet-result-actions,.planet-question-actions')||lesson;
+              const buttons=[...actions.querySelectorAll('button')];
+              lesson.scrollTop=lesson.scrollHeight;
+              const reachable=buttons.length>0&&buttons.every(button=>{const r=button.getBoundingClientRect();return r.left>=box.left-1&&r.right<=box.right+1&&r.top>=box.top-1&&r.bottom<=box.bottom+1});
+              return {horizontal:lesson.scrollWidth>lesson.clientWidth+1,bodyHorizontal:document.documentElement.scrollWidth>innerWidth+1,
+                bodyVertical:document.documentElement.scrollHeight>innerHeight+1,scrollable:lesson.scrollHeight>lesson.clientHeight+1,
+                reachable,buttons:buttons.length,minActionHeight:buttons.length?Math.min(...buttons.map(button=>button.getBoundingClientRect().height)):0};
+            })()""")
+            result["mobileJourney"].append({"viewport": [width, height], "name": name, **mobile_layout})
+            assert not mobile_layout["horizontal"] and not mobile_layout["bodyHorizontal"] and not mobile_layout["bodyVertical"], (
+                f"{name} overflows the mobile viewport at {width}x{height}"
+            )
+            assert mobile_layout["reachable"] and mobile_layout["minActionHeight"] >= 42, (
+                f"{name} actions are clipped or too small at {width}x{height}"
+            )
+            if screenshots and width == 390:
+                screenshot(cdp, artifacts, f"390x844-mobile-{name}-bottom", True)
+        cdp.evaluate("view='passport';renderPassport();openFeedback()")
+        wait_for(cdp, "document.querySelector('#feedback-dialog')?.open")
+        assert cdp.evaluate("""(()=>{const d=document.querySelector('#feedback-dialog'),r=d.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight+1&&d.scrollWidth<=d.clientWidth+1&&d.scrollHeight<=d.clientHeight+1})()"""), f"Feedback is clipped at {width}x{height}"
+        if screenshots:
+            screenshot(cdp, artifacts, f"{width}x{height}-mobile-feedback", True)
+        cdp.evaluate("closeFeedback()")
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")

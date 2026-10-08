@@ -655,3 +655,51 @@ body .universo .passport{flex:1 1 0;height:auto;min-height:0;max-height:none;mar
   .rating-stars{gap:.22rem}.rating-stars label{min-height:58px;padding:.25rem}.rating-stars span{font-size:clamp(.62rem,2.8vw,.82rem);gap:.03em}
 }
 @media(prefers-reduced-motion:reduce){.rating-stars label:has(input:checked) span i{animation:none}}
+
+/* Adaptación móvil integral: conserva el lenguaje del universo sin comprimir la experiencia. */
+@media(max-width:700px){
+  .journey-view .lesson{width:100%;padding:.65rem .75rem max(.7rem,env(safe-area-inset-bottom));scrollbar-width:none;overscroll-behavior:contain}
+  .journey-view .lesson::-webkit-scrollbar{display:none}
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)){gap:.55rem}
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)) .journey-title-line{min-height:50px;padding:.55rem .65rem}
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)) .journey-title-line>.tag,
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)) .journey-title-line>h1{font-size:.96rem!important;line-height:1.25!important}
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)) .journey-heading>:not(.journey-title-line){font-size:.8rem;line-height:1.45}
+  .journey-view :is(.journey-moment,.planet-journey:not(.planet-result)) .moment-actions :is(.primary,.secondary),
+  .journey-view :is(.planet-result-actions,.planet-question-actions) button{min-height:46px!important;padding:.68rem .8rem;font-size:.78rem}
+  .journey-view .star-moment .stellar-expectations{grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
+  .journey-view .star-moment .stellar-expectations span{min-height:78px;padding:.55rem;font-size:.69rem!important;line-height:1.18}
+  .journey-view .star-moment .stellar-expectations span:last-child:nth-child(odd){grid-column:1/-1}
+  .planet-result .journey-title-line>.tag{flex:0 0 102px;max-width:102px;white-space:normal;overflow-wrap:normal;word-break:normal;font-size:.8rem!important}
+  .planet-result .journey-title-line>h1{font-size:1.6rem!important;line-height:1.12!important}
+
+  .journey-view .observatory-moment{overflow-y:auto!important;padding-bottom:max(.75rem,env(safe-area-inset-bottom))!important}
+  .observatory-moment .journey-heading{margin-bottom:.35rem!important}
+  .observatory-moment .observatory-tabs{flex:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:.38rem;margin:.15rem 0 .45rem}
+  .observatory-tabs button{min-height:50px;padding:.45rem .4rem;font-size:.65rem;line-height:1.18}
+  .observatory-tabs button span{width:23px;height:23px;font-size:.58rem}
+  .observatory-moment .challenge-progress{flex:none;margin:.05rem 0 .35rem;padding:0;gap:.45rem}
+  .observatory-moment .observatory-panel{flex:0 0 auto!important;height:auto!important;min-height:0!important;overflow:visible!important}
+
+  .observatory-moment .benefits-orbit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.48rem;padding:.6rem;border-radius:1.15rem;background:linear-gradient(145deg,rgba(4,31,62,.78),rgba(27,18,66,.76))}
+  .benefits-orbit .signal-ring{display:none}
+  .benefits-orbit .observatory-core{position:static;grid-column:1/-1;width:100%;height:auto;min-height:88px;padding:.7rem;border-radius:1rem;transform:none}
+  .benefits-orbit .observatory-core span{font-size:1.15rem}.benefits-orbit .observatory-core b{font-size:.9rem}.benefits-orbit .observatory-core small{font-size:.68rem}
+  .benefits-orbit .signal-satellite{position:static;width:auto!important;min-height:104px;padding:.62rem;border-radius:1rem;align-items:flex-start;transform:none!important}
+  .benefits-orbit .signal-satellite p{font-size:.68rem;line-height:1.35}.benefits-orbit .signal-satellite span{width:30px;height:30px;font-size:.62rem}
+  .benefits-orbit .signal-satellite.signal-5{grid-column:1/-1;width:100%!important;min-height:76px}
+
+  .observatory-moment .metric-constellation{display:grid;grid-template-columns:1fr;gap:.55rem;padding:.6rem;min-height:0!important;overflow:visible!important;border-radius:1.15rem}
+  .metric-constellation .metric-beacon{position:static;width:100%;min-height:56px;justify-content:center;transform:none}
+  .metric-constellation .metric-beacon b{font-size:.78rem}.metric-constellation .metric-beacon small{font-size:.65rem}
+  .metric-constellation .metric-planet{min-height:158px;padding:1.1rem .9rem;border-radius:1.2rem}
+  .metric-constellation .metric-planet>span{font-size:.82rem}.metric-constellation .metric-planet>b{font-size:1.05rem}.metric-constellation .metric-planet>p{font-size:.75rem}.metric-constellation .metric-planet>em{font-size:.7rem}
+
+  .journey-view .observatory-moment.is-challenge{overflow-y:auto!important}
+  .observatory-moment.is-challenge .signal-challenge{height:auto!important;min-height:0;grid-template-columns:1fr;grid-template-rows:auto auto;gap:.35rem;padding:.65rem}
+  .observatory-moment.is-challenge .incoming-signal{padding:.65rem .7rem}.observatory-moment.is-challenge .incoming-signal p{font-size:.8rem}
+  .observatory-moment.is-challenge .signal-radar{min-height:310px}
+  .observatory-moment.is-challenge .radar-3{bottom:3%}
+  .observatory-moment .moment-actions{flex:none;position:relative;z-index:5;min-height:52px;margin-top:.55rem!important;padding:.35rem 0 0!important;background:linear-gradient(180deg,transparent,rgba(5,10,35,.72) 28%,rgba(5,10,35,.88));backdrop-filter:blur(5px)}
+  .observatory-moment .moment-actions>*{flex:1;min-width:0}
+}

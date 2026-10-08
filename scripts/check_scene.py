@@ -406,11 +406,14 @@ def visual_copy_checks(cdp):
       const lockedButtons=momentButtons.filter(button=>button.disabled&&button.classList.contains('is-locked'));
       const copyOnly=navigation?.cloneNode(true);copyOnly?.querySelectorAll('button').forEach(button=>button.remove());
       const descriptiveText=(copyOnly?.textContent||'').replace(/\\s+/g,' ').trim();
+      const minButtonHeight=momentButtons.length?Math.min(...momentButtons.map(button=>button.getBoundingClientRect().height)):0;
       const bottomStrip={momentButtons:momentButtons.length,availabilityButtons:availabilityButtons.length,
         allButtons:allButtons.length,availableButtons:availableButtons.length,lockedButtons:lockedButtons.length,descriptiveText,
+        minButtonHeight,
         noOpenActivity:!document.body.innerText.includes('Abrir actividad'),
         pass:momentButtons.length===8&&availabilityButtons.length===0&&allButtons.length===8&&availableButtons.length===8&&
-          lockedButtons.length===0&&momentButtons.every(button=>!button.disabled)&&!descriptiveText&&!document.body.innerText.includes('Abrir actividad')};
+          lockedButtons.length===0&&momentButtons.every(button=>!button.disabled)&&!descriptiveText&&!document.body.innerText.includes('Abrir actividad')&&
+          (innerWidth>800||minButtonHeight>=42)};
       const audit=window.__universeDebug.auditVisibility(),launch=audit.objects.find(o=>o.id==='launch'),
         label=stage.querySelector('.cosmos-object-label.launch');
       let launchLabel=null;
