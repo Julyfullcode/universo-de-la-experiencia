@@ -193,6 +193,15 @@ def check_content(cdp, panel, record, capture):
         assert "52–70" in combined or "entre 52 y 70" in combined, "The high NPS range is missing"
         assert "> 70" in combined or "mayor a 70" in combined, "The very-high NPS threshold is missing"
     elif panel == 2:
+        code_view_labels = cdp.evaluate(
+            "[...document.querySelectorAll('.launch-code-view')].map((node) => node.textContent.trim())"
+        )
+        assert code_view_labels == ["Concepto", "Ejemplo", "Complemento"], (
+            f"Etiquetas inesperadas en Lenguaje de experiencia: {code_view_labels}"
+        )
+        assert "Diferencia" not in cdp.evaluate("document.body.innerText"), (
+            "La etiqueta Diferencia todavía aparece en Lenguaje de experiencia"
+        )
         for group_index, group in enumerate(SCENARIO_ROUNDS):
             click(cdp, f'[data-action="launch-code-group"][data-value="{group_index}"]')
             state(f"codes-group-{group_index}")
@@ -362,9 +371,13 @@ def run_checks(cdp, artifacts, screenshots):
           const lesson=document.querySelector('.journey-view .lesson'),actions=lesson?.querySelector('.moment-actions,.planet-result-actions,.planet-question-actions')||lesson;
           const before={clientHeight:lesson?.clientHeight||0,scrollHeight:lesson?.scrollHeight||0,
             horizontal:(lesson?.scrollWidth||0)>(lesson?.clientWidth||0)+1};
+          const initialBox=lesson?.getBoundingClientRect(),initialButtons=[...(actions?.querySelectorAll('button')||[])];
+          const actionsInitiallyVisible=!!initialBox&&initialButtons.length>0&&initialButtons.every(button=>{
+            const rect=button.getBoundingClientRect();return rect.top>=initialBox.top-.5&&rect.bottom<=initialBox.bottom+.5;
+          });
           if(lesson)lesson.scrollTop=lesson.scrollHeight;
           const box=lesson?.getBoundingClientRect(),buttons=[...(actions?.querySelectorAll('button')||[])];
-          return {...before,titleSize:parseFloat(getComputedStyle(lesson?.querySelector('h1')).fontSize),buttons:buttons.length,actionsReachable:!!box&&buttons.length>0&&buttons.every(button=>{
+          return {...before,actionsInitiallyVisible,titleSize:parseFloat(getComputedStyle(lesson?.querySelector('h1')).fontSize),buttons:buttons.length,actionsReachable:!!box&&buttons.length>0&&buttons.every(button=>{
             const rect=button.getBoundingClientRect();return rect.top>=box.top-.5&&rect.bottom<=box.bottom+.5;
           })};
         })()""")
@@ -407,13 +420,60 @@ def run_checks(cdp, artifacts, screenshots):
     journey_state("observatory-employee", "observatorySection='employee';render()")
     assert cdp.evaluate("document.querySelectorAll('.employee-metrics .metric-planet').length") == 3
     assert cdp.evaluate("[...document.querySelectorAll('.employee-metrics .metric-planet')].every(node=>node.querySelector('p')?.innerText.startsWith('Mide')&&node.querySelector('em')?.innerText.length>20)")
-    journey_state("observatory-challenge", "observatorySection='challenge';observatoryChallengeIndex=0;observatoryScore=0;localAnswer='';render()")
+    challenge_layout = journey_state("observatory-challenge", "observatorySection='challenge';observatoryChallengeIndex=0;observatoryScore=0;localAnswer='';render()")
+    assert challenge_layout["scrollHeight"] <= challenge_layout["clientHeight"] + 1, "Observatory challenge requires vertical scrolling"
+    assert challenge_layout["actionsInitiallyVisible"], "Observatory challenge actions are below the initial viewport"
+    assert cdp.evaluate("getComputedStyle(document.querySelector('.observatory-moment'),'::before').display==='none'"), "Observatory background panel is still visible"
     assert cdp.evaluate("observatoryChallengeQuestions.length") == 6
     assert cdp.evaluate("document.querySelectorAll('.signal-radar .radar-satellite').length") == 3
-    cdp.evaluate("(()=>{for(let index=0;index<observatoryChallengeQuestions.length;index++){answer(observatoryChallengeQuestions[index].answer);if(index<observatoryChallengeQuestions.length-1)advanceObservatoryChallenge();}})()")
+    first_answer = cdp.evaluate("observatoryChallengeQuestions[0].answer")
+    click(cdp, f'[data-action="answer"][data-value="{first_answer}"]')
+    assert cdp.evaluate("document.querySelector('.signal-result.good')?.getAttribute('aria-live')==='polite'"), "Correct observatory answer has no visible live feedback"
+    assert cdp.evaluate("(()=>{const lesson=document.querySelector('.observatory-moment')?.getBoundingClientRect(),button=document.querySelector('[data-action=\"advance-observatory\"]')?.getBoundingClientRect();return !!lesson&&!!button&&button.top>=lesson.top&&button.bottom<=lesson.bottom})()"), "Next-signal button is not visible after answering"
+    if screenshots:
+        screenshot(cdp, artifacts, "1440x900-journey-observatory-answer-correct", True)
+    click(cdp, '[data-action="advance-observatory"]')
+    assert cdp.evaluate("observatoryChallengeIndex===1&&localAnswer===''"), "Next-signal button did not advance the challenge"
+    cdp.evaluate("(()=>{for(let index=1;index<observatoryChallengeQuestions.length;index++){answer(observatoryChallengeQuestions[index].answer);if(index<observatoryChallengeQuestions.length-1)advanceObservatoryChallenge();}})()")
     assert cdp.evaluate("observatoryScore") == 6
     assert cdp.evaluate("!!document.querySelector('[data-action=\"save-observatory\"]')&&!document.querySelector('[data-action=\"save-observatory\"]').disabled")
     journey_state("mission", "trip.step='mision';view='journey';render()")
+    for width, height in ((1440, 900), (390, 844)):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height,
+                 "deviceScaleFactor": 1, "mobile": False})
+        if width == 390:
+            cdp.evaluate("trip.step='observatorio';observatorySection='challenge';observatoryChallengeIndex=0;observatoryScore=0;localAnswer='';view='journey';render()")
+            wait_for(cdp, "Boolean(document.querySelector('.observatory-moment.is-challenge'))")
+            mobile_challenge = cdp.evaluate("""(()=>{
+              const lesson=document.querySelector('.observatory-moment'),actions=lesson.querySelector('.moment-actions');
+              const l=lesson.getBoundingClientRect(),a=actions.getBoundingClientRect();
+              return {noScroll:lesson.scrollHeight<=lesson.clientHeight+1,
+                actionsVisible:a.top>=l.top-.5&&a.bottom<=l.bottom+.5,
+                horizontal:lesson.scrollWidth>lesson.clientWidth+1};
+            })()""")
+            result["mobileObservatoryChallenge"] = mobile_challenge
+            assert mobile_challenge["noScroll"] and mobile_challenge["actionsVisible"], (
+                "Observatory challenge controls are not visible without scrolling on mobile"
+            )
+            assert not mobile_challenge["horizontal"], "Observatory challenge has horizontal overflow on mobile"
+        cdp.evaluate("trip.name='Persona exploradora';trip.mainPlanet='forjadores';trip.explorePlanet='empaticos';trip.role='generador';view='passport';renderPassport()")
+        wait_for(cdp, "Boolean(document.querySelector('.passport-header'))")
+        passport_layout = cdp.evaluate("""(()=>{
+          const card=document.querySelector('.passport'),header=document.querySelector('.passport-header'),title=document.querySelector('.passport-title'),logo=document.querySelector('.passport-logo');
+          const c=card.getBoundingClientRect(),h=header.getBoundingClientRect(),t=title.getBoundingClientRect(),l=logo.getBoundingClientRect();
+          return {fits:c.top>=0&&c.bottom<=innerHeight+.5&&card.scrollHeight<=card.clientHeight+1,
+            titleSize:parseFloat(getComputedStyle(title).fontSize),logoRight:l.left>t.right,
+            horizontallyAligned:Math.abs((t.top+t.bottom)/2-(l.top+l.bottom)/2)<=8,
+            noExplorerLabel:!card.querySelector(':scope>p')&&!card.innerText.includes('Explorador/a'),
+            headerInside:h.left>=c.left&&h.right<=c.right+.5};
+        })()""")
+        result.setdefault("passportLayouts", []).append({"viewport": [width, height], **passport_layout})
+        assert passport_layout["fits"], f"Passport does not fit at {width}x{height}"
+        assert passport_layout["titleSize"] >= (24 if width > 720 else 16), f"Passport title is too small at {width}x{height}"
+        assert passport_layout["logoRight"] and passport_layout["horizontallyAligned"], f"Passport logo and title are not aligned at {width}x{height}"
+        assert passport_layout["noExplorerLabel"] and passport_layout["headerInside"], f"Passport header content is incorrect at {width}x{height}"
+        if screenshots:
+            screenshot(cdp, artifacts, f"{width}x{height}-passport", True)
     result["errors"] = cdp.evaluate("window.__launchErrors")
     result["network"] = cdp.evaluate("window.__networkAttempts")
     result["fixtureWrites"] = cdp.evaluate("window.__fixtureWrites.map(write=>write.name)")

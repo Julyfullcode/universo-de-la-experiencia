@@ -74,7 +74,7 @@
   ];
   const panelNames = ["Experiencia", "Direccionamiento estratégico", "Lenguaje de experiencia", "Práctica · opcional"];
   const groupLabels = ["Cliente", "Operación", "Señales", "Ecosistema"];
-  const codeViews = [{ id: "definition", name: "Concepto" }, { id: "example", name: "Ejemplo" }, { id: "contrast", name: "Diferencia" }];
+  const codeViews = [{ id: "definition", name: "Concepto" }, { id: "example", name: "Ejemplo" }, { id: "contrast", name: "Complemento" }];
   const answerOrders = [[2, 0, 3, 1], [1, 3, 0, 2], [3, 2, 1, 0], [2, 0, 1, 3]];
   const allTerms = glossaryGroups.flatMap((group, groupIndex) => group.terms.map(term => ({ ...term, groupIndex })));
   let panel = 0;

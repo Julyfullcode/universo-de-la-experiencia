@@ -565,3 +565,39 @@ button.metric-card{font:inherit;cursor:pointer}
   .signal-challenge{padding:.65rem}.incoming-signal{padding:.65rem}.radar-satellite{width:100px;min-height:65px}.radar-two{width:270px}
 }
 @media(prefers-reduced-motion:reduce){.signal-wave i{animation:none}}
+
+/* Observatorio: contenido libre sobre el universo y controles siempre visibles. */
+body .universo .observatory-moment:before{display:none}
+.journey-view .observatory-moment{flex:1 1 auto!important;max-height:none;min-height:0;overflow:hidden!important}
+.observatory-moment.is-challenge .signal-challenge{flex:0 1 auto;height:clamp(245px,36vh,330px);min-height:0}
+.observatory-moment.is-challenge .signal-radar{min-height:clamp(215px,30vh,280px)}
+.observatory-moment .moment-actions{flex:none;min-height:42px;margin-top:.15rem!important;padding-top:0!important;padding-bottom:0}
+.observatory-moment .signal-result{flex:none;margin:.2rem 0!important}
+
+/* Pasaporte: título y marca comparten una sola cabecera. */
+.universo .passport{justify-content:center}
+.passport-header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;width:100%;margin:0 0 clamp(.8rem,2vh,1.25rem)}
+.universo .passport .passport-title{margin:0;color:#e9ffc0;font-size:clamp(1.65rem,3vw,2.65rem);font-weight:900;line-height:1;letter-spacing:-.035em;text-shadow:0 0 24px rgba(216,255,129,.2)}
+.passport-title span{color:#d8ff81;font-size:.72em;text-shadow:0 0 16px rgba(216,255,129,.6)}
+.passport-header .passport-logo{position:static;display:block;flex:none;width:170px;height:44px;margin:0 0 0 auto;object-fit:contain}
+.universo .passport .passport-name{margin:0 0 clamp(.8rem,2vh,1.2rem);font-size:clamp(2.15rem,4.5vw,4rem)}
+
+@media(max-width:900px){
+  .journey-view .observatory-moment{overflow-y:auto!important}
+  .journey-view .observatory-moment.is-challenge{overflow:hidden!important}
+  .observatory-moment.is-challenge .observatory-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .observatory-moment.is-challenge .signal-challenge{height:clamp(340px,45vh,390px);min-height:0;grid-template-rows:auto minmax(190px,1fr)}
+  .observatory-moment.is-challenge .signal-radar{min-height:190px}
+}
+@media(max-width:720px){
+  .passport-header{gap:.75rem;margin-bottom:.65rem}
+  .universo .passport .passport-title{font-size:clamp(1.05rem,5.2vw,1.35rem)}
+  .passport-header .passport-logo{width:108px;height:29px;margin-left:auto}
+  .universo .passport .passport-name{margin:0 0 .55rem;font-size:clamp(1.7rem,8vw,2.25rem)}
+}
+@media(max-height:760px) and (min-width:901px){
+  .observatory-moment.is-challenge .signal-challenge{height:255px}
+  .observatory-moment.is-challenge .signal-radar{min-height:220px}
+  .observatory-moment.is-challenge .incoming-signal{padding:.65rem 1rem}
+  .observatory-moment.is-challenge .signal-wave{height:24px;margin:.2rem 0}
+}
