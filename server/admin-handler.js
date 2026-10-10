@@ -59,8 +59,14 @@ function createHandler(dependencies = {}) {
           throw new S.HttpError(400, "ARGUMENTS", "Revisa los datos de ingreso.");
         }
         const decision = await store.reserveAttempt(pool, context);
+        const botidContext = globalThis[Symbol.for("@vercel/request-context")]?.get?.();
+        const botidContextDetail = {
+          context_challenge_present: Boolean(botidContext?.headers?.["x-is-human"]),
+          context_headers_type: botidContext?.headers?.constructor?.name || "missing",
+          context_path: botidContext?.url ? new URL(botidContext.url, config.origin).pathname : "missing",
+        };
         if (decision.retryAfter) {
-          await audit("login_rate_limited", {}, true);
+          await audit("login_rate_limited", config.captchaProvider === "botid" ? botidContextDetail : {}, true);
           throw new S.HttpError(429, "RATE_LIMIT", "Espera antes de volver a intentar.", { retry_after: decision.retryAfter });
         }
         if (config.captchaProvider === "turnstile" && decision.captchaRequired && !body.captcha_token) {
@@ -69,7 +75,6 @@ function createHandler(dependencies = {}) {
         // BotID checks every login; account/IP/device risk still controls escalation and penalties.
         let captchaValid = true;
         let botidResult = {};
-        const botidContext = globalThis[Symbol.for("@vercel/request-context")]?.get?.();
         try {
           if (config.captchaProvider === "botid") captchaValid = await S.verifyBotId(dependencies.checkBotId, result => { botidResult = result; });
           else if (decision.captchaRequired || body.captcha_token) captchaValid = await S.verifyCaptcha(config, body.captcha_token, ip, fetcher);
@@ -80,9 +85,7 @@ function createHandler(dependencies = {}) {
           await store.recordFailure(pool, context);
           await audit("captcha_failed", config.captchaProvider === "botid" ? {
             botid: botidResult, challenge_present: Boolean(request.headers["x-is-human"]),
-            context_challenge_present: Boolean(botidContext?.headers?.["x-is-human"]),
-            context_headers_type: botidContext?.headers?.constructor?.name || "missing",
-            context_path: botidContext?.url ? new URL(botidContext.url, config.origin).pathname : "missing",
+            ...botidContextDetail,
           } : {}, true);
           throw new S.HttpError(403, "CAPTCHA_REQUIRED", "La verificación venció o no es válida. Inténtala nuevamente.", { captcha_required: true });
         }
