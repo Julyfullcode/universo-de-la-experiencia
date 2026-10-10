@@ -65,6 +65,11 @@ function createHandler(dependencies = {}) {
           context_headers_type: botidContext?.headers?.constructor?.name || "missing",
           context_path: botidContext?.url ? new URL(botidContext.url, config.origin).pathname : "missing",
         };
+        try {
+          const challenge = JSON.parse(request.headers["x-is-human"] || "null");
+          botidContextDetail.challenge_mode = typeof challenge?.b === "number" ? challenge.b : "missing";
+          botidContextDetail.challenge_deep = typeof challenge?.d === "number" ? challenge.d : "missing";
+        } catch { botidContextDetail.challenge_mode = "invalid_json"; }
         if (decision.retryAfter) {
           await audit("login_rate_limited", config.captchaProvider === "botid" ? botidContextDetail : {}, true);
           throw new S.HttpError(429, "RATE_LIMIT", "Espera antes de volver a intentar.", { retry_after: decision.retryAfter });
@@ -76,7 +81,7 @@ function createHandler(dependencies = {}) {
         let captchaValid = true;
         let botidResult = {};
         try {
-          if (config.captchaProvider === "botid") captchaValid = await S.verifyBotId(dependencies.checkBotId, result => { botidResult = result; });
+          if (config.captchaProvider === "botid") captchaValid = await S.verifyBotId(dependencies.checkBotId, result => { Object.assign(botidResult, result); });
           else if (decision.captchaRequired || body.captcha_token) captchaValid = await S.verifyCaptcha(config, body.captcha_token, ip, fetcher);
         } catch {
           throw new S.HttpError(503, "CAPTCHA_UNAVAILABLE", "La verificación está temporalmente indisponible.");
