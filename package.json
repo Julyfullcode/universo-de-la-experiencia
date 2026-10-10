@@ -1,0 +1,24 @@
+{
+  "name": "universo-de-la-experiencia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universo de la Experiencia con administraciÃ³n segregada",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "admin:setup": "node scripts/setup_admin.js",
+    "admin:recover": "node --env-file=.env.admin.local scripts/recover_admin_factor.js",
+    "admin:alerts": "node scripts/deliver_admin_alerts.js",
+    "build": "node scripts/build_admin_assets.js"
+  },
+  "dependencies": {
+    "botid": "1.5.11",
+    "otpauth": "9.4.1",
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}

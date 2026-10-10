@@ -33,6 +33,8 @@ def main():
     admin_migration = read("supabase/migrations/20261005130000_admin_passports_and_delete.sql")
     admin = read("admin.js") + read("admin.html")
     proxy = read("api/rpc.js")
+    admin_backend = read("server/admin-handler.js") + read("server/admin-security.js")
+    segregation = read("supabase/migrations/20261009120000_admin_segregado.sql")
     styles = read("styles.css") + read("admin.css") + read("universe-map.css")
     vercel = json.loads(read("vercel.json"))
 
@@ -109,9 +111,12 @@ def main():
     for rpc_name in (
         "universo_ingresar", "universo_mi_viaje", "universo_guardar_viaje",
         "universo_guardar_feedback", "universo_heartbeat", "universo_salir",
-        "universo_admin_ingresar", "universo_admin_panel", "universo_admin_eliminar_viaje", "universo_admin_salir",
     ):
         require(f'"{rpc_name}"' in proxy, f"Proxy allowlist is missing {rpc_name}.")
+    for rpc_name in ("universo_admin_ingresar", "universo_admin_panel", "universo_admin_eliminar_viaje", "universo_admin_salir"):
+        require(rpc_name not in proxy, f"Public proxy must not expose {rpc_name}.")
+        require(f"grant execute on function public.{rpc_name}" not in schema,
+                f"Base schema must not publicly grant {rpc_name}.")
     require("validRpcArguments" in proxy and "hasExactKeys" in proxy,
             "The proxy must validate RPC-specific argument schemas.")
     require("requestIsSameOrigin" in proxy and "Origen no permitido" in proxy,
@@ -122,10 +127,16 @@ def main():
             "The proxy must not relay database details or hints.")
     require("service_role" not in proxy.lower(),
             "The serverless proxy must never contain a service-role credential.")
-    require('fetch("/api/rpc"' in admin and "SUPABASE_KEY" not in admin,
-            "Administration must use the same-origin proxy.")
-    require("p_viaje_id" in proxy and "UUID_PATTERN.test(args.p_viaje_id)" in proxy,
-            "Administrative deletion must validate the trip UUID at the proxy boundary.")
+    require('fetch(`/api/admin/${route[0]}`' in admin and "SUPABASE_KEY" not in admin,
+            "Administration must use the segregated same-origin API.")
+    require('sessionStorage.setItem(TOKEN_KEY' not in admin and 'HttpOnly; Secure; SameSite=Strict' in admin_backend,
+            "Administrative credentials must remain in HttpOnly cookies.")
+    require('admin_crear_sesion' in segregation and 'p_counter <= v_last' in segregation,
+            "MFA counters must not be replayable.")
+    require('universo_admin_backend' in segregation and 'from public, anon, authenticated, universo_admin_backend' in segregation,
+            "Password-only login must remain revoked even for the backend role.")
+    require('trip_id' in admin_backend and '::uuid' in admin_backend,
+            "Administrative deletion must validate its identifier at the private API boundary.")
     require("universo_admin_eliminar_viaje" in admin_migration and
             "universo_private.validar_admin_token(p_token)" in admin_migration and
             "where id = p_viaje_id and palabra_clave_hash is not null" in admin_migration,
@@ -136,6 +147,8 @@ def main():
         [],
     )
     header_values = {item["key"].lower(): item["value"] for item in global_headers}
+    public_rule = next(entry for entry in vercel['headers'] if entry['source'] == '/((?!admin\\.html$).*)')
+    header_values.update({item['key'].lower(): item['value'] for item in public_rule['headers']})
     csp = header_values.get("content-security-policy", "")
     require(header_values.get("x-content-type-options") == "nosniff",
             "Production must disable MIME sniffing.")
@@ -159,6 +172,10 @@ def main():
     require(header_values.get("cross-origin-embedder-policy") == "require-corp" and
             header_values.get("cross-origin-opener-policy") == "same-origin",
             "Production must enable cross-origin isolation.")
+    admin_headers = next(entry['headers'] for entry in vercel['headers'] if entry['source'] == '/admin.html')
+    admin_csp = next(item['value'] for item in admin_headers if item['key'] == 'Content-Security-Policy')
+    require('https://challenges.cloudflare.com' in admin_csp and 'https://challenges.cloudflare.com' not in csp,
+            "CAPTCHA exceptions must be restricted to the administrative page.")
 
     jspdf_head = (ROOT / "vendor/jspdf.umd.min.js").read_text(encoding="utf-8", errors="replace")[:600]
     require("Version 4.2.1" in jspdf_head,
@@ -187,6 +204,15 @@ def main():
         item.relative_to(ROOT / "assets").as_posix()
         for item in (ROOT / "assets").rglob("*") if item.is_file()
     }
+    # A build must publish frontend files without internal code or owner secrets.
+    public = ROOT / "public"
+    if public.exists():
+        require((public / "assets/botid-client.mjs").read_bytes() ==
+                (ROOT / "node_modules/botid/dist/client/core/index.mjs").read_bytes(),
+                "Generated BotID asset must match the pinned official package.")
+        require(not any((public / name).exists() for name in ["server", "scripts", "supabase", "node_modules", "package.json", "Universodelaexperiencia.zip"])
+                and not any(item.name.startswith(".env") for item in public.rglob("*")),
+                "Published static files must exclude internal code, backups and secrets.")
     require(actual_assets == expected_assets,
             f"Assets inventory differs from the audited runtime set: {sorted(actual_assets ^ expected_assets)}")
     require(not (ROOT / ".tools").exists() and not (ROOT / "app").exists() and not (ROOT / "lib").exists(),

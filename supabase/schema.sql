@@ -967,7 +967,7 @@ begin
       ),
       'iniciados', (select pg_catalog.count(*) from public.universo_viajes where palabra_clave_hash is not null),
       'avance_promedio', (
-        select coalesce(pg_catalog.round(pg_catalog.avg(pg_catalog.least(avance_maximo, 5)::numeric) * 100 / 5, 1), 0)
+        select coalesce(pg_catalog.round(pg_catalog.avg(least(avance_maximo, 5)::numeric) * 100 / 5, 1), 0)
         from public.universo_viajes where palabra_clave_hash is not null
       ),
       'evaluaciones', (select pg_catalog.count(*) from public.universo_feedback),
@@ -992,7 +992,7 @@ begin
         select pg_catalog.jsonb_build_object(
           'id', v.id, 'nombre', v.nombre, 'paso', v.paso,
           'avance_maximo', v.avance_maximo,
-          'avance_porcentaje', pg_catalog.round(pg_catalog.least(v.avance_maximo, 5)::numeric * 100 / 5, 1),
+          'avance_porcentaje', pg_catalog.round(least(v.avance_maximo, 5)::numeric * 100 / 5, 1),
           'planeta', v.planeta_principal, 'planeta_explorar', v.planeta_explorar,
           'rol', v.rol, 'duelos', v.duelos, 'satelites', v.satelites, 'observatorio', v.observatorio,
           'mision', v.mision, 'created_at', v.created_at, 'updated_at', v.updated_at,
@@ -1072,10 +1072,8 @@ grant execute on function public.universo_guardar_viaje(text, jsonb) to anon;
 grant execute on function public.universo_guardar_feedback(text, integer, text) to anon;
 grant execute on function public.universo_heartbeat(text) to anon;
 grant execute on function public.universo_salir(text) to anon;
-grant execute on function public.universo_admin_ingresar(text, text) to anon;
-grant execute on function public.universo_admin_panel(text) to anon;
-grant execute on function public.universo_admin_eliminar_viaje(text, uuid) to anon;
-grant execute on function public.universo_admin_salir(text) to anon;
+-- Administration is enabled only through the private backend role by
+-- migrations/20261009120000_admin_segregado.sql. Never regrant it to anon.
 
 revoke all on function universo_private.token_hash(text) from public, anon, authenticated;
 revoke all on function universo_private.identificador_acceso(text, text) from public, anon, authenticated;

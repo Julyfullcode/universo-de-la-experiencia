@@ -9,14 +9,15 @@ y el pasaporte final.
 - Frontend estático en HTML, CSS y JavaScript, sin proceso de compilación.
 - Escena WebGL con Three.js r160 y texturas locales.
 - Función serverless de mismo origen en `api/rpc.js`.
-- Persistencia PostgreSQL en Supabase, expuesta únicamente mediante nueve RPC
-  permitidas y funciones `security definer` endurecidas.
+- Persistencia PostgreSQL en Supabase, con seis RPC públicas para participantes
+  y un backend administrativo privado con MFA.
 - Despliegue en Vercel mediante `vercel.json`.
 
-El navegador no se conecta directamente a Supabase. Todas las solicitudes pasan
-por `/api/rpc`, que restringe método, origen, tipo de contenido, tamaño, forma de
-los argumentos y RPC permitidas. La función usa exclusivamente una clave
-publicable; nunca debe recibir una clave `service_role`.
+El navegador no se conecta directamente a Supabase. Los participantes usan
+`/api/rpc`, que restringe método, origen, contenido, tamaño y argumentos. Ese
+proxy usa exclusivamente una clave publicable. El panel usa `/api/admin/*`,
+con una conexión PostgreSQL exclusiva del servidor y el rol restringido
+`universo_admin_backend`; no usa una clave `service_role`.
 
 ## Datos y sesiones
 
@@ -73,19 +74,90 @@ accesos de texto a las actividades desbloqueadas.
 
 ## Administración
 
-El panel está disponible en `/admin.html`. Las contraseñas administrativas se
-guardan únicamente como hashes bcrypt. El acceso aplica límites por usuario y
-globales, comparación de costo constante para usuarios inexistentes, una sola
-sesión activa, vencimiento absoluto de ocho horas e inactividad máxima de treinta
-minutos. Los reportes CSV neutralizan celdas que podrían ejecutar fórmulas.
+El panel está disponible en `/admin.html`. Conserva la cuenta administrativa
+existente y su contraseña bcrypt; exige además un código TOTP antes de crear
+una sesión. El segundo factor se cifra con AES-256-GCM y su clave permanece en
+el servidor. Las cookies administrativas son `HttpOnly`, `Secure` y
+`SameSite=Strict`; los tokens no se entregan a JavaScript.
+
+Los límites compartidos en PostgreSQL combinan IP, dispositivo y usuario.
+Los fallos generan retardos y bloqueos temporales de hasta quince minutos,
+CAPTCHA adaptativo y eventos auditables. La presión contra una cuenta exige
+CAPTCHA sin bloquear permanentemente a su administrador. Las peticiones
+rechazadas no prolongan el bloqueo. Las alertas se agrupan y se envían a un
+correo mediante Resend o a un webhook HTTPS firmado. Las que fallan permanecen
+en una cola para reintento, con una clave de idempotencia para evitar duplicados.
+
+La sesión vence a las ocho horas y después de treinta minutos sin solicitudes
+administrativas válidas. El panel también cierra la sesión tras treinta minutos
+sin interacción del usuario. Los reportes CSV neutralizan fórmulas.
+
+### Activación administrativa
+
+La segregación requiere aplicar la migración SQL y configurar el servidor en
+el mismo cambio de despliegue. Sin las variables obligatorias, la nueva API
+deniega el ingreso: no hay modo de omitir MFA ni CAPTCHA por falta de claves.
+
+1. Instale Node.js 22 o posterior y ejecute `npm ci`.
+2. Conserve una copia privada de la configuración y acceso de propietario a
+   Supabase. Configure `ADMIN_BOOTSTRAP_DATABASE_URL` solo en la terminal de
+   configuración; nunca en el frontend ni como conexión del backend.
+3. Configure `ADMIN_CAPTCHA_PROVIDER=botid` y `ADMIN_ALLOWED_ORIGIN`. BotID Basic
+   verifica todos los ingresos en Vercel sin cuenta de Cloudflare ni claves
+   adicionales. Active OIDC en el proyecto. La comprobación real se exige también
+   en Preview; se rechazan bots, resultados incompletos y bypasses. La alternativa
+   `ADMIN_CAPTCHA_PROVIDER=turnstile` requiere claves Turnstile de producción.
+   Para correo, configure `ADMIN_ALERT_PROVIDER=resend`, `RESEND_API_KEY`,
+   `ADMIN_ALERT_FROM` (dominio verificado) y `ADMIN_ALERT_RECIPIENTS` (separados por
+   comas). La alternativa `webhook` requiere URL HTTPS y clave de firma.
+4. Ejecute `npm run admin:setup`. El asistente confirma el factor en una
+   aplicación autenticadora, aplica la migración
+   `supabase/migrations/20261009120000_admin_segregado.sql`, crea el acceso SQL
+   restringido y guarda las variables en `.env.admin.local`, excluido de Git.
+   En una instalación nueva, establezca también `ADMIN_INITIAL_PASSWORD` en
+   esa terminal (mínimo 16 caracteres y máximo 72 bytes UTF-8); en una existente,
+   su ausencia conserva la contraseña actual.
+5. Cargue las variables generadas en Vercel, verifique el dominio de envío si usa
+   Resend y despliegue esta versión. Para webhook, el receptor debe validar
+   `X-Universe-Signature` (HMAC-SHA-256 del cuerpo exacto).
+   La conexión SQL exige TLS con verificación del certificado; use
+   `ADMIN_DATABASE_CA` si la base requiere su CA específica.
+6. Compruebe contraseña + MFA, rechazo de RPC directa, CAPTCHA y recepción de
+   alertas en producción. No reaplique una migración histórica por separado:
+   las anteriores pueden restaurar permisos públicos; la migración de
+   segregación debe ser siempre la última.
+
+El asistente requiere terminal interactiva y no imprime contraseñas de base de
+datos. La clave TOTP se muestra únicamente durante el alta. Respalde
+`.env.admin.local` en un gestor de secretos; no lo comparta ni lo suba al repo.
+Si la configuración falla después de guardar el archivo, consérvelo y revise
+el estado SQL antes de intentar generar nuevas claves.
+
+El cron protegido `/api/admin-maintenance` reintenta alertas y limpia registros
+diariamente, compatible con Vercel Hobby. Las alertas nuevas se intentan enviar
+durante la petición que las genera. Para reintentos frecuentes, programe
+`npm run admin:alerts` cada cinco minutos en un worker con las variables del
+servidor, o aumente la frecuencia del cron en un plan que lo permita. Un fallo
+de entrega no elimina la alerta ni permite omitir controles de acceso.
+
+La recuperación del factor requiere el propietario de la base y la
+configuración original: `npm run admin:recover`. Confirma un nuevo TOTP, revoca
+sesiones y desafíos anteriores y genera una alerta. No existe una ruta pública
+de recuperación que permita eludir MFA. La versión actual mantiene la única
+cuenta administrativa del sistema; las cuentas individuales requieren una
+migración adicional del modelo de usuarios y sesiones.
 
 ## Configuración y despliegue
 
 1. Cree o actualice la base con los archivos de `supabase/`.
 2. En Vercel, importe el repositorio y seleccione **Framework Preset: Other**.
-3. Deje vacío **Build Command** y use `.` como **Output Directory**.
+3. Use **Build Command** `npm run build` y `public` como **Output Directory**.
+   La compilación copia el módulo oficial de BotID desde la versión fijada en
+   `package-lock.json` y publica solo archivos del navegador. El código del
+   servidor, las migraciones y los secretos quedan fuera de los archivos estáticos.
 4. Configure opcionalmente `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` siguiendo
-   [.env.example](.env.example). No configure secretos de administración.
+   [.env.example](.env.example). Configure las variables administrativas solo
+   en el servidor siguiendo la activación anterior.
 5. Despliegue y compruebe `/`, `/admin.html` y `/api/rpc`.
 
 Los encabezados de seguridad, la política CSP y las reglas de caché se definen en
@@ -96,11 +168,14 @@ necesarios para ejecutar la aplicación.
 
 ```powershell
 python scripts/check_security.py
+npm test
 python scripts/check_scene.py --sweep --resize-sweep --integration --no-screenshot
 ```
 
 El primer comando audita arquitectura, almacenamiento, RPC, CSP, dependencias y
-activos. El segundo abre la aplicación en Microsoft Edge, comprueba errores de
+activos. Las pruebas Node verifican la API administrativa y aplican el esquema
+y las migraciones sobre PostgreSQL local con pgcrypto. El comando de escena
+abre la aplicación en Microsoft Edge, comprueba errores de
 JavaScript/WebGL, límites visuales, carga de texturas, navegación y persistencia
 simulada sin escribir en Supabase.
 
