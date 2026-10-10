@@ -12,10 +12,6 @@ const ALLOWED_RPCS = new Set([
   "universo_guardar_feedback",
   "universo_heartbeat",
   "universo_salir",
-  "universo_admin_ingresar",
-  "universo_admin_panel",
-  "universo_admin_eliminar_viaje",
-  "universo_admin_salir",
 ]);
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -65,13 +61,7 @@ function validRpcArguments(name, args) {
     case "universo_mi_viaje":
     case "universo_heartbeat":
     case "universo_salir":
-    case "universo_admin_panel":
-    case "universo_admin_salir":
       return hasExactKeys(args, ["p_token"]) && validToken(args.p_token);
-    case "universo_admin_eliminar_viaje":
-      return hasExactKeys(args, ["p_token", "p_viaje_id"])
-        && validToken(args.p_token)
-        && typeof args.p_viaje_id === "string" && UUID_PATTERN.test(args.p_viaje_id);
     case "universo_guardar_viaje":
       return hasExactKeys(args, ["p_token", "p_viaje"])
         && validToken(args.p_token)
@@ -83,10 +73,6 @@ function validRpcArguments(name, args) {
         && Number.isInteger(args.p_calificacion)
         && args.p_calificacion >= 1 && args.p_calificacion <= 5
         && typeof args.p_recomendacion === "string" && args.p_recomendacion.length <= 2000;
-    case "universo_admin_ingresar":
-      return hasExactKeys(args, ["p_usuario", "p_clave"])
-        && typeof args.p_usuario === "string" && args.p_usuario.length >= 1 && args.p_usuario.length <= 64
-        && typeof args.p_clave === "string" && args.p_clave.length >= 8 && args.p_clave.length <= 200;
     default:
       return false;
   }

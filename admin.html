@@ -57,6 +57,16 @@
               </button>
             </div>
 
+            <div id="admin-captcha" hidden></div>
+
+            <div id="admin-mfa-field" hidden>
+              <label for="admin-mfa-code">Código de tu aplicación autenticadora</label>
+              <input id="admin-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                pattern="[0-9]{6}" maxlength="6" aria-describedby="admin-mfa-help" />
+              <p id="admin-mfa-help">Ingresa el código de seis dígitos para completar el acceso.</p>
+              <button type="button" class="ghost-button" id="admin-mfa-cancel">Volver al ingreso</button>
+            </div>
+
             <button class="primary-button login-button" id="login-button" type="submit" disabled>
               <span>Ingresar al centro de control</span>
               <span aria-hidden="true">→</span>

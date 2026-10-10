@@ -61,6 +61,14 @@
   };
   const ROLE_LABELS = { disenador: "Diseñador", generador: "Generador", habilitador: "Habilitador" };
 
+  let hasServerSession = false;
+  let mfaPending = false;
+  let captchaSiteKey = "";
+  let captchaToken = "";
+  let captchaWidget = null;
+  let captchaScriptPromise = null;
+  let retryUntil = 0;
+
   let panel = emptyPanel();
   let pollTimer = 0;
   let expiryTimer = 0;
@@ -74,13 +82,13 @@
   }
 
   function sessionToken() {
-    try { return sessionStorage.getItem(TOKEN_KEY) || ""; }
-    catch { return ""; }
+    return hasServerSession ? "cookie" : "";
   }
 
   function saveSessionToken(token) {
+    hasServerSession = true;
     try {
-      sessionStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.setItem(ACTIVITY_KEY, String(Date.now()));
       sessionStorage.setItem(SESSION_STARTED_KEY, String(Date.now()));
       scheduleSessionExpiry();
@@ -90,6 +98,7 @@
   }
 
   function clearSessionToken() {
+    hasServerSession = false;
     stopExpiryTimer();
     try {
       sessionStorage.removeItem(TOKEN_KEY);
@@ -162,17 +171,29 @@
     let response;
     let text;
     try {
-      response = await fetch("/api/rpc", {
+      const routes = {
+        universo_admin_ingresar: ["login", { username: parameters.p_usuario, password: parameters.p_clave, captcha_token: captchaToken }],
+        universo_admin_panel: ["panel", {}],
+        universo_admin_salir: ["logout", {}],
+        universo_admin_eliminar_viaje: ["delete", { trip_id: parameters.p_viaje_id }],
+        admin_mfa: ["mfa", { code: parameters.code }],
+        admin_status: ["status", {}]
+      };
+      const route = routes[name];
+      if (!route) throw new Error("Operación administrativa no disponible.");
+      response = await fetch(`/api/admin/${route[0]}`, {
         method: "POST",
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "X-Universo-Admin": "1"
         },
-        body: JSON.stringify({ name, args: parameters }),
+        body: JSON.stringify(route[1]),
+        credentials: "same-origin",
         cache: "no-store",
         signal: controller.signal
       });
-      if (response.headers.get("x-universe-rpc-proxy") !== "1") {
+      if (response.headers.get("x-universe-admin") !== "1") {
         throw new Error("El canal seguro de administración no está disponible.");
       }
       text = await response.text();
@@ -200,6 +221,8 @@
       error.code = payload?.code || "HTTP_ERROR";
       error.details = payload?.details || "";
       error.status = response.status;
+      error.captchaRequired = payload?.captcha_required === true;
+      error.retryAfter = Number(payload?.retry_after) || 0;
       throw error;
     }
     return payload;
@@ -219,13 +242,6 @@
     if (value && typeof value === "object" && "result" in value) value = parseJson(value.result);
     if (value && typeof value === "object" && "panel" in value) value = parseJson(value.panel);
     return value;
-  }
-
-  function getLoginToken(data) {
-    const value = unwrapRpc(data, "universo_admin_ingresar");
-    if (typeof value === "string") return value;
-    if (!value || typeof value !== "object") return "";
-    return String(value.token || value.p_token || value.session_token || value.access_token || "");
   }
 
   function normalizePanel(data) {
@@ -289,35 +305,109 @@
 
   async function login(event) {
     event.preventDefault();
+    if (Date.now() < retryUntil) {
+      setLoginMessage(`Espera ${Math.ceil((retryUntil - Date.now()) / 1000)} segundos antes de volver a intentar.`);
+      return;
+    }
     const username = elements.user.value.trim();
     const password = elements.password.value;
-    if (!username || !password) {
+    const codeField = document.querySelector("#admin-mfa-code");
+    if (mfaPending && !/^\d{6}$/.test(codeField.value.trim())) {
+      setLoginMessage("Ingresa el código de seis dígitos de tu aplicación autenticadora.");
+      codeField.focus();
+      return;
+    }
+    if (!mfaPending && (!username || !password)) {
       setLoginMessage("Ingresa el usuario y la contraseña.");
       (!username ? elements.user : elements.password).focus();
       return;
     }
     setLoading(elements.loginButton, true);
-    setLoginMessage("Validando credenciales…", true);
+    setLoginMessage(mfaPending ? "Validando segundo factor…" : "Validando credenciales…", true);
     elements.password.value = "";
     try {
-      const data = await callRpc("universo_admin_ingresar", { p_usuario: username, p_clave: password });
-      const token = getLoginToken(data);
-      if (!token) throw new Error("Credenciales no válidas.");
-      if (!saveSessionToken(token)) throw new Error("El navegador no permitió abrir una sesión segura.");
+      if (!mfaPending) {
+        const data = await callRpc("universo_admin_ingresar", { p_usuario: username, p_clave: password });
+        resetCaptcha();
+        if (!data?.mfa_required) throw new Error("No fue posible iniciar la verificación.");
+        setMfaPending(true);
+        setLoginMessage("Abre tu aplicación autenticadora e ingresa el código.", true);
+        return;
+      }
+      const data = await callRpc("admin_mfa", { code: codeField.value.trim() });
+      codeField.value = "";
+      if (!data?.ok) throw new Error("No fue posible completar el acceso.");
+      if (!saveSessionToken()) throw new Error("El navegador no permitió abrir una sesión segura.");
+      setMfaPending(false);
       showDashboard();
       await refreshPanel({ initial: true });
     } catch (error) {
       clearSessionToken();
+      codeField.value = "";
+      if (error?.retryAfter) retryUntil = Date.now() + error.retryAfter * 1000;
+      if (error?.code === "MFA_EXPIRED") setMfaPending(false);
+      if (error?.captchaRequired) {
+        resetCaptcha();
+        try { await showCaptcha(); }
+        catch { setLoginMessage("No fue posible cargar la verificación. Revisa tu conexión."); return; }
+      }
       setLoginMessage(["NETWORK_ERROR", "REQUEST_TIMEOUT"].includes(error?.code)
         ? "No pudimos conectar con el servicio. Revisa tu conexión e inténtalo de nuevo."
-        : "Usuario o contraseña incorrectos.");
-      elements.password.focus();
+        : `${error.message || "No fue posible completar el ingreso."}${error?.retryAfter ? ` Espera ${error.retryAfter} segundos.` : ""}`);
+      (mfaPending ? codeField : elements.password).focus();
     } finally {
       setLoading(elements.loginButton, false);
     }
   }
 
+  function setMfaPending(value) {
+    mfaPending = value;
+    document.querySelector("#admin-mfa-field").hidden = !value;
+    elements.user.disabled = value;
+    elements.password.disabled = value;
+    elements.passwordToggle.disabled = value;
+    elements.loginButton.querySelector("span").textContent = value ? "Verificar e ingresar" : "Ingresar al centro de control";
+    if (value) {
+      document.querySelector("#admin-captcha").hidden = true;
+      document.querySelector("#admin-mfa-code").focus();
+    } else {
+      document.querySelector("#admin-mfa-code").value = "";
+    }
+  }
+
+  function resetCaptcha() {
+    captchaToken = "";
+    if (captchaWidget !== null && window.turnstile) window.turnstile.reset(captchaWidget);
+  }
+
+  async function showCaptcha() {
+    if (!captchaSiteKey) throw new Error("Verificación no configurada.");
+    const target = document.querySelector("#admin-captcha");
+    target.hidden = false;
+    if (!window.turnstile) {
+      if (!captchaScriptPromise) captchaScriptPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        const timeout = window.setTimeout(() => { script.remove(); captchaScriptPromise = null; reject(new Error("Verificación indisponible.")); }, 10000);
+        script.onload = () => { window.clearTimeout(timeout); resolve(); };
+        script.onerror = () => { window.clearTimeout(timeout); script.remove(); captchaScriptPromise = null; reject(new Error("Verificación indisponible.")); };
+        document.head.appendChild(script);
+      });
+      await captchaScriptPromise;
+    }
+    if (captchaWidget === null) captchaWidget = window.turnstile.render(target, {
+      sitekey: captchaSiteKey,
+      action: "admin-login",
+      theme: "dark",
+      callback: (token) => { captchaToken = token; },
+      "expired-callback": () => { captchaToken = ""; },
+      "error-callback": () => { captchaToken = ""; setLoginMessage("La verificación no pudo completarse. Inténtala nuevamente."); }
+    });
+  }
+
   function clearAdministrativeState(message, success) {
+    setMfaPending(false);
     const token = sessionToken();
     sessionEpoch += 1;
     requestController?.abort();
@@ -779,6 +869,12 @@
   }
 
   elements.loginForm.addEventListener("submit", login);
+  document.querySelector("#admin-mfa-cancel").addEventListener("click", () => {
+    setMfaPending(false);
+    resetCaptcha();
+    elements.password.focus();
+    setLoginMessage("Ingresa nuevamente tu usuario y contraseña.");
+  });
   elements.passwordToggle.addEventListener("click", togglePassword);
   elements.logoutButton.addEventListener("click", () => logout());
   elements.refreshButton.addEventListener("click", () => refreshPanel());
@@ -801,17 +897,18 @@
   window.addEventListener("online", () => { if (!elements.dashboardView.hidden) refreshPanel(); });
   window.addEventListener("offline", () => { stopPolling(); setLiveState("error", "Sin conexión a internet"); });
   ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, markActivity, { passive: true }));
-  elements.loginButton.disabled = false;
-
-  if (sessionToken()) {
-    try {
-      const now = String(Date.now());
-      if (!sessionStorage.getItem(ACTIVITY_KEY)) sessionStorage.setItem(ACTIVITY_KEY, now);
-      if (!sessionStorage.getItem(SESSION_STARTED_KEY)) sessionStorage.setItem(SESSION_STARTED_KEY, now);
-    } catch { /* The server still validates the token. */ }
-    showDashboard();
-    refreshPanel({ initial: true });
-  } else {
-    showLogin();
-  }
+  clearSessionToken();
+  showLogin("Comprobando el acceso seguro…");
+  callRpc("admin_status", {}).then((status) => {
+    captchaSiteKey = status.captcha_site_key || "";
+    elements.loginButton.disabled = false;
+    if (status.authenticated) {
+      saveSessionToken();
+      showDashboard();
+      refreshPanel({ initial: true });
+    } else setLoginMessage("");
+  }).catch((error) => {
+    elements.loginButton.disabled = true;
+    setLoginMessage(error.message || "El acceso administrativo no está disponible.");
+  });
 })();

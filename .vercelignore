@@ -9,5 +9,7 @@ README.md
 vendor/*-LICENSE.txt
 vendor/README.md
 assets/textures/README.md
+tests
+Universodelaexperiencia.zip
 *.log
 *.tmp
