@@ -2,7 +2,8 @@
 .tools
 .env*
 dist
-scripts
+scripts/*
+!scripts/build_admin_assets.js
 supabase
 SECURITY.md
 README.md

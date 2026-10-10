@@ -3,6 +3,7 @@
 No production services or credentials are used. Run: python scripts/check_admin.py
 """
 import functools
+import argparse
 import http.server
 import json
 from pathlib import Path
@@ -24,7 +25,7 @@ window.fetch=async(url,options)=>{
  const action=String(url).split('/').pop(),body=JSON.parse(options.body||'{}');
  window.__adminCalls.push({action,body,headers:options.headers});
  let status=200,value={ok:true};
- if(action==='status')value={ok:true,authenticated:window.__adminAuthenticated,captcha_site_key:'fixture-site-key'};
+ if(action==='status')value={ok:true,authenticated:window.__adminAuthenticated,captcha_provider:'FIXTURE_PROVIDER',captcha_site_key:'fixture-site-key'};
  else if(action==='login'){
   if(window.__requireCaptcha){window.__requireCaptcha=false;status=403;value={code:'CAPTCHA_REQUIRED',message:'Completa la verificación',captcha_required:true};}
   else value={ok:true,mfa_required:true};
@@ -39,6 +40,9 @@ window.fetch=async(url,options)=>{
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--provider", choices=["turnstile", "botid"], default="turnstile")
+    provider = parser.parse_args().provider
     edge = Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
     if not edge.exists():
         raise RuntimeError("Microsoft Edge was not found")
@@ -49,6 +53,16 @@ def main():
         def log_message(self, *_args):
             pass
 
+        def do_GET(self):
+            if provider == "botid" and self.path == "/assets/botid-client.mjs":
+                source = b"export function initBotId(options){window.__botidRoutes=options.protect;}"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript")
+                self.end_headers()
+                self.wfile.write(source)
+            else:
+                super().do_GET()
+
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Handler, directory=str(ROOT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     log = (artifacts / "edge.log").open("w", encoding="utf-8")
@@ -58,18 +72,23 @@ def main():
     cdp = None
     try:
         deadline = time.monotonic() + 50
-        while not (profile / "DevToolsActivePort").exists():
+        while True:
             if time.monotonic() > deadline:
                 raise RuntimeError("Edge debugging port did not open")
+            try:
+                port = int((profile / "DevToolsActivePort").read_text().splitlines()[0])
+                break
+            except (OSError, ValueError, IndexError):
+                # Edge can create this file before releasing its initial write lock.
+                pass
             time.sleep(.2)
-        port = int((profile / "DevToolsActivePort").read_text().splitlines()[0])
         targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list"))
         cdp = CDP(next(item["webSocketDebuggerUrl"] for item in targets if item["type"] == "page"))
         cdp.call("Page.enable")
         cdp.call("Runtime.enable")
         cdp.call("Network.enable")
         cdp.call("Network.setBlockedURLs", {"urls": ["https://*"]})
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": STUB})
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": STUB.replace("FIXTURE_PROVIDER", provider)})
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False})
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{server.server_port}/admin.html"})
 
@@ -81,6 +100,8 @@ def main():
                 time.sleep(.1)
 
         wait("document.querySelector('#login-button')&&!document.querySelector('#login-button').disabled")
+        if provider == "botid":
+            assert cdp.evaluate("window.__botidRoutes[0].path==='/api/admin/login'&&window.__botidRoutes[0].method==='POST'")
         submit = "document.querySelector('#admin-user').value='VPEUC';document.querySelector('#admin-password').value='fixture-password';document.querySelector('#login-form').requestSubmit();"
         cdp.evaluate(submit)
         wait("!document.querySelector('#admin-captcha').hidden&&!document.querySelector('#login-button').disabled")
@@ -101,7 +122,7 @@ def main():
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         assert cdp.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
         assert cdp.evaluate("window.__adminErrors.length===0"), cdp.evaluate("window.__adminErrors")
-        print("Admin browser checks passed: CAPTCHA, MFA rejection/success, cookie-only session, logout and mobile layout.")
+        print(f"Admin browser checks passed ({provider}): CAPTCHA, MFA rejection/success, cookie-only session, logout and mobile layout.")
     finally:
         if cdp:
             try:

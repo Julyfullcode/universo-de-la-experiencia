@@ -15,4 +15,5 @@ Thumbs.db
 .env.local
 .tools/
 dist/
+assets/botid-client.mjs
 supabase/.temp/

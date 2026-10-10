@@ -23,10 +23,14 @@ async function main() {
   let client;
   try {
     const origin = (process.env.ADMIN_ALLOWED_ORIGIN || await prompt.question("Dominio HTTPS del proyecto (por ejemplo https://universo.example.com): ")).trim();
-    const siteKey = process.env.TURNSTILE_SITE_KEY || await prompt.question("Clave pública del widget Turnstile: ");
+    const captchaProvider = process.env.ADMIN_CAPTCHA_PROVIDER || "botid";
+    const alertProvider = process.env.ADMIN_ALERT_PROVIDER || "resend";
+    const siteKey = captchaProvider === "turnstile" ? process.env.TURNSTILE_SITE_KEY || await prompt.question("Clave pública del widget Turnstile: ") : "";
     // Secret values must be set as environment variables; never echo them.
-    if (!process.env.TURNSTILE_SECRET_KEY || !process.env.ADMIN_ALERT_WEBHOOK_URL) {
-      throw new Error("Set TURNSTILE_SECRET_KEY and ADMIN_ALERT_WEBHOOK_URL privately before running this assistant.");
+    if ((captchaProvider === "turnstile" && !process.env.TURNSTILE_SECRET_KEY)
+        || (alertProvider === "webhook" && !process.env.ADMIN_ALERT_WEBHOOK_URL)
+        || (alertProvider === "resend" && (!process.env.RESEND_API_KEY || !process.env.ADMIN_ALERT_FROM || !process.env.ADMIN_ALERT_RECIPIENTS))) {
+      throw new Error("Set the chosen CAPTCHA and alert provider configuration privately before provisioning.");
     }
     const ownerUrl = new URL(process.env.ADMIN_BOOTSTRAP_DATABASE_URL);
     ["sslmode", "sslcert", "sslkey", "sslrootcert"].forEach((key) => ownerUrl.searchParams.delete(key));
@@ -49,9 +53,12 @@ async function main() {
     const env = {
       ADMIN_DATABASE_URL: runtimeUrl.toString(), ADMIN_COOKIE_KEY: cookieKey.toString("base64"),
       ADMIN_MFA_KEY: mfaKey.toString("base64"), ADMIN_ALLOWED_ORIGIN: origin,
-      TURNSTILE_SITE_KEY: siteKey.trim(), TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
-      ADMIN_ALERT_WEBHOOK_URL: process.env.ADMIN_ALERT_WEBHOOK_URL,
-      ADMIN_ALERT_WEBHOOK_KEY: process.env.ADMIN_ALERT_WEBHOOK_KEY || alertKey,
+      ADMIN_CAPTCHA_PROVIDER: captchaProvider, ADMIN_ALERT_PROVIDER: alertProvider,
+      ...(captchaProvider === "turnstile" ? { TURNSTILE_SITE_KEY: siteKey.trim(), TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY } : {}),
+      ...(alertProvider === "webhook" ? { ADMIN_ALERT_WEBHOOK_URL: process.env.ADMIN_ALERT_WEBHOOK_URL,
+        ADMIN_ALERT_WEBHOOK_KEY: process.env.ADMIN_ALERT_WEBHOOK_KEY || alertKey } : {
+        RESEND_API_KEY: process.env.RESEND_API_KEY, ADMIN_ALERT_FROM: process.env.ADMIN_ALERT_FROM,
+        ADMIN_ALERT_RECIPIENTS: process.env.ADMIN_ALERT_RECIPIENTS }),
       CRON_SECRET: crypto.randomBytes(32).toString("base64url"),
       ...(process.env.ADMIN_DATABASE_CA ? { ADMIN_DATABASE_CA: process.env.ADMIN_DATABASE_CA } : {}),
     };
@@ -76,7 +83,7 @@ async function main() {
     } catch (error) { await client.query("rollback"); throw error; }
     console.log("\nFactor confirmado y migración aplicada. Configuración privada guardada en .env.admin.local.");
     console.log("Carga esas variables en Vercel antes de desplegar. No compartas ni subas este archivo a Git.");
-    console.log("Configura el receptor de alertas con ADMIN_ALERT_WEBHOOK_KEY y comprueba una alerta de prueba.");
+    console.log("Comprueba la recepción de las alertas con el proveedor elegido.");
   } finally { prompt.close(); if (client) await client.end(); }
 }
 

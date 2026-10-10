@@ -64,6 +64,7 @@
   let hasServerSession = false;
   let mfaPending = false;
   let captchaSiteKey = "";
+  let captchaProvider = "turnstile";
   let captchaToken = "";
   let captchaWidget = null;
   let captchaScriptPromise = null;
@@ -381,9 +382,13 @@
   }
 
   async function showCaptcha() {
-    if (!captchaSiteKey) throw new Error("Verificación no configurada.");
     const target = document.querySelector("#admin-captcha");
     target.hidden = false;
+    if (captchaProvider === "botid") {
+      target.textContent = "La verificación de seguridad se realizará al volver a intentar.";
+      return;
+    }
+    if (!captchaSiteKey) throw new Error("Verificación no configurada.");
     if (!window.turnstile) {
       if (!captchaScriptPromise) captchaScriptPromise = new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -899,8 +904,13 @@
   ["pointerdown", "keydown", "touchstart"].forEach((eventName) => document.addEventListener(eventName, markActivity, { passive: true }));
   clearSessionToken();
   showLogin("Comprobando el acceso seguro…");
-  callRpc("admin_status", {}).then((status) => {
+  callRpc("admin_status", {}).then(async (status) => {
+    captchaProvider = status.captcha_provider || "turnstile";
     captchaSiteKey = status.captcha_site_key || "";
+    if (captchaProvider === "botid") {
+      const { initBotId } = await import("./assets/botid-client.mjs");
+      initBotId({ protect: [{ path: "/api/admin/login", method: "POST", advancedOptions: { checkLevel: "basic" } }] });
+    }
     elements.loginButton.disabled = false;
     if (status.authenticated) {
       saveSessionToken();

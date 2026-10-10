@@ -151,3 +151,65 @@ test("the public proxy rejects every admin RPC before contacting Supabase", asyn
 });
 
 module.exports = { environment, request, response };
+
+test("BotID and email configuration does not require a Cloudflare account", () => {
+  const env = environment();
+  delete env.TURNSTILE_SITE_KEY;
+  delete env.TURNSTILE_SECRET_KEY;
+  delete env.ADMIN_ALERT_WEBHOOK_URL;
+  delete env.ADMIN_ALERT_WEBHOOK_KEY;
+  Object.assign(env, { ADMIN_CAPTCHA_PROVIDER: "botid", ADMIN_ALERT_PROVIDER: "resend",
+    RESEND_API_KEY: "example-key", ADMIN_ALERT_FROM: "alerts@universo.example.com",
+    ADMIN_ALERT_RECIPIENTS: "one@example.com,two@example.com" });
+  const config = S.requireConfig(env);
+  assert.equal(config.captchaProvider, "botid");
+  assert.deepEqual(config.recipients, ["one@example.com", "two@example.com"]);
+  assert.throws(() => S.requireConfig({ ...env, RESEND_API_KEY: "" }));
+  assert.throws(() => S.requireConfig({ ...env, ADMIN_ALERT_RECIPIENTS: "one@example.com\r\nBcc: injected@example.com" }));
+});
+
+test("BotID forces real verification and rejects bots, bypasses, and malformed results", async () => {
+  for (const value of [{ isHuman: true, isBot: false, isVerifiedBot: false, bypassed: false },
+    { isHuman: true, isBot: false, isVerifiedBot: false, bypassed: true },
+    { isHuman: false, isBot: true, isVerifiedBot: false, bypassed: false },
+    { isHuman: true, isBot: false, isVerifiedBot: true, bypassed: false }, {}]) {
+    const valid = await S.verifyBotId(async options => {
+      assert.equal(options.developmentOptions.isDevelopment, false);
+      assert.equal(options.advancedOptions.checkLevel, "basic");
+      return value;
+    });
+    assert.equal(valid, value.bypassed === false && value.isHuman === true && value.isVerifiedBot === false);
+  }
+});
+
+test("BotID rejects unverified login before bcrypt and fails closed on provider errors", async () => {
+  for (const providerError of [false, true]) {
+    let passwordChecked = false;
+    const env = { ...environment(), ADMIN_CAPTCHA_PROVIDER: "botid" };
+    const handler = createHandler({ env, pool: { query() { passwordChecked = true; } },
+      checkBotId: async () => { if (providerError) throw new Error("Provider unavailable");
+        return { isHuman: false, isBot: true, isVerifiedBot: false, bypassed: false }; },
+      store: { reserveAttempt: async () => ({ retryAfter: 0, captchaRequired: false }),
+        recordFailure: async () => ({}), audit: async () => {}, deliverAlerts: async () => {} } });
+    const res = response();
+    await handler(request("login", { username: "ADMIN", password: "correct-password", captcha_token: "" }), res);
+    assert.equal(res.statusCode, providerError ? 503 : 403);
+    assert.equal(passwordChecked, false);
+  }
+});
+
+test("a human verified by BotID still needs MFA before a session is issued", async () => {
+  const env = { ...environment(), ADMIN_CAPTCHA_PROVIDER: "botid" };
+  const handler = createHandler({ env,
+    checkBotId: async () => ({ isHuman: true, isBot: false, isVerifiedBot: false, bypassed: false }),
+    pool: { query: async sql => sql.includes("admin_verificar_password")
+      ? { rows: [{ result: { ok: true, usuario: "ADMIN", mfa_ciphertext: "encrypted" } }] }
+      : { rows: [], rowCount: 1 } },
+    store: { reserveAttempt: async () => ({ retryAfter: 0, captchaRequired: true }), audit: async () => {} } });
+  const res = response();
+  await handler(request("login", { username: "ADMIN", password: "correct-password", captcha_token: "" }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.mfa_required, true);
+  assert.equal(res.body.token, undefined);
+  assert.ok(!res.headers["Set-Cookie"].some(value => value.startsWith(`${S.COOKIE.session}=`)));
+});

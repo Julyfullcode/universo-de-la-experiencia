@@ -31,20 +31,29 @@
 - La API administrativa exige Origin exacto, encabezado propio y JSON. Obtiene
   la IP del encabezado sobrescrito por Vercel y deniega su uso fuera de esa
   plataforma. MFA y la sesión nunca se sustituyen por CAPTCHA o dispositivo.
-- Turnstile se valida en el servidor, incluidos dominio y acción. Un fallo de
-  configuración o de los servicios de seguridad deniega nuevos ingresos.
+- BotID Basic verifica todos los ingresos mediante el contexto de Vercel y OIDC,
+  sin bypass de desarrollo, también en Preview. Se exige una respuesta completa
+  que clasifique al cliente como humano; no se permiten bots verificados en el
+  acceso administrativo. No se habilita Deep Analysis de pago. La alternativa
+  Turnstile valida dominio y acción. Un fallo del proveedor deniega el ingreso.
+  BotID Basic verifica integridad del desafío; no ofrece la detección avanzada
+  de Deep Analysis. MFA y los límites compartidos siguen siendo obligatorios.
 - La sesión administrativa vence a las ocho horas y a los treinta minutos sin
   solicitudes válidas. El frontend aplica además treinta minutos sin interacción.
 - Los eventos no guardan contraseñas, códigos TOTP ni tokens. Los identificadores
   de origen y cuenta usan HMAC. Las alertas se agrupan por evento y cuenta cada
-  quince minutos y usan un webhook HTTPS firmado con una clave propia. Los
+  quince minutos y se envían por Resend a destinatarios configurados en el
+  servidor, o a un webhook HTTPS firmado con una clave propia. El correo incluye
+  evento, fecha y referencia; nunca datos de participantes. Los reintentos usan
+  una clave de idempotencia estable. Los
   fallos de entrega se conservan para reintento; el receptor debe deduplicar por
   alert_id. Los fallos de base/worker se registran también en los logs de Vercel.
 
 ## Controles del navegador y despliegue
 
-- Todas las librerías se sirven localmente y sus versiones/hashes están en
-  `vendor/README.md`.
+- Las librerías de la escena se sirven localmente y sus versiones/hashes están
+  en `vendor/README.md`. BotID usa el módulo oficial fijado en `package-lock.json`
+  y rutas del mismo origen que Vercel redirige a su servicio de desafíos.
 - La CSP pública bloquea scripts de terceros, atributos ejecutables e iframes.
   Solo `/admin.html` permite el script/iframe/conexión de Turnstile y desactiva
   COEP para ese desafío; mantiene la prohibición de atributos ejecutables y
@@ -80,7 +89,7 @@ penetración ni la revisión de la configuración efectiva de Supabase y Vercel.
 
 El código y la migración requieren despliegue coordinado. La nueva API devuelve
 503 si faltan la conexión privada, las claves separadas, el origen HTTPS, las
-claves Turnstile de producción, el webhook o el secreto del cron. Las claves de
+configuración del proveedor elegido de CAPTCHA/alertas o el secreto del cron. Las claves de
 prueba de CAPTCHA están prohibidas. No activar quitando temporalmente MFA.
 
 `npm run admin:setup` es un asistente local interactivo de propietario, no un
@@ -102,8 +111,9 @@ worker mediante la plataforma de monitoreo de producción. La cola evita pérdid
 de eventos, pero no garantiza entrega si el receptor permanece indisponible.
 
 Los registros ordinarios se conservan treinta días; las alertas pendientes se
-preservan hasta entregarlas. Turnstile implica procesamiento por Cloudflare y
-debe figurar en la información de privacidad aplicable al panel. Los ataques
+preservan hasta entregarlas. BotID implica procesamiento por Vercel, Resend
+procesa los correos de alerta y la alternativa Turnstile usa Cloudflare. Los
+proveedores elegidos deben figurar en la información de privacidad del panel. Los ataques
 volumétricos requieren además controles en el borde de Vercel: los límites de
 aplicación no sustituyen la protección de capacidad del proveedor.
 

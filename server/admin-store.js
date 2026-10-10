@@ -157,12 +157,17 @@ async function deliverAlerts(poolInstance, config, fetcher = fetch, limit = 10) 
     for (const row of pending.rows) {
       const body = JSON.stringify({ source: "universo-admin", alert_id: row.id, event: row.event,
         occurred_at: row.occurred_at, user_hash: row.user_hash, request_id: row.request_id, detail: row.detail });
-      const signature = crypto.createHmac("sha256", config.ADMIN_ALERT_WEBHOOK_KEY).update(body).digest("hex");
       let sent = false;
       try {
-        const response = await fetcher(config.ADMIN_ALERT_WEBHOOK_URL, { method: "POST",
-          headers: { "Content-Type": "application/json", "X-Universe-Signature": signature },
-          body, redirect: "error", signal: AbortSignal.timeout(2000) });
+        const email = config.alertProvider === "resend";
+        const headers = email ? { "Content-Type": "application/json", Authorization: `Bearer ${config.RESEND_API_KEY}`,
+          "Idempotency-Key": `universo-admin/${row.id}/${row.request_id}` } : { "Content-Type": "application/json",
+          "X-Universe-Signature": crypto.createHmac("sha256", config.ADMIN_ALERT_WEBHOOK_KEY).update(body).digest("hex") };
+        const message = email ? JSON.stringify({ from: config.ADMIN_ALERT_FROM, to: config.recipients,
+          subject: "Universo: alerta de seguridad administrativa",
+          text: `Se registró una alerta en el acceso administrativo de ${config.origin}.\nEvento: ${row.event}\nFecha UTC: ${new Date(row.occurred_at).toISOString()}\nReferencia: ${row.request_id}\n\nRevisa los registros de seguridad. No se envían contraseñas, códigos MFA ni datos de participantes.` }) : body;
+        const response = await fetcher(email ? "https://api.resend.com/emails" : config.ADMIN_ALERT_WEBHOOK_URL, { method: "POST",
+          headers, body: message, redirect: "error", signal: AbortSignal.timeout(4000) });
         sent = response.ok;
       } catch { /* Keep the outbox for retries; never grant access on a delivery failure. */ }
       await client.query(`update universo_private.admin_alerts set attempts = attempts + 1,

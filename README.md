@@ -85,7 +85,8 @@ Los fallos generan retardos y bloqueos temporales de hasta quince minutos,
 CAPTCHA adaptativo y eventos auditables. La presión contra una cuenta exige
 CAPTCHA sin bloquear permanentemente a su administrador. Las peticiones
 rechazadas no prolongan el bloqueo. Las alertas se agrupan y se envían a un
-webhook HTTPS firmado; las que fallan permanecen en una cola para reintento.
+correo mediante Resend o a un webhook HTTPS firmado. Las que fallan permanecen
+en una cola para reintento, con una clave de idempotencia para evitar duplicados.
 
 La sesión vence a las ocho horas y después de treinta minutos sin solicitudes
 administrativas válidas. El panel también cierra la sesión tras treinta minutos
@@ -101,9 +102,14 @@ deniega el ingreso: no hay modo de omitir MFA ni CAPTCHA por falta de claves.
 2. Conserve una copia privada de la configuración y acceso de propietario a
    Supabase. Configure `ADMIN_BOOTSTRAP_DATABASE_URL` solo en la terminal de
    configuración; nunca en el frontend ni como conexión del backend.
-3. Cree un widget Turnstile de producción para el dominio del panel y configure
-   `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `ADMIN_ALLOWED_ORIGIN` y un
-   receptor HTTPS en `ADMIN_ALERT_WEBHOOK_URL`.
+3. Configure `ADMIN_CAPTCHA_PROVIDER=botid` y `ADMIN_ALLOWED_ORIGIN`. BotID Basic
+   verifica todos los ingresos en Vercel sin cuenta de Cloudflare ni claves
+   adicionales. Active OIDC en el proyecto. La comprobación real se exige también
+   en Preview; se rechazan bots, resultados incompletos y bypasses. La alternativa
+   `ADMIN_CAPTCHA_PROVIDER=turnstile` requiere claves Turnstile de producción.
+   Para correo, configure `ADMIN_ALERT_PROVIDER=resend`, `RESEND_API_KEY`,
+   `ADMIN_ALERT_FROM` (dominio verificado) y `ADMIN_ALERT_RECIPIENTS` (separados por
+   comas). La alternativa `webhook` requiere URL HTTPS y clave de firma.
 4. Ejecute `npm run admin:setup`. El asistente confirma el factor en una
    aplicación autenticadora, aplica la migración
    `supabase/migrations/20261009120000_admin_segregado.sql`, crea el acceso SQL
@@ -111,8 +117,9 @@ deniega el ingreso: no hay modo de omitir MFA ni CAPTCHA por falta de claves.
    En una instalación nueva, establezca también `ADMIN_INITIAL_PASSWORD` en
    esa terminal (mínimo 16 caracteres y máximo 72 bytes UTF-8); en una existente,
    su ausencia conserva la contraseña actual.
-5. Cargue las variables generadas en Vercel, configure el receptor para validar
-   `X-Universe-Signature` (HMAC-SHA-256 del cuerpo exacto) y despliegue esta versión.
+5. Cargue las variables generadas en Vercel, verifique el dominio de envío si usa
+   Resend y despliegue esta versión. Para webhook, el receptor debe validar
+   `X-Universe-Signature` (HMAC-SHA-256 del cuerpo exacto).
    La conexión SQL exige TLS con verificación del certificado; use
    `ADMIN_DATABASE_CA` si la base requiere su CA específica.
 6. Compruebe contraseña + MFA, rechazo de RPC directa, CAPTCHA y recepción de
@@ -144,9 +151,12 @@ migración adicional del modelo de usuarios y sesiones.
 
 1. Cree o actualice la base con los archivos de `supabase/`.
 2. En Vercel, importe el repositorio y seleccione **Framework Preset: Other**.
-3. Deje vacío **Build Command** y use `.` como **Output Directory**.
+3. Use **Build Command** `npm run build` y `.` como **Output Directory**.
+   La compilación copia el módulo oficial de BotID desde la versión fijada en
+   `package-lock.json`; no contiene claves ni compila la escena pública.
 4. Configure opcionalmente `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` siguiendo
-   [.env.example](.env.example). No configure secretos de administración.
+   [.env.example](.env.example). Configure las variables administrativas solo
+   en el servidor siguiendo la activación anterior.
 5. Despliegue y compruebe `/`, `/admin.html` y `/api/rpc`.
 
 Los encabezados de seguridad, la política CSP y las reglas de caché se definen en

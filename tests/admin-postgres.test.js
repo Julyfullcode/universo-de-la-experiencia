@@ -184,5 +184,29 @@ test("PostgreSQL migration, throttling and complete administrative flow", { time
       assert.ok(pending.rows[0].sent_at);
       await Store.transaction(pool, Store.cleanup);
     });
+    await t.test("email alerts target configured recipients and preserve idempotency on retry", async () => {
+      await Store.audit(pool, context, "test_email_attempt", {}, true);
+      const emailConfig = S.requireConfig({ ...config, ADMIN_CAPTCHA_PROVIDER: "botid", ADMIN_ALERT_PROVIDER: "resend",
+        RESEND_API_KEY: "example-email-key", ADMIN_ALERT_FROM: "security@universo.example.com",
+        ADMIN_ALERT_RECIPIENTS: "one@example.com,two@example.com" });
+      let key;
+      await Store.deliverAlerts(pool, emailConfig, async (url, options) => {
+        assert.equal(url, "https://api.resend.com/emails");
+        assert.equal(options.headers.Authorization, "Bearer example-email-key");
+        const body = JSON.parse(options.body);
+        assert.deepEqual(body.to, ["one@example.com", "two@example.com"]);
+        assert.equal(body.from, emailConfig.ADMIN_ALERT_FROM);
+        assert.equal(body.text.includes("known-admin-password"), false);
+        key = options.headers["Idempotency-Key"];
+        return { ok: false };
+      });
+      await pool.query("update universo_private.admin_alerts set next_attempt_at = clock_timestamp() where sent_at is null");
+      await Store.deliverAlerts(pool, emailConfig, async (_url, options) => {
+        assert.equal(options.headers["Idempotency-Key"], key);
+        return { ok: true };
+      });
+      const unsent = await pool.query("select count(*)::int as count from universo_private.admin_alerts where sent_at is null");
+      assert.equal(unsent.rows[0].count, 0);
+    });
   } finally { await db.close(); }
 });

@@ -18,18 +18,25 @@ class HttpError extends Error {
 }
 
 function requireConfig(env = process.env) {
-  const required = ["ADMIN_DATABASE_URL", "ADMIN_COOKIE_KEY", "ADMIN_MFA_KEY", "ADMIN_ALLOWED_ORIGIN",
-    "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY", "ADMIN_ALERT_WEBHOOK_URL", "ADMIN_ALERT_WEBHOOK_KEY", "CRON_SECRET"];
+  const captchaProvider = env.ADMIN_CAPTCHA_PROVIDER || "turnstile";
+  if (!["turnstile", "botid"].includes(captchaProvider)) throw new Error("Invalid CAPTCHA provider");
+  const alertProvider = env.ADMIN_ALERT_PROVIDER || "webhook";
+  if (!["webhook", "resend"].includes(alertProvider)) throw new Error("Invalid alert provider");
+  const required = ["ADMIN_DATABASE_URL", "ADMIN_COOKIE_KEY", "ADMIN_MFA_KEY", "ADMIN_ALLOWED_ORIGIN", "CRON_SECRET",
+    ...(captchaProvider === "turnstile" ? ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"] : []),
+    ...(alertProvider === "webhook" ? ["ADMIN_ALERT_WEBHOOK_URL", "ADMIN_ALERT_WEBHOOK_KEY"] : ["RESEND_API_KEY", "ADMIN_ALERT_FROM", "ADMIN_ALERT_RECIPIENTS"])];
   if (required.some((key) => !env[key])) throw new HttpError(503, "ADMIN_UNAVAILABLE", "El acceso administrativo aún no está configurado.");
   const cookieKey = Buffer.from(env.ADMIN_COOKIE_KEY, "base64");
   const mfaKey = Buffer.from(env.ADMIN_MFA_KEY, "base64");
   if (cookieKey.length !== 32 || mfaKey.length !== 32 || cookieKey.equals(mfaKey)) throw new Error("Invalid administrative keys");
   const origin = new URL(env.ADMIN_ALLOWED_ORIGIN);
-  const webhook = new URL(env.ADMIN_ALERT_WEBHOOK_URL);
-  if (origin.protocol !== "https:" || origin.origin !== env.ADMIN_ALLOWED_ORIGIN || webhook.protocol !== "https:") throw new Error("HTTPS required");
-  if (env.TURNSTILE_SITE_KEY.startsWith("1x000") || env.TURNSTILE_SITE_KEY.startsWith("2x000")
-      || env.TURNSTILE_SITE_KEY.startsWith("3x000")) throw new Error("Production CAPTCHA keys required");
-  return { ...env, cookieKey, mfaKey, origin: origin.origin, hostname: origin.hostname };
+  if (origin.protocol !== "https:" || origin.origin !== env.ADMIN_ALLOWED_ORIGIN
+      || (alertProvider === "webhook" && new URL(env.ADMIN_ALERT_WEBHOOK_URL).protocol !== "https:")) throw new Error("HTTPS required");
+  if (captchaProvider === "turnstile" && /^(?:1|2|3)x000/.test(env.TURNSTILE_SITE_KEY)) throw new Error("Production CAPTCHA keys required");
+  const recipients = alertProvider === "resend" ? env.ADMIN_ALERT_RECIPIENTS.split(",").map(value => value.trim()) : [];
+  if (alertProvider === "resend" && (recipients.length < 1 || recipients.length > 5
+      || [...recipients, env.ADMIN_ALERT_FROM].some(value => !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(value)))) throw new Error("Invalid alert addresses");
+  return { ...env, cookieKey, mfaKey, captchaProvider, alertProvider, recipients, origin: origin.origin, hostname: origin.hostname };
 }
 
 function digest(value) { return crypto.createHash("sha256").update(value).digest("hex"); }
@@ -131,5 +138,11 @@ async function verifyCaptcha(config, token, ip, fetcher = fetch) {
   return value.success === true && value.hostname === config.hostname && value.action === "admin-login";
 }
 
+async function verifyBotId(checker = require("botid/server").checkBotId) {
+  // Force the real check even on Preview; the SDK's development bypass is forbidden.
+  const result = await checker({ developmentOptions: { isDevelopment: false }, advancedOptions: { checkLevel: "basic" } });
+  return result.isHuman === true && result.isBot === false && result.isVerifiedBot === false && result.bypassed === false;
+}
+
 module.exports = { COOKIE, HttpError, requireConfig, digest, pseudonym, randomToken, sign, unsign,
-  cookies, setCookie, validateRequest, exactKeys, clientIp, encryptSecret, decryptSecret, totp, verifyTotp, verifyCaptcha };
+  cookies, setCookie, validateRequest, exactKeys, clientIp, encryptSecret, decryptSecret, totp, verifyTotp, verifyCaptcha, verifyBotId };
