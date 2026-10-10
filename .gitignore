@@ -16,4 +16,5 @@ Thumbs.db
 .tools/
 dist/
 assets/botid-client.mjs
+public/
 supabase/.temp/

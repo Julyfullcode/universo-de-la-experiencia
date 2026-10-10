@@ -151,9 +151,10 @@ migración adicional del modelo de usuarios y sesiones.
 
 1. Cree o actualice la base con los archivos de `supabase/`.
 2. En Vercel, importe el repositorio y seleccione **Framework Preset: Other**.
-3. Use **Build Command** `npm run build` y `.` como **Output Directory**.
+3. Use **Build Command** `npm run build` y `public` como **Output Directory**.
    La compilación copia el módulo oficial de BotID desde la versión fijada en
-   `package-lock.json`; no contiene claves ni compila la escena pública.
+   `package-lock.json` y publica solo archivos del navegador. El código del
+   servidor, las migraciones y los secretos quedan fuera de los archivos estáticos.
 4. Configure opcionalmente `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` siguiendo
    [.env.example](.env.example). Configure las variables administrativas solo
    en el servidor siguiendo la activación anterior.
