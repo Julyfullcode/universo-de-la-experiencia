@@ -138,9 +138,10 @@ async function verifyCaptcha(config, token, ip, fetcher = fetch) {
   return value.success === true && value.hostname === config.hostname && value.action === "admin-login";
 }
 
-async function verifyBotId(checker = require("botid/server").checkBotId) {
+async function verifyBotId(checker = require("botid/server").checkBotId, observe = () => {}) {
   // Force the real check even on Preview; the SDK's development bypass is forbidden.
   const result = await checker({ developmentOptions: { isDevelopment: false }, advancedOptions: { checkLevel: "basic" } });
+  observe(Object.fromEntries(["isHuman", "isBot", "isVerifiedBot", "bypassed"].map(key => [key, typeof result?.[key] === "boolean" ? result[key] : "missing"])));
   return result.isHuman === true && result.isBot === false && result.isVerifiedBot === false && result.bypassed === false;
 }
 

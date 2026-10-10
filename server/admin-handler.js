@@ -68,15 +68,16 @@ function createHandler(dependencies = {}) {
         }
         // BotID checks every login; account/IP/device risk still controls escalation and penalties.
         let captchaValid = true;
+        let botidResult = {};
         try {
-          if (config.captchaProvider === "botid") captchaValid = await S.verifyBotId(dependencies.checkBotId);
+          if (config.captchaProvider === "botid") captchaValid = await S.verifyBotId(dependencies.checkBotId, result => { botidResult = result; });
           else if (decision.captchaRequired || body.captcha_token) captchaValid = await S.verifyCaptcha(config, body.captcha_token, ip, fetcher);
         } catch {
           throw new S.HttpError(503, "CAPTCHA_UNAVAILABLE", "La verificación está temporalmente indisponible.");
         }
         if (!captchaValid) {
           await store.recordFailure(pool, context);
-          await audit("captcha_failed", {}, true);
+          await audit("captcha_failed", config.captchaProvider === "botid" ? { botid: botidResult, challenge_present: Boolean(request.headers["x-is-human"]) } : {}, true);
           throw new S.HttpError(403, "CAPTCHA_REQUIRED", "La verificación venció o no es válida. Inténtala nuevamente.", { captcha_required: true });
         }
         const { rows: [row] } = await pool.query("select universo_private.admin_verificar_password($1, $2) as result", [username, body.password]);
