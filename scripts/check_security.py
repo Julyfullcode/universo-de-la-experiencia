@@ -176,6 +176,14 @@ def main():
     admin_csp = next(item['value'] for item in admin_headers if item['key'] == 'Content-Security-Policy')
     require('https://challenges.cloudflare.com' in admin_csp and 'https://challenges.cloudflare.com' not in csp,
             "CAPTCHA exceptions must be restricted to the administrative page.")
+    require("frame-src 'self' https://challenges.cloudflare.com;" in admin_csp,
+            "The administrative page must allow BotID's same-origin verification frame.")
+    botid_rule = next(entry for entry in vercel['headers'] if entry['source'] ==
+                     '/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/:path*')
+    botid_headers = {item['key'].lower(): item['value'] for item in botid_rule['headers']}
+    require(botid_headers.get('x-frame-options') == 'SAMEORIGIN' and
+            botid_headers.get('content-security-policy') == "frame-ancestors 'self'",
+            "BotID's verification route must use the official SDK framing headers.")
 
     jspdf_head = (ROOT / "vendor/jspdf.umd.min.js").read_text(encoding="utf-8", errors="replace")[:600]
     require("Version 4.2.1" in jspdf_head,
