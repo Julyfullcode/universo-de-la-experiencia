@@ -57,7 +57,9 @@
 - La CSP pública bloquea scripts de terceros, atributos ejecutables e iframes.
   Solo `/admin.html` permite el script/iframe/conexión de Turnstile y desactiva
   COEP para ese desafío; mantiene la prohibición de atributos ejecutables y
-  de que terceros enmarquen el panel. La escena pública conserva su aislamiento.
+  de que terceros enmarquen el panel. El panel permite el marco de BotID del
+  mismo origen; las rutas de verificacion de BotID usan las cabeceras del SDK
+  (`SAMEORIGIN` y `frame-ancestors 'self'`) y COEP desactivado. La escena pública conserva su aislamiento.
 - HSTS, COOP, COEP, CORP, `nosniff`, `no-referrer` y Permissions Policy se
   configuran en `vercel.json`.
 - `.vercelignore` excluye migraciones, herramientas, documentación y archivos
